@@ -1,0 +1,102 @@
+{% load i18n %}
+<div class="modal-overlay" x-show="isOpen" x-cloak @click.self="closeModal()">
+    <div class="modal-dialog fm-scan-modal">
+        <div class="modal-header">
+            <h3>{% trans "自动捕获" %}</h3>
+            <button type="button" class="modal-close" @click="closeModal()">&times;</button>
+        </div>
+
+        <div class="modal-body fm-scan-body">
+            <div class="fm-scope-card" x-show="!isScanning">
+                <div class="fm-scope-title">{% trans "扫描前设置" %}</div>
+                <div class="fm-scope-desc">
+                    {% trans "是否只扫描当前目录下的某个子文件夹？不指定时将扫描全部内容。" %}
+                </div>
+                <div class="fm-scope-root" x-show="scanRootPath">
+                    <span>{% trans "当前目录：" %}</span>
+                    <code x-text="scanRootPath"></code>
+                </div>
+                <div class="fm-scope-row">
+                    <label class="fm-radio-item">
+                        <input type="radio" value="all" x-model="scanScopeMode">
+                        <span>{% trans "扫描全部内容" %}</span>
+                    </label>
+                    <label class="fm-radio-item">
+                        <input type="radio" value="subfolder" x-model="scanScopeMode" :disabled="!hasSubfolderOptions">
+                        <span>{% trans "指定子文件夹" %}</span>
+                    </label>
+                </div>
+                <div class="fm-scope-select" x-show="scanScopeMode === 'subfolder'">
+                    <select x-model="scanSubfolder" :disabled="!hasSubfolderOptions || isLoadingSubfolders">
+                        <option value="">{% trans "请选择子文件夹" %}</option>
+                        <template x-for="folder in scanSubfolderOptions" :key="folder.relative_path">
+                            <option :value="folder.relative_path" x-text="folder.display_name || folder.relative_path"></option>
+                        </template>
+                    </select>
+                    <p class="fm-scope-hint" x-show="isLoadingSubfolders">{% trans "正在加载子文件夹..." %}</p>
+                    <p class="fm-scope-hint" x-show="!isLoadingSubfolders && !hasSubfolderOptions">
+                        {% trans "当前目录下暂无可选子文件夹，将扫描全部内容。" %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="fm-scan-actions">
+                <button type="button" class="btn btn-primary" :disabled="isScanning || isLoadingSubfolders" @click="startScan(false)">{% trans "开始扫描" %}</button>
+                <button type="button" class="btn btn-secondary" :disabled="isScanning || isLoadingSubfolders" @click="startScan(true)">{% trans "重新扫描" %}</button>
+            </div>
+
+            <div class="fm-scan-status" x-show="scanStatusText">
+                <span class="fm-status-pill" :class="scanStatusClass" x-text="scanStatusText"></span>
+                <span class="fm-scan-file" x-show="scanCurrentFile" x-text="scanCurrentFile"></span>
+            </div>
+
+            <div class="fm-scan-progress" x-show="isScanning">
+                <div class="fm-progress-track">
+                    <div class="fm-progress-bar" :style="`width: ${scanProgress}%`"></div>
+                </div>
+                <div class="fm-progress-text" x-text="`${scanProgress}%`"></div>
+            </div>
+
+            <div class="fm-scan-empty" x-show="!isScanning && scanSessionId && !scanCandidates.length">
+                {% trans "未找到可导入的 PDF" %}
+            </div>
+
+            <div class="fm-scan-table-wrap" x-show="scanCandidates.length">
+                <table class="fm-scan-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">{% trans "导入" %}</th>
+                            <th>{% trans "文件" %}</th>
+                            <th style="width: 220px;">{% trans "材料分类" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="candidate in scanCandidates" :key="candidate.source_path">
+                            <tr>
+                                <td><input type="checkbox" x-model="candidate.selected" /></td>
+                                <td>
+                                    <div class="fm-file-cell">
+                                        <span x-text="candidate.filename"></span>
+                                        <span class="fm-file-reason" x-show="candidate.reason" x-text="candidate.reason"></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <select x-model="candidate.category">
+                                        <option value="contract_original">{% trans "合同正本" %}</option>
+                                        <option value="supplementary_agreement">{% trans "补充协议" %}</option>
+                                        <option value="invoice">{% trans "发票" %}</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeModal()">{% trans "取消" %}</button>
+            <button type="button" class="btn btn-primary" :disabled="isScanning || isConfirming || !selectedCount" @click="confirmImport()">{% trans "确认导入" %}</button>
+        </div>
+    </div>
+</div>

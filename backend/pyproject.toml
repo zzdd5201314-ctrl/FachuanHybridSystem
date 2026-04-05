@@ -1,0 +1,153 @@
+[project]
+name = "fachuan-backend"
+version = "26.27.4"
+description = "法穿AI案件管理系统 - Backend"
+requires-python = ">=3.12"
+dependencies = [
+    # --- Django 核心 ---
+    "django==6.0.3",
+    "django-cors-headers==4.9.0",
+    "django-nested-admin==4.1.6",
+    "django-ninja==1.6.2",
+    "django-ninja-jwt==5.4.4",
+    "django-ninja-extra==0.31.4",
+    "django-q2==1.9.0",
+    # --- ASGI / WebSocket ---
+    "uvicorn[standard]==0.42.0",
+    "channels==4.3.2",
+    "channels-redis==4.3.0",
+    "redis==7.4.0",
+    # --- 数据库 ---
+    "psycopg[binary]==3.3.3",
+    # --- HTTP 客户端 ---
+    "httpx==0.28.1",
+    # --- LLM / AI ---
+    "openai>=2.30.0",
+    # --- 文档处理 ---
+    "docxtpl==0.20.2",
+    "python-docx==1.2.0",
+    "reportlab==4.4.10",
+    "pdfplumber==0.11.9",
+    "pikepdf==10.5.1",
+    "pymupdf==1.27.2.2",
+    "openpyxl==3.1.5",
+    # --- 图像处理 ---
+    "opencv-python==4.13.0.92",
+    "Pillow==12.2.0",
+    # --- OCR ---
+    "rapidocr==3.7.0",
+    "ddddocr==1.6.1",
+    # --- 浏览器自动化 ---
+    "playwright==1.58.0",
+    "playwright-stealth==2.0.2",
+    # --- 数据处理 ---
+    "pandas==3.0.2",
+    "pydantic==2.12.5",
+    "python-dateutil==2.9.0.post0",
+    "pyyaml==6.0.3",
+    # --- 安全 / 加密 ---
+    "cryptography==46.0.6",
+    # --- 可观测性 ---
+    "psutil==7.2.2",
+    "sentry-sdk>=2.57.0",
+    # --- 配置 ---
+    "python-dotenv==1.2.2",
+    # --- 热重载 ---
+    "watchdog==6.0.0",
+    "watchfiles==1.1.1",
+    # --- 生产部署 ---
+    "gunicorn==25.3.0",
+    "rapidocr-onnxruntime>=1.4.4",
+    "mammoth>=1.12.0",
+    "markdown>=3.10.2",
+    "weasyprint>=68.1",
+    # --- MCP Server ---
+    "mcp[cli]>=1.27.0",
+    "gmssl==3.2.2",
+    "daphne>=4.2.1",
+]
+
+[dependency-groups]
+dev = [
+    # --- 代码格式化 ---
+    "black==26.3.1",
+    "isort==8.0.1",
+    "ruff==0.15.8",
+    # --- 类型检查 ---
+    "mypy==1.20.0",
+    "django-stubs==6.0.2",
+    "django-stubs-ext==6.0.2",
+    # --- 安全扫描 ---
+    "bandit==1.9.4",
+    "detect-secrets==1.5.0",
+    "pip-audit==2.10.0",
+    # --- Pre-commit ---
+    "pre-commit==4.5.1",
+]
+test = [
+    # --- 测试框架 ---
+    "pytest==9.0.2",
+    "pytest-django==4.12.0",
+    "pytest-cov==7.1.0",
+    "pytest-asyncio==1.3.0",
+    # --- Property-Based Testing ---
+    "hypothesis==6.151.10",
+    # --- 测试工厂 ---
+    "factory-boy==3.3.3",
+]
+
+[tool.uv]
+default-groups = ["dev", "test"]
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.hypothesis
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+skip_glob = ["*/migrations/*", ".venv/*", ".hypothesis/*"]
+
+[tool.coverage.run]
+source = ["apps"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

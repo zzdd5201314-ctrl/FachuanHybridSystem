@@ -1,0 +1,331 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'documents/css/external_template.css' %}">
+<style>
+.fill-container { max-width: 960px; margin: 0 auto; padding: 20px; }
+.fill-step { margin-bottom: 24px; padding: 16px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+.fill-step h3 { margin: 0 0 12px; font-size: 1rem; color: #333; }
+.fill-step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.fill-step-header h3 { margin: 0; }
+.step-badge { background: #417690; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; margin-right: 6px; }
+
+/* Case input */
+.case-input-row { display: flex; gap: 10px; align-items: center; }
+.case-input-row input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.875rem; }
+.case-input-row button { padding: 8px 16px; }
+
+/* Party checkboxes */
+.party-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.party-item { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; transition: background 0.15s; }
+.party-item:hover { background: #f0f4f8; }
+.party-item.selected { background: #e8f0fe; border-color: #417690; }
+.party-item input[type="checkbox"] { margin: 0; }
+
+/* Custom fields */
+.custom-field-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.custom-field-row label { min-width: 160px; font-weight: 600; font-size: 0.875rem; }
+.custom-field-row input, .custom-field-row select { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.875rem; }
+
+/* Preview table */
+.preview-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.preview-table th, .preview-table td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+.preview-table th { background: #f5f5f5; font-weight: 600; }
+.et-empty-value { background: #fff0f0 !important; }
+
+/* Buttons */
+.fill-actions { display: flex; gap: 10px; margin-top: 16px; }
+.btn-primary { background: #417690; color: #fff; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-size: 0.875rem; }
+.btn-primary:hover { background: #205067; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: #f5f5f5; color: #333; border: 1px solid #ccc; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-size: 0.875rem; }
+.btn-secondary:hover { background: #e8e8e8; }
+
+/* Results */
+.result-success { color: #28a745; font-weight: 600; }
+.result-error { color: #dc3545; font-weight: 600; }
+.result-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+.result-item:last-child { border-bottom: none; }
+
+/* Loading */
+.loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #417690; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Back link */
+.back-link { display: inline-block; margin-bottom: 16px; color: #417690; text-decoration: none; font-size: 0.875rem; }
+.back-link:hover { text-decoration: underline; }
+
+/* Select all */
+.select-all-row { margin-bottom: 8px; }
+</style>
+{% endblock %}
+
+{% block extrabody %}
+{{ block.super }}
+<script>
+window.FILL_ACTION_CONFIG = {
+    templateId: {{ template_obj.pk }},
+    customFields: {{ custom_fields_json|safe }}
+};
+window.FILL_ACTION_I18N = {
+    previewFailed: '{% translate "加载预览失败" %}',
+    fillFailed: '{% translate "填充失败" %}',
+    networkError: '{% translate "网络错误，请重试" %}'
+};
+</script>
+<script src="{% static 'documents/js/fill_action.js' %}?v=3"></script>
+{% endblock %}
+
+{% block content %}
+<div class="fill-container" x-data="fillAction()" x-cloak>
+  {% csrf_token %}
+
+  <a class="back-link" href="{% url 'admin:documents_externaltemplate_change' template_obj.pk %}">
+    ← {% translate "返回模板详情" %}
+  </a>
+
+  <!-- Step 1: Case selection -->
+  <div class="fill-step">
+    <div class="fill-step-header">
+      <h3><span class="step-badge">1</span>{% translate "选择案件" %}</h3>
+    </div>
+    <div style="position:relative;">
+      <div class="case-input-row">
+        <input type="text"
+               x-model="caseQuery"
+               placeholder="{% translate '输入案件名称搜索...' %}"
+               @input.debounce.300ms="searchCases()"
+               @focus="showDropdown = caseResults.length > 0"
+               @keydown.escape="showDropdown = false"
+               autocomplete="off">
+        <!-- 在办案件下拉按钮 -->
+        <button id="active-cases-btn"
+                type="button"
+                class="btn-secondary"
+                @click="toggleActiveCases()"
+                style="white-space:nowrap;display:flex;align-items:center;gap:4px;">
+          {% translate "在办案件" %}
+          <span x-text="showActiveCases ? '▲' : '▼'" style="font-size:0.7rem;"></span>
+        </button>
+        <template x-if="selectedCase">
+          <span style="font-size:0.8rem;color:#417690;white-space:nowrap;" x-text="'{% translate "已选" %}: ' + selectedCase.name"></span>
+        </template>
+      </div>
+
+      <!-- 搜索结果下拉 -->
+      <div x-show="showDropdown && caseResults.length > 0"
+           @click.outside="showDropdown = false"
+           style="position:absolute;top:100%;left:0;width:calc(100% - 120px);z-index:200;background:#fff;border:1px solid #ccc;border-radius:4px;max-height:240px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15);margin-top:2px;">
+        <template x-for="c in caseResults" :key="c.id">
+          <div @click="selectCase(c); showDropdown = false;"
+               style="padding:8px 12px;cursor:pointer;font-size:0.875rem;border-bottom:1px solid #eee;"
+               @mouseenter="$el.style.background='#f0f4f8'"
+               @mouseleave="$el.style.background='#fff'">
+            <span x-text="c.name" style="font-weight:600;"></span>
+            <small x-text="c.cause_of_action ? ' · ' + c.cause_of_action : ''" style="color:#888;"></small>
+          </div>
+        </template>
+      </div>
+
+      <!-- 在办案件面板 -->
+      <div id="active-cases-panel"
+           x-show="showActiveCases"
+           style="position:absolute;top:100%;right:0;width:360px;z-index:200;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.15);margin-top:2px;">
+        <div style="padding:8px 12px;border-bottom:1px solid #eee;font-size:0.8rem;color:#666;font-weight:600;">
+          {% translate "在办案件" %}
+        </div>
+        <!-- 加载中 -->
+        <template x-if="loadingActiveCases">
+          <div style="padding:16px;text-align:center;font-size:0.875rem;color:#888;">
+            <span class="loading-spinner"></span>{% translate "加载中..." %}
+          </div>
+        </template>
+        <!-- 空列表 -->
+        <template x-if="!loadingActiveCases && activeCases.length === 0">
+          <div style="padding:16px;text-align:center;font-size:0.875rem;color:#aaa;">
+            {% translate "暂无在办案件" %}
+          </div>
+        </template>
+        <!-- 案件列表 -->
+        <div style="max-height:300px;overflow-y:auto;">
+          <template x-for="c in activeCases" :key="c.id">
+            <div @click="selectCase(c); showActiveCases = false;"
+                 style="padding:10px 12px;cursor:pointer;font-size:0.875rem;border-bottom:1px solid #f0f0f0;"
+                 @mouseenter="$el.style.background='#f0f4f8'"
+                 @mouseleave="$el.style.background='#fff'">
+              <div x-text="c.name" style="font-weight:600;color:#333;"></div>
+              <div style="font-size:0.75rem;color:#888;margin-top:2px;">
+                <span x-text="c.cause_of_action || ''"></span>
+                <span x-show="c.case_number" x-text="' · ' + c.case_number" style="margin-left:4px;"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <template x-if="searchingCases">
+      <p style="margin-top:6px;font-size:0.8rem;color:#888;"><span class="loading-spinner"></span>{% translate "搜索中..." %}</p>
+    </template>
+    <template x-if="partyError">
+      <p class="result-error" x-text="partyError" style="margin-top:8px;"></p>
+    </template>
+  </div>
+
+  <!-- Step 2: Party selection -->
+  <div class="fill-step" x-show="parties.length > 0">
+    <div class="fill-step-header">
+      <h3><span class="step-badge">2</span>{% translate "选择当事人" %}</h3>
+    </div>
+    <div class="select-all-row">
+      <label style="cursor:pointer;">
+        <input type="checkbox" @change="toggleAllParties($event.target.checked)">
+        {% translate "全选" %}
+      </label>
+    </div>
+    <div class="party-list">
+      <template x-for="p in parties" :key="p.id">
+        <label class="party-item" :class="{ 'selected': selectedPartyIds.includes(p.id) }">
+          <input type="checkbox" :value="p.id"
+                 :checked="selectedPartyIds.includes(p.id)"
+                 @change="toggleParty(p.id)">
+          <span x-text="p.name"></span>
+          <small x-text="p.role ? '(' + p.role + ')' : ''" style="color:#888;"></small>
+        </label>
+      </template>
+    </div>
+  </div>
+
+  <!-- Step 3: Custom fields -->
+  <div class="fill-step" x-show="customFields.length > 0 && selectedPartyIds.length > 0">
+    <div class="fill-step-header">
+      <h3><span class="step-badge">3</span>{% translate "自定义字段" %}</h3>
+    </div>
+    <p style="color:#666;font-size:0.8rem;margin-bottom:12px;">{% translate "以下字段无法自动填充，请手动输入值" %}</p>
+    <template x-for="field in customFields" :key="field.mapping_id">
+      <div class="custom-field-row">
+        <label x-text="field.semantic_label"></label>
+        <template x-if="field.fill_type === 'text'">
+          <input type="text" x-model="customValues[field.mapping_id]"
+                 :placeholder="field.semantic_label">
+        </template>
+        <template x-if="field.fill_type === 'checkbox'">
+          <select x-model="customValues[field.mapping_id]">
+            <option value="">-- {% translate "请选择" %} --</option>
+            <option value="true">{% translate "勾选" %}</option>
+            <option value="false">{% translate "不勾选" %}</option>
+          </select>
+        </template>
+        <template x-if="field.fill_type === 'delete_inapplicable'">
+          <select x-model="customValues[field.mapping_id]">
+            <option value="">-- {% translate "请选择" %} --</option>
+            <template x-for="opt in (field.options || [])" :key="opt">
+              <option :value="opt" x-text="opt"></option>
+            </template>
+          </select>
+        </template>
+      </div>
+    </template>
+  </div>
+
+  <!-- Step 4: Preview -->
+  <div class="fill-step" x-show="step === 'preview'">
+    <div class="fill-step-header">
+      <h3><span class="step-badge">4</span>{% translate "填充预览" %}</h3>
+    </div>
+    <template x-if="loadingPreview">
+      <p><span class="loading-spinner"></span>{% translate "加载预览中..." %}</p>
+    </template>
+    <template x-if="!loadingPreview && previewItems.length > 0">
+      <div style="overflow-x:auto;">
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>{% translate "位置" %}</th>
+              <th>{% translate "字段名称" %}</th>
+              <th>{% translate "填充值" %}</th>
+              <th>{% translate "来源" %}</th>
+              <th>{% translate "类型" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="item in previewItems" :key="item.mapping_id">
+              <tr :class="{ 'et-empty-value': !item.fill_value }">
+                <td x-text="item.position_description"></td>
+                <td x-text="item.semantic_label"></td>
+                <td x-text="item.fill_value || '—'"></td>
+                <td>
+                  <span x-show="item.value_source === 'auto'">{% translate "自动" %}</span>
+                  <span x-show="item.value_source === 'manual'">{% translate "手动" %}</span>
+                  <span x-show="item.value_source === 'empty'" style="color:#dc3545;">{% translate "为空" %}</span>
+                </td>
+                <td x-text="item.fill_type"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </template>
+  </div>
+
+  <!-- Step 5: Actions -->
+  <div class="fill-step" x-show="selectedPartyIds.length > 0">
+    <div class="fill-actions">
+      <template x-if="step !== 'preview'">
+        <button class="btn-primary" @click="loadPreview()" :disabled="loadingPreview || selectedPartyIds.length === 0">
+          <span x-show="loadingPreview" class="loading-spinner"></span>
+          {% translate "预览填充" %}
+        </button>
+      </template>
+      <template x-if="step === 'preview'">
+        <button class="btn-primary" @click="confirmFill()" :disabled="filling">
+          <span x-show="filling" class="loading-spinner"></span>
+          {% translate "确认生成" %}
+        </button>
+      </template>
+      <template x-if="step === 'preview'">
+        <button class="btn-secondary" @click="step = 'input'">
+          {% translate "返回修改" %}
+        </button>
+      </template>
+    </div>
+  </div>
+
+  <!-- Step 6: Results -->
+  <div class="fill-step" x-show="step === 'result'">
+    <div class="fill-step-header">
+      <h3><span class="step-badge">✓</span>{% translate "填充结果" %}</h3>
+    </div>
+    <div x-show="fillResult && fillResult.success">
+      <p class="result-success">{% translate "填充完成" %}</p>
+      <div x-show="fillResult && fillResult.zip_file_path">
+        <p>
+          <a :href="fillResult && fillResult.zip_file_path ? '/media/' + fillResult.zip_file_path : '#'"
+             class="btn-primary"
+             style="display:inline-block;text-decoration:none;margin-top:8px;">
+            {% translate "下载 ZIP 文件" %}
+          </a>
+        </p>
+      </div>
+      <div x-show="fillResult && fillResult.records && fillResult.records.length > 0" style="margin-top:12px;">
+        <template x-for="rec in (fillResult && fillResult.records ? fillResult.records : [])" :key="rec.id">
+          <div class="result-item">
+            <span x-text="rec.filename"></span>
+            <a :href="'/media/' + rec.file_path" style="margin-left:10px;color:#417690;">{% translate "下载" %}</a>
+          </div>
+        </template>
+      </div>
+      <div x-show="fillResult && fillResult.summary" style="margin-top:12px;padding:10px;background:#f9f9f9;border-radius:4px;font-size:0.8rem;">
+        <p>{% translate "总计" %}: <span x-text="fillResult && fillResult.summary ? fillResult.summary.total || 0 : 0"></span></p>
+        <p>{% translate "成功" %}: <span x-text="fillResult && fillResult.summary ? fillResult.summary.success || 0 : 0"></span></p>
+        <p>{% translate "失败" %}: <span x-text="fillResult && fillResult.summary ? fillResult.summary.failed || 0 : 0"></span></p>
+      </div>
+    </div>
+    <div x-show="fillResult && fillResult.error">
+      <p class="result-error" x-text="fillResult ? fillResult.error : ''"></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

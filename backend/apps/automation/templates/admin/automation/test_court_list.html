@@ -1,0 +1,164 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}测试法院系统{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">首页</a>
+    &rsaquo; <a href="{% url 'admin:automation_testcourt_changelist' %}">测试法院系统</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 1400px; margin: 20px auto;">
+    <h1>⚖️ 测试法院系统</h1>
+
+    <p style="color: #666; margin: 20px 0;">
+        在这里可以测试全国法院"一张网"的各种功能，包括登录、立案、查询等。支持自动捕获和保存 Token。
+    </p>
+
+    <!-- 测试登录 -->
+    <div style="background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
+        <h2 style="margin-top: 0; color: #417690;">🔐 测试登录（支持 Token 捕获）</h2>
+        <p style="color: #666; margin-bottom: 15px;">
+            选择一个账号凭证，测试登录功能。系统会自动打开浏览器，执行登录操作，并捕获 Token 保存到 Redis 和数据库。
+        </p>
+
+        {% if credentials %}
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <thead>
+                <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px; text-align: left; font-weight: 600;">ID</th>
+                    <th style="padding: 12px; text-align: left; font-weight: 600;">律师</th>
+                    <th style="padding: 12px; text-align: left; font-weight: 600;">网站名称</th>
+                    <th style="padding: 12px; text-align: left; font-weight: 600;">账号</th>
+                    <th style="padding: 12px; text-align: left; font-weight: 600;">URL</th>
+                    <th style="padding: 12px; text-align: center; font-weight: 600;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for credential in credentials %}
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 12px;">{{ credential.id }}</td>
+                    <td style="padding: 12px;">
+                        {{ credential.lawyer.real_name|default:credential.lawyer.username }}
+                    </td>
+                    <td style="padding: 12px;">{{ credential.site_name }}</td>
+                    <td style="padding: 12px;">
+                        <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">
+                            {{ credential.account }}
+                        </code>
+                    </td>
+                    <td style="padding: 12px;">
+                        <a href="{{ credential.url }}" target="_blank" style="color: #0066cc; text-decoration: none;">
+                            {{ credential.url|truncatechars:40 }}
+                        </a>
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        <a href="{% url 'admin:automation_testcourt_test_login' credential.id %}"
+                           class="button"
+                           style="padding: 8px 16px; background: #28a745; color: white; text-decoration: none;
+                                  border-radius: 4px; display: inline-block; font-weight: 500;">
+                            🔐 测试登录
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding: 30px; text-align: center; background: #f8f9fa; border-radius: 4px; margin-top: 15px;">
+            <p style="color: #666; margin: 0;">
+                ⚠️ 暂无账号凭证，请先在
+                <a href="{% url 'admin:organization_accountcredential_changelist' %}" style="color: #0066cc;">
+                    组织管理 → 账号密码
+                </a>
+                中添加。
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 测试立案（未来功能） -->
+    <div style="background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; opacity: 0.6;">
+        <h2 style="margin-top: 0; color: #6c757d;">📝 测试立案</h2>
+        <p style="color: #666; margin-bottom: 15px;">
+            🚧 功能开发中...
+        </p>
+        <button disabled style="padding: 8px 16px; background: #6c757d; color: white; border: none;
+                               border-radius: 4px; cursor: not-allowed;">
+            即将推出
+        </button>
+    </div>
+
+    <!-- 测试查询（未来功能） -->
+    <div style="background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; opacity: 0.6;">
+        <h2 style="margin-top: 0; color: #6c757d;">🔍 测试查询</h2>
+        <p style="color: #666; margin-bottom: 15px;">
+            🚧 功能开发中...
+        </p>
+        <button disabled style="padding: 8px 16px; background: #6c757d; color: white; border: none;
+                               border-radius: 4px; cursor: not-allowed;">
+            即将推出
+        </button>
+    </div>
+
+    <!-- 提示信息 -->
+    <div style="margin-top: 30px; padding: 15px; background: #e7f3ff; border-radius: 4px; border-left: 4px solid #2196F3;">
+        <h3 style="margin-top: 0; color: #1976D2;">💡 使用提示</h3>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #555;">
+            <li>点击"测试登录"后，系统会自动打开浏览器窗口</li>
+            <li>浏览器会自动执行登录操作，请不要手动关闭</li>
+            <li>登录成功后会自动捕获 Token 并保存到 Redis 和数据库</li>
+            <li>测试完成后会显示详细的结果页面，包括捕获的 Token</li>
+            <li>所有截图和调试信息保存在 <code>media/automation/screenshots/</code></li>
+            <li>验证码识别失败会自动重试最多 5 次</li>
+            <li>其他脚本可以通过 <code>TokenService.get_token()</code> 获取保存的 Token</li>
+        </ul>
+    </div>
+
+    <!-- Token 使用示例 -->
+    <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
+        <h3 style="margin-top: 0; color: #856404;">📝 Token 使用示例</h3>
+        <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; color: #333;"><code>from apps.automation.services.scraper.core.token_service import TokenService
+
+# 获取 Token
+token_service = TokenService()
+token = token_service.get_token("court_zxfw", "your_account")
+
+if token:
+    # 使用 Token 调用 API
+    import requests
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get("https://api.example.com/data", headers=headers)
+else:
+    print("Token 不存在或已过期")</code></pre>
+    </div>
+
+    <!-- 快捷链接 -->
+    <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
+        <h3 style="margin-top: 0;">🔗 快捷链接</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="{% url 'admin:organization_accountcredential_changelist' %}"
+               class="button"
+               style="padding: 8px 16px; background: #6c757d; color: white; text-decoration: none;
+                      border-radius: 4px; display: inline-block;">
+                📋 管理账号凭证
+            </a>
+            <a href="{% url 'admin:automation_scrapertask_changelist' %}"
+               class="button"
+               style="padding: 8px 16px; background: #6c757d; color: white; text-decoration: none;
+                      border-radius: 4px; display: inline-block;">
+                📊 查看任务列表
+            </a>
+            <a href="{% url 'admin:index' %}"
+               class="button"
+               style="padding: 8px 16px; background: #6c757d; color: white; text-decoration: none;
+                      border-radius: 4px; display: inline-block;">
+                🏠 返回首页
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

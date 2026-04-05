@@ -1,0 +1,133 @@
+"""
+Schema 基类和 Mixin
+提供通用的字段解析方法，减少重复代码
+"""
+
+from datetime import datetime
+from typing import Any, cast
+
+from django.utils import timezone
+
+
+class TimestampMixin:
+    """
+    时间戳字段解析 Mixin
+    为 Schema 提供统一的时间字段处理
+    """
+
+    @classmethod
+    def _resolve_datetime(cls, value: Any) -> datetime | None:
+        """
+        统一处理 datetime 字段，转换为本地时间
+
+        Args:
+            value: datetime 对象或 None
+
+        Returns:
+            本地化的 datetime 或 None
+        """
+        if value is None:
+            return None
+        try:
+            return timezone.localtime(value)
+        except (TypeError, AttributeError, ValueError):
+            return cast(datetime | None, value)
+
+    @classmethod
+    def _resolve_datetime_iso(cls, value: Any) -> str | None:
+        """
+        统一处理 datetime 字段，转换为 ISO 格式字符串
+
+        Args:
+            value: datetime 对象或 None
+
+        Returns:
+            ISO 格式字符串或 None
+        """
+        if value is None:
+            return None
+        try:
+            local_time = timezone.localtime(value)
+            return local_time.isoformat()
+        except (TypeError, AttributeError, ValueError):
+            return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+class DisplayLabelMixin:
+    """
+    显示标签解析 Mixin
+    为 choices 字段提供统一的 label 获取方法
+    """
+
+    @classmethod
+    def _get_display(cls, obj: Any, field_name: str) -> str | None:
+        """
+        获取 choices 字段的显示值
+
+        Args:
+            obj: Model 实例
+            field_name: 字段名
+
+        Returns:
+            显示值或 None
+        """
+        try:
+            getter = getattr(obj, f"get_{field_name}_display", None)
+            if getter:
+                return cast(str | None, getter())
+            return getattr(obj, field_name, None)
+        except AttributeError:
+            return None
+
+
+class FileFieldMixin:
+    """
+    文件字段解析 Mixin
+    为 FileField 提供统一的 URL 和路径获取方法
+    """
+
+    @classmethod
+    def _get_file_url(cls, file_field: Any) -> str | None:
+        """
+        获取文件的 URL
+
+        Args:
+            file_field: FileField 实例
+
+        Returns:
+            文件 URL 或 None
+        """
+        if not file_field:
+            return None
+        try:
+            return cast(str | None, file_field.url)
+        except (AttributeError, ValueError):
+            return None
+
+    @classmethod
+    def _get_file_path(cls, file_field: Any) -> str | None:
+        """
+        获取文件的路径
+
+        Args:
+            file_field: FileField 实例
+
+        Returns:
+            文件路径或 None
+        """
+        if not file_field:
+            return None
+        try:
+            return cast(str | None, file_field.path)
+        except (AttributeError, ValueError):
+            return None
+
+
+# 组合所有 Mixin 的基类
+class SchemaMixin(TimestampMixin, DisplayLabelMixin, FileFieldMixin):
+    """
+    Schema 通用 Mixin
+    组合所有常用的字段解析方法
+    """
+
+    pass

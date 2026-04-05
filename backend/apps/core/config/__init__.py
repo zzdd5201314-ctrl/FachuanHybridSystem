@@ -1,0 +1,124 @@
+"""
+统一配置管理系统
+
+提供集中化、类型安全、环境感知的配置管理能力
+"""
+
+import threading
+from typing import Any
+
+from .exceptions import (
+    ConfigException,
+    ConfigFileError,
+    ConfigNotFoundError,
+    ConfigTypeError,
+    ConfigValidationError,
+    SensitiveConfigError,
+)
+
+# 导入新的配置管理组件
+from .manager import ConfigChangeListener, ConfigManager
+from .providers.base import ConfigProvider
+from .providers.env import EnvProvider
+from .providers.yaml import YamlProvider
+from .schema.field import ConfigField
+from .schema.registry import CONFIG_REGISTRY, get_config_field
+from .schema.schema import ConfigSchema
+from .utils import (
+    get_case_chat_config,
+    get_config_value,
+    get_court_sms_config,
+    get_document_processing_config,
+    get_feishu_config,
+    is_config_manager_available,
+    migrate_legacy_config_access,
+    register_config_change_listener,
+)
+
+# 全局配置管理器实例（线程安全）
+_global_config_manager: ConfigManager | None = None
+_global_config_lock = threading.Lock()
+
+
+def get_config_manager() -> ConfigManager:
+    """获取全局配置管理器实例（线程安全单例）"""
+    global _global_config_manager
+    if _global_config_manager is not None:
+        return _global_config_manager
+    with _global_config_lock:
+        if _global_config_manager is not None:
+            return _global_config_manager
+        _global_config_manager = ConfigManager()
+        schema = ConfigSchema()
+        for _key, field in CONFIG_REGISTRY.items():
+            schema.register(field)
+        _global_config_manager.set_schema(schema)
+        _global_config_manager.add_provider(EnvProvider())
+
+        from pathlib import Path
+
+        current_dir = Path(__file__).parent
+        config_file = current_dir / "config.yaml"
+
+        if not config_file.exists():
+            try:
+                from django.conf import settings
+
+                base_dir = getattr(settings, "BASE_DIR", None)
+                if base_dir:
+                    config_file = Path(base_dir).parent / "apps" / "core" / "config.yaml"
+            except ImportError:
+                pass
+
+        _global_config_manager.add_provider(YamlProvider(str(config_file)))
+        return _global_config_manager
+
+
+def get_config(key: str, default: Any = None) -> Any:
+    """
+    获取配置项的便捷函数
+
+    Args:
+        key: 配置键（支持点号路径）
+        default: 默认值
+
+    Returns:
+        Any: 配置值
+    """
+    return get_config_manager().get(key, default)
+
+
+# 向后兼容性说明：
+# 原有的 business_config, BusinessConfig, CaseTypeCode 已迁移到统一配置管理系统
+# 如需使用这些配置，请直接从 apps.core.config 模块导入
+
+__all__ = [
+    # 新配置管理系统
+    "ConfigManager",
+    "ConfigChangeListener",
+    "ConfigField",
+    "ConfigSchema",
+    "CONFIG_REGISTRY",
+    "get_config_field",
+    "ConfigProvider",
+    "EnvProvider",
+    "YamlProvider",
+    "ConfigException",
+    "ConfigNotFoundError",
+    "ConfigTypeError",
+    "ConfigValidationError",
+    "ConfigFileError",
+    "SensitiveConfigError",
+    # 全局访问函数
+    "get_config_manager",
+    "get_config",
+    # 配置工具函数
+    "get_config_value",
+    "get_feishu_config",
+    "get_document_processing_config",
+    "get_case_chat_config",
+    "get_court_sms_config",
+    "is_config_manager_available",
+    "register_config_change_listener",
+    "migrate_legacy_config_access",
+]

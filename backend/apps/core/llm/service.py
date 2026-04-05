@@ -1,0 +1,311 @@
+"""
+统一 LLM 服务层
+
+提供统一的 LLM 调用接口,支持多后端选择和降级逻辑.
+
+Requirements: 1.2, 1.4, 1.5
+"""
+
+import logging
+from collections.abc import AsyncIterator, Iterator
+from typing import Any, ClassVar
+
+from .backends import BackendConfig, ILLMBackend, LLMResponse, LLMStreamChunk
+from .client import LLMClient
+from .fallback_policy import LLMFallbackPolicy
+from .router import LLMBackendRouter
+from .streaming import astream_with_fallback, stream_with_fallback
+
+logger = logging.getLogger("apps.core.llm.service")
+
+
+class LLMService:
+    """
+    统一 LLM 服务
+
+    提供统一的 LLM 调用接口,支持:
+    - 多后端选择(siliconflow/ollama/openai_compatible)
+    - 自动降级(按优先级尝试可用后端)
+    - 统一的响应格式
+
+    Example:
+        service = LLMService()
+
+        # 使用默认后端
+        response = service.complete("你好")
+
+        # 指定后端
+        response = service.complete("你好", backend="ollama")
+
+        # 禁用降级
+        response = service.complete("你好", fallback=False)
+
+    Requirements: 1.2, 1.4, 1.5
+    """
+
+    # 后端名称常量
+    BACKEND_SILICONFLOW = "siliconflow"
+    BACKEND_OLLAMA = "ollama"
+    BACKEND_OPENAI_COMPATIBLE = "openai_compatible"
+    BACKEND_MOONSHOT = "moonshot"
+
+    # 默认后端优先级(数字越小优先级越高)
+    DEFAULT_PRIORITIES: ClassVar = {
+        BACKEND_SILICONFLOW: 1,
+        BACKEND_OLLAMA: 2,
+        BACKEND_OPENAI_COMPATIBLE: 3,
+        BACKEND_MOONSHOT: 3,
+    }
+
+    def __init__(
+        self,
+        backend_configs: dict[str, BackendConfig] | None = None,
+        default_backend: str | None = None,
+    ) -> None:
+        """
+        初始化 LLM 服务
+
+        Args:
+            backend_configs: 后端配置字典,键为后端名称
+            default_backend: 默认后端名称,None 时使用 siliconflow
+        """
+        self._backend_configs = backend_configs
+        self._default_backend = default_backend or self.BACKEND_SILICONFLOW
+        self._router = LLMBackendRouter(backend_configs=backend_configs)
+        self._fallback_policy = LLMFallbackPolicy(router=self._router)
+        self._client = LLMClient(default_backend=self._default_backend)
+
+    def _get_backend_config(self, name: str) -> BackendConfig:
+        """
+        获取后端配置
+
+        Args:
+            name: 后端名称
+
+        Returns:
+            BackendConfig 配置对象
+        """
+        return self._router.get_backend_config(name)
+
+    def _get_backend(self, name: str) -> ILLMBackend:
+        """
+        获取后端实例(延迟初始化)
+
+        Args:
+            name: 后端名称
+
+        Returns:
+            ILLMBackend 后端实例
+
+        Raises:
+            ValueError: 未知的后端名称
+        """
+        return self._router.get_backend(name)
+
+    def _get_backends_by_priority(self) -> list[tuple[str, ILLMBackend]]:
+        """
+        按优先级获取所有后端
+
+        Returns:
+            (后端名称, 后端实例) 元组列表,按优先级排序
+        """
+        return self._router.get_backends_by_priority()
+
+    def complete(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        backend: str | None = None,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        fallback: bool = True,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        """
+        简化的补全接口
+
+        Args:
+            prompt: 用户提示词
+            system_prompt: 系统提示词
+            backend: 指定后端 (siliconflow/ollama/openai_compatible),None 使用默认
+            model: 指定模型,None 使用后端默认模型
+            temperature: 温度参数
+            max_tokens: 最大输出 token 数
+            fallback: 是否启用降级
+
+        Returns:
+            LLMResponse 响应对象
+
+        Requirements: 1.2, 1.4, 1.5
+        """
+        return self._client.complete(
+            fallback_policy=self._fallback_policy,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            backend=backend,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            fallback=fallback,
+            **kwargs,
+        )
+
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        backend: str | None = None,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        fallback: bool = True,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        """
+        聊天接口
+
+        Args:
+            messages: 消息列表 [{"role": "user", "content": "..."}]
+            backend: 指定后端 (siliconflow/ollama/openai_compatible),None 使用默认
+            model: 指定模型,None 使用后端默认模型
+            temperature: 温度参数
+            max_tokens: 最大输出 token 数
+            fallback: 是否启用降级
+
+        Returns:
+            LLMResponse 响应对象
+
+        Requirements: 1.2, 1.4, 1.5
+        """
+        return self._client.chat(
+            fallback_policy=self._fallback_policy,
+            messages=messages,
+            backend=backend,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            fallback=fallback,
+            **kwargs,
+        )
+
+    async def achat(
+        self,
+        messages: list[dict[str, str]],
+        backend: str | None = None,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        fallback: bool = True,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        """
+        异步聊天接口
+
+        Args:
+            messages: 消息列表 [{"role": "user", "content": "..."}]
+            backend: 指定后端 (siliconflow/ollama/openai_compatible),None 使用默认
+            model: 指定模型,None 使用后端默认模型
+            temperature: 温度参数
+            max_tokens: 最大输出 token 数
+            fallback: 是否启用降级
+
+        Returns:
+            LLMResponse 响应对象
+        """
+        return await self._client.achat(
+            fallback_policy=self._fallback_policy,
+            messages=messages,
+            backend=backend,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            fallback=fallback,
+            **kwargs,
+        )
+
+    def stream(
+        self,
+        messages: list[dict[str, str]],
+        backend: str | None = None,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        fallback: bool = True,
+        **kwargs: Any,
+    ) -> Iterator[LLMStreamChunk]:
+        yield from stream_with_fallback(
+            get_backend=self._get_backend,
+            get_backends_by_priority=self._get_backends_by_priority,
+            backend=backend,
+            fallback=fallback,
+            messages=messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
+
+    async def astream(
+        self,
+        messages: list[dict[str, str]],
+        backend: str | None = None,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        fallback: bool = True,
+        **kwargs: Any,
+    ) -> AsyncIterator[LLMStreamChunk]:
+        async for chunk in astream_with_fallback(
+            get_backend=self._get_backend,
+            get_backends_by_priority=self._get_backends_by_priority,
+            backend=backend,
+            fallback=fallback,
+            messages=messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
+        ):
+            yield chunk
+
+    def embed_texts(
+        self,
+        texts: list[str],
+        backend: str | None = None,
+        model: str | None = None,
+        fallback: bool = True,
+        **kwargs: Any,
+    ) -> list[list[float]]:
+        return self._client.embed_texts(
+            fallback_policy=self._fallback_policy,
+            texts=texts,
+            backend=backend,
+            model=model,
+            fallback=fallback,
+            **kwargs,
+        )
+
+    def get_backend(self, name: str) -> ILLMBackend:
+        """
+        获取指定后端实例
+
+        用于直接访问后端特有功能.
+
+        Args:
+            name: 后端名称
+
+        Returns:
+            ILLMBackend 后端实例
+        """
+        return self._get_backend(name)
+
+
+# 模块级单例(延迟初始化)
+_llm_service: LLMService | None = None
+
+
+def get_llm_service() -> LLMService:
+    global _llm_service
+    if _llm_service is None:
+        _llm_service = LLMService()
+    return _llm_service

@@ -1,0 +1,76 @@
+"""Utility functions."""
+
+from __future__ import annotations
+
+from django.utils.translation import gettext_lazy as _
+
+CASE_LOG_ALLOWED_EXTENSIONS = {
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".jpg",
+    ".jpeg",
+    ".png",
+}
+
+CASE_LOG_MAX_FILE_SIZE = 50 * 1024 * 1024
+
+
+def _basename(filename: str) -> str:
+    name = str(filename or "")
+    name = name.replace("\\", "/")
+    return name.split("/")[-1]
+
+
+def get_file_extension_lower(filename: str) -> str:
+    base = _basename(filename).strip()
+    if not base or base in {".", ".."}:
+        return ""
+    if "." not in base:
+        return ""
+    return "." + base.rsplit(".", 1)[-1].lower()
+
+
+def validate_case_log_attachment(filename: str, size: int | None) -> tuple[bool, str | None]:
+    ext = get_file_extension_lower(filename)
+    if ext not in CASE_LOG_ALLOWED_EXTENSIONS:
+        return False, _("不支持的文件类型")
+    if size and size > CASE_LOG_MAX_FILE_SIZE:
+        return False, _("文件大小超过50MB限制")
+    return True, None
+
+
+def fix_sqlite_orphan_contract_fk() -> None:
+    """SQLite 不强制 FK 约束，删除案件前清理孤立的 contract_id 引用。"""
+    from django.db import connection
+
+    if connection.vendor == "sqlite":
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE cases_case
+                SET contract_id = NULL
+                WHERE contract_id IS NOT NULL
+                  AND contract_id NOT IN (SELECT id FROM contracts_contract)
+                """
+            )
+
+
+def normalize_case_number(number: str, ensure_hao: bool = False) -> str:
+    if not number:
+        return ""
+
+    result = str(number)
+    result = result.replace("(", "（").replace(")", "）")
+    result = result.replace("〔", "（").replace("〕", "）")
+    result = result.replace("[", "（").replace("]", "）")
+    result = result.replace(" ", "").replace("\u3000", "")
+
+    if ensure_hao and result and not result.endswith("号"):
+        result += "号"
+
+    return result

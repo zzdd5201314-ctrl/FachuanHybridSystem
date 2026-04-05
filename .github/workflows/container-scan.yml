@@ -1,0 +1,51 @@
+name: container-scan
+
+on:
+  pull_request:
+    paths:
+      - "backend/deploy/docker/Dockerfile"
+      - "backend/pyproject.toml"
+      - "backend/uv.lock"
+      - ".github/workflows/container-scan.yml"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "backend/deploy/docker/Dockerfile"
+      - "backend/pyproject.toml"
+      - "backend/uv.lock"
+      - ".github/workflows/container-scan.yml"
+  schedule:
+    - cron: "0 3 * * 0"
+
+jobs:
+  backend-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image (lite)
+        run: |
+          if [ ! -f backend/deploy/docker/Dockerfile ]; then
+            echo "Dockerfile not found, skipping."
+            exit 0
+          fi
+          docker build \
+            --build-arg INSTALL_FULL_DEPS=false \
+            -t fachuan-backend:ci \
+            -f backend/deploy/docker/Dockerfile \
+            backend
+
+      - name: Scan image (os + library)
+        if: hashFiles('backend/deploy/docker/Dockerfile') != ''
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: "fachuan-backend:ci"
+          format: "table"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"

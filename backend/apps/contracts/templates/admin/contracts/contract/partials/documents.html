@@ -1,0 +1,204 @@
+{% load i18n %}
+<!-- 文档与提醒标签页 -->
+<div x-show="activeTab === 'documents'" x-cloak>
+    <div class="info-grid two-columns">
+        <!-- 匹配的模板卡片 -->
+        <div class="info-card">
+            <div class="card-header">
+                <span class="card-icon">📋</span>
+                <h3 class="card-title">{% trans "匹配的模板" %}</h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- 文件模板 -->
+                <div style="padding: 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                    <div style="font-size: 12px; color: #6b7280; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        <span style="margin-right: 6px;">📄</span>{% trans "文件模板" %}
+                    </div>
+                    <div style="font-size: 14px; color: #1f2937;">
+                        {% if contract_templates_list %}
+                            {% for template in contract_templates_list %}
+                                <a href="{% url 'admin:documents_documenttemplate_change' template.id %}" target="_blank" style="color: #2563eb; text-decoration: none; border-bottom: 1px solid #93c5fd; margin-right: 12px; padding-bottom: 1px; transition: all 0.2s;">{{ template.name }}</a>{% if not forloop.last %}<span style="color: #d1d5db; margin-right: 12px;">|</span>{% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <span style="color: #9ca3af;">{{ contract_template_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 文件夹模板 -->
+                <div style="padding: 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #10b981;">
+                    <div style="font-size: 12px; color: #6b7280; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        <span style="margin-right: 6px;">📁</span>{% trans "文件夹模板" %}
+                    </div>
+                    <div style="font-size: 14px; color: #1f2937;">
+                        {% if folder_templates_list %}
+                            {% for template in folder_templates_list %}
+                                <a href="{% url 'admin:documents_foldertemplate_change' template.id %}" target="_blank" style="color: #059669; text-decoration: none; border-bottom: 1px solid #6ee7b7; margin-right: 12px; padding-bottom: 1px; transition: all 0.2s;">{{ template.name }}</a>{% if not forloop.last %}<span style="color: #d1d5db; margin-right: 12px;">|</span>{% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <span style="color: #9ca3af;">{{ folder_template_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 补充协议卡片 -->
+        <div class="info-card">
+            <div class="card-header">
+                <span class="card-icon">📝</span>
+                <h3 class="card-title">{% trans "补充协议" %}</h3>
+            </div>
+            {% if supplementary_agreements %}
+            <div class="agreement-list">
+                {% for agreement in supplementary_agreements %}
+                <div class="agreement-item">
+                    <span class="agreement-name">{{ agreement.name|default:_("未命名补充协议") }}</span>
+                    <span class="agreement-date">{{ agreement.created_at|date:"Y-m-d" }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-state">{% trans "暂无补充协议" %}</p>
+            {% endif %}
+        </div>
+
+        <!-- 重要日期提醒卡片 -->
+        <div class="info-card">
+            <div class="card-header">
+                <span class="card-icon">🔔</span>
+                <h3 class="card-title">{% trans "重要日期提醒" %}</h3>
+            </div>
+            {% if reminders %}
+            <div class="reminder-list">
+                {% for reminder in reminders %}
+                <div class="reminder-item {% if reminder.due_at <= soon_due_date and reminder.due_at >= today %}reminder-soon{% endif %} {% if reminder.due_at < today %}reminder-overdue{% endif %}">
+                    <span class="reminder-type">{{ reminder.reminder_type_label|default:reminder.reminder_type }}</span>
+                    <span class="reminder-content">{{ reminder.content }}</span>
+                    <span class="reminder-due-date">
+                        {% if reminder.due_at < today %}<span class="overdue-badge">{% trans "已过期" %}</span>
+                        {% elif reminder.due_at <= soon_due_date %}<span class="soon-badge">{% trans "即将到期" %}</span>{% endif %}
+                        {{ reminder.due_at|date:"Y-m-d H:i" }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-state">{% trans "暂无重要日期提醒" %}</p>
+            {% endif %}
+        </div>
+
+        <!-- 文件夹绑定卡片 -->
+        <div class="info-card">
+            <div class="card-header">
+                <span class="card-icon">📁</span>
+                <h3 class="card-title">{% trans "文件夹绑定" %}</h3>
+            </div>
+            {% if folder_binding %}
+            <div class="folder-binding-info">
+                <div class="binding-status">
+                    <span class="status-icon">✓</span>
+                    <span class="status-text">{% trans "已绑定" %}</span>
+                </div>
+                <div class="folder-path">
+                    <label>{% trans "文件夹路径" %}</label>
+                    <span class="path-value">{{ folder_binding.folder_path }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="folder-binding-info">
+                <div class="binding-status unbound">
+                    <span class="status-icon">✗</span>
+                    <span class="status-text">{% trans "未绑定" %}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 文档生成操作卡片 -->
+        <div class="info-card">
+            <div class="card-header">
+                <span class="card-icon">⚡</span>
+                <h3 class="card-title">{% trans "文档生成" %}</h3>
+            </div>
+            <div class="document-actions">
+                <div class="action-item">
+                    {% if has_contract_template %}
+                    <div class="btn-split">
+                        <button type="button" class="btn-action btn-split-main"
+                                @click="generateContract()"
+                                :disabled="generating">
+                            <span class="action-text">{% trans "生成合同" %}</span>
+                            <span class="action-loading" x-show="generatingType === 'contract'" x-cloak><span class="spinner"></span></span>
+                        </button>
+                        {% if related_cases|length >= 2 and contract.fixed_amount and contract.fixed_amount > 0 %}
+                        <button type="button" class="btn-action btn-split-side btn-split-toggle"
+                                :class="splitFee ? 'btn-split-toggle-on' : 'btn-split-toggle-off'"
+                                @click.stop="splitFee = !splitFee"
+                                :title="splitFee ? '{% trans "已启用拆分律师费，点击关闭" %}' : '{% trans "已关闭拆分律师费，点击启用" %}'">
+                            <span style="font-size:12px;white-space:nowrap;" x-text="splitFee ? '{% trans "拆分律师费 ✓" %}' : '{% trans "拆分律师费" %}'"></span>
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn-action btn-split-side"
+                                @click.stop="previewContract()"
+                                :disabled="generating"
+                                title="{% trans '预览替换词' %}">
+                            <span style="display:flex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                        </button>
+                    </div>
+                    {% else %}
+                    <button type="button" class="btn-action btn-disabled" disabled title="{% trans '无匹配的合同模板' %}">
+                        <span class="action-text">{% trans "生成合同" %}</span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <div class="action-item">
+                    {% if has_supplementary_agreements %}
+                    <div class="btn-split">
+                        <button type="button" class="btn-action btn-split-main"
+                                @click="showAgreementDialog = true"
+                                :disabled="generating">
+                            <span class="action-text">{% trans "生成补充协议" %}</span>
+                        </button>
+                        <button type="button" class="btn-action btn-split-side"
+                                @click.stop="openAgreementPreviewDialog()"
+                                :disabled="generating"
+                                title="{% trans '预览替换词' %}">
+                            <span style="display:flex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                        </button>
+                    </div>
+                    {% else %}
+                    <button type="button" class="btn-action btn-disabled" disabled title="{% trans "暂无补充协议" %}">
+                        <span class="action-text">{% trans "生成补充协议" %}</span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <div class="action-item">
+                    {% if has_folder_template %}
+                    <span style="display: inline-flex; border-radius: 8px; overflow: hidden;">
+                        <button type="button" class="btn-action"
+                                @click="generateFolder()"
+                                :class="(!folderUnlocked || generating) && 'btn-disabled'"
+                                :disabled="!folderUnlocked || generating"
+                                style="border-radius: 8px 0 0 8px; margin: 0; border: none;">
+                            <span class="action-text" x-show="generatingType !== 'folder'">{% trans "生成文件夹" %}</span>
+                            <span class="action-loading" x-show="generatingType === 'folder'" x-cloak><span class="spinner"></span></span>
+                        </button>
+                        <button type="button" @click="folderUnlocked = !folderUnlocked"
+                                :title="folderUnlocked ? '{% trans "点击锁定" %}' : '{% trans "点击解锁后才能生成" %}'"
+                                :style="'border-radius:0 8px 8px 0;margin:0;border:none;padding:4px 10px;cursor:pointer;display:flex;align-items:center;' + (folderUnlocked ? 'background:#2563eb;color:#fff' : 'background:#d1d5db;color:#6b7280')">
+                            <span x-html="folderLockIcon"></span>
+                        </button>
+                    </span>
+                    {% else %}
+                    <button type="button" class="btn-action btn-disabled" disabled title="{% trans '无匹配的文件夹模板' %}">
+                        <span class="action-text">{% trans "生成文件夹" %}</span>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

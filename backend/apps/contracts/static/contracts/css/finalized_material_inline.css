@@ -1,0 +1,27 @@
+/* 隐藏 __str__ 列 */
+#finalized_materials-group td.original,
+#finalized_materials-group th.original {
+    display: none;
+}
+
+/* 上传文件列 */
+#finalized_materials-group .field-file {
+    width: 220px;
+    white-space: nowrap;
+}
+
+/* 材料分类列 */
+#finalized_materials-group .field-category {
+    width: 120px;
+}
+
+/* 原始文件名列：自动伸缩 */
+#finalized_materials-group .field-filename_link {
+    word-break: break-all;
+}
+
+/* 上传时间列 */
+#finalized_materials-group .field-uploaded_at {
+    width: 140px;
+    white-space: nowrap;
+}

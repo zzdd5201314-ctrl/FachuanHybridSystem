@@ -1,0 +1,270 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'contracts/css/contract_detail.css' %}?v=20260228a">
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    › <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    › <a href="{% url 'admin:contracts_contract_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    › {{ contract.name }}
+</div>
+{% endblock %}
+
+
+
+{% block content %}
+<div class="contract-detail-page" x-data="contractDetailApp({ contractId: {{ contract.pk }} })">
+    <!-- Header Section -->
+    <header class="detail-header">
+        <div class="header-main">
+            <h1 class="contract-title">{{ contract.name }}</h1>
+            <span class="status-badge status-{{ contract.status|lower }}">{{ contract.get_status_display }}</span>
+            <span class="type-tag">{{ contract.get_case_type_display }}</span>
+        </div>
+        <div class="header-meta">
+            <span class="primary-lawyer">
+                {% trans "主办律师" %}: {% if primary_lawyer %}{{ primary_lawyer.real_name|default:primary_lawyer.username }}{% else %}{% trans "未指派" %}{% endif %}
+            </span>
+            <span style="margin-left: 16px;">
+                {% if contract.is_archived and contract.filing_number %}
+                    {% trans "建档编号" %}: {{ contract.filing_number }}
+                {% elif contract.is_archived %}
+                    ✓ {% trans "已建档" %}
+                {% else %}
+                    {% trans "未建档" %}
+                {% endif %}
+            </span>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'admin:contracts_contract_changelist' %}" class="btn btn-secondary">← {% trans "返回列表" %}</a>
+            {% if has_change_permission %}
+            <a href="{% url 'admin:contracts_contract_change' contract.pk %}" class="btn btn-primary">{% trans "编辑" %}</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Tab Panel -->
+    <div class="tab-panel">
+        <nav class="tab-nav">
+            <button type="button" @click="activeTab = 'basic'" :class="{ active: activeTab === 'basic' }">{% trans "基本信息" %}</button>
+            <button type="button" @click="activeTab = 'parties'" :class="{ active: activeTab === 'parties' }">{% trans "当事人与律师" %}</button>
+            <button type="button" @click="activeTab = 'finance'" :class="{ active: activeTab === 'finance' }">{% trans "收费与财务" %}</button>
+            <button type="button" @click="activeTab = 'documents'" :class="{ active: activeTab === 'documents' }">{% trans "文档与提醒" %}</button>
+            <button type="button" @click="activeTab = 'finalized'" :class="{ active: activeTab === 'finalized' }">{% translate "归档材料" %}</button>
+            <button type="button" @click="activeTab = 'filing'" :class="{ active: activeTab === 'filing' }">{% translate "立案" %}</button>
+        </nav>
+
+        <div class="tab-content">
+            {% include "admin/contracts/contract/partials/basic_info.html" %}
+            {% include "admin/contracts/contract/partials/parties_lawyers.html" %}
+            {% include "admin/contracts/contract/partials/finance.html" %}
+            {% include "admin/contracts/contract/partials/documents.html" %}
+            {% include "admin/contracts/contract/partials/finalized_materials.html" %}
+            {% include "admin/contracts/contract/partials/filing.html" %}
+        </div>
+    </div>
+
+    <!-- 补充协议选择对话框 -->
+    <div class="modal-overlay" x-show="showAgreementDialog" x-cloak @click.self="showAgreementDialog = false">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>{% trans "选择补充协议" %}</h3>
+                <button type="button" class="modal-close" @click="showAgreementDialog = false">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-hint">{% trans "请选择要生成的补充协议：" %}</p>
+                <div class="agreement-select-list">
+                    {% for agreement in supplementary_agreements %}
+                    <div class="agreement-select-item"
+                         @click="selectedAgreementId = {{ agreement.id }}"
+                         :class="{ 'selected': selectedAgreementId === {{ agreement.id }} }">
+                        <span class="agreement-select-name">{{ agreement.name|default:_("未命名补充协议") }}</span>
+                        <span class="agreement-select-date">{{ agreement.created_at|date:"Y-m-d" }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="showAgreementDialog = false">{% trans "取消" %}</button>
+                <button type="button" class="btn btn-primary"
+                        @click="generateSupplementaryAgreement()"
+                        :disabled="!selectedAgreementId || generating">{% trans "确定生成" %}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 补充协议预览选择对话框 -->
+    <div class="modal-overlay" x-show="showAgreementPreviewSelect" x-cloak @click.self="showAgreementPreviewSelect = false">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>{% trans "选择补充协议预览" %}</h3>
+                <button type="button" class="modal-close" @click="showAgreementPreviewSelect = false">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-hint">{% trans "请选择要预览的补充协议：" %}</p>
+                <div class="agreement-select-list">
+                    {% for agreement in supplementary_agreements %}
+                    <div class="agreement-select-item"
+                         @click="previewAgreementId = {{ agreement.id }}"
+                         :class="{ 'selected': previewAgreementId === {{ agreement.id }} }">
+                        <span class="agreement-select-name">{{ agreement.name|default:_("未命名补充协议") }}</span>
+                        <span class="agreement-select-date">{{ agreement.created_at|date:"Y-m-d" }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="showAgreementPreviewSelect = false">{% trans "取消" %}</button>
+                <button type="button" class="btn btn-primary"
+                        @click="previewAgreement()"
+                        :disabled="!previewAgreementId || isLoadingPreview">{% trans "预览" %}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 占位符预览对话框 -->
+    <div class="modal-overlay" x-show="showPreviewDialog" x-cloak @click.self="showPreviewDialog = false">
+        <div class="modal-dialog" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 x-text="previewTitle"></h3>
+                <button type="button" class="modal-close" @click="showPreviewDialog = false">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div x-show="isLoadingPreview" style="text-align: center; padding: 24px;">
+                    <span class="spinner"></span> {% trans "加载中..." %}
+                </div>
+                <div x-show="!isLoadingPreview && previewRows.length"
+                     style="max-height: 420px; overflow-y: auto;">
+                    <template x-for="row in previewRows" :key="row.key">
+                        <div style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
+                            <div style="font-size: 12px; font-weight: 600; margin-bottom: 4px;"
+                                 :style="row.status === 'empty' ? 'color: #dc2626' : 'color: #6b7280'"
+                                 x-text="row.key"></div>
+                            <div x-show="row.status === 'ok'"
+                                 style="font-size: 13px; color: #1f2937; white-space: pre-wrap; word-break: break-all;"
+                                 x-text="row.value"></div>
+                            <div x-show="row.status === 'empty'"
+                                 style="font-size: 13px; color: #dc2626; font-style: italic;">{% trans "⚠ 未生成" %}</div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="showPreviewDialog = false">{% trans "关闭" %}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 消息提示 -->
+    <div class="toast-container">
+        <template x-for="(toast, index) in toasts" :key="index">
+            <div class="toast" :class="'toast-' + toast.type" x-show="toast.show">
+                <span class="toast-icon" x-text="toast.type === 'success' ? '✓' : '✗'"></span>
+                <span class="toast-message" x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script src="{% static 'contracts/js/contract_detail.js' %}?v=20260325a"></script>
+<script src="{% static 'contracts/js/folder_scan.js' %}?v=20260325c"></script>
+<script>
+function partiesDrawer() {
+    return {
+        drawerOpen: false,
+        drawerType: '',
+        currentParty: {},
+        currentLawyer: {},
+
+        openPartyDrawer(party) {
+            this.currentParty = party;
+            this.drawerType = 'party';
+            this.drawerOpen = true;
+            document.body.style.overflow = 'hidden';
+        },
+
+        openLawyerDrawer(lawyer) {
+            this.currentLawyer = lawyer;
+            this.drawerType = 'lawyer';
+            this.drawerOpen = true;
+            document.body.style.overflow = 'hidden';
+        },
+
+        closeDrawer() {
+            this.drawerOpen = false;
+            this.drawerType = '';
+            document.body.style.overflow = '';
+        },
+
+        copyText(text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.createElement('div');
+                toast.textContent = '✓ 已复制到剪贴板';
+                toast.style.cssText = 'position:fixed;top:20px;right:24px;padding:12px 24px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:9999;background:#dcfce7;color:#15803d;';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            });
+        },
+
+        copyAllPartyInfo() {
+            const party = this.currentParty;
+            let lines = [];
+
+            if (party.clientType === 'natural') {
+                if (party.name) lines.push('姓名：' + party.name);
+                if (party.idNumber) lines.push('身份证号码：' + party.idNumber);
+                if (party.address) lines.push('地址：' + party.address);
+                if (party.phone) lines.push('联系电话：' + party.phone);
+            } else {
+                if (party.name) lines.push('名称：' + party.name);
+                if (party.idNumber) lines.push('统一社会信用代码：' + party.idNumber);
+                if (party.legalRepName) lines.push('法定代表人：' + party.legalRepName);
+                if (party.address) lines.push('地址：' + party.address);
+                if (party.phone) lines.push('联系电话：' + party.phone);
+            }
+
+            const text = lines.join('\n');
+            if (text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const toast = document.createElement('div');
+                    toast.textContent = '✓ 已复制全部信息';
+                    toast.style.cssText = 'position:fixed;top:20px;right:24px;padding:12px 24px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:9999;background:#dcfce7;color:#15803d;';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 2000);
+                });
+            }
+        },
+
+        copyAllLawyerInfo() {
+            const lawyer = this.currentLawyer;
+            let lines = [];
+
+            if (lawyer.name) lines.push('姓名：' + lawyer.name);
+            if (lawyer.username && lawyer.username !== lawyer.name) lines.push('用户名：' + lawyer.username);
+            if (lawyer.phone) lines.push('联系电话：' + lawyer.phone);
+            if (lawyer.email) lines.push('邮箱：' + lawyer.email);
+            if (lawyer.idCard) lines.push('身份证号码：' + lawyer.idCard);
+            if (lawyer.licenseNo) lines.push('执业证号：' + lawyer.licenseNo);
+            if (lawyer.lawFirm) lines.push('所属律所：' + lawyer.lawFirm);
+
+            const text = lines.join('\n');
+            if (text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const toast = document.createElement('div');
+                    toast.textContent = '✓ 已复制全部信息';
+                    toast.style.cssText = 'position:fixed;top:20px;right:24px;padding:12px 24px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:9999;background:#dcfce7;color:#15803d;';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 2000);
+                });
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

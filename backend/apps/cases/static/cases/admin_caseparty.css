@@ -1,0 +1,94 @@
+/**
+ * CaseParty Inline 动态过滤样式
+ *
+ * Requirements: 1.1, 1.2, 1.3, 3.4
+ */
+
+/* 合同当事人选择框样式 */
+.contract-party-client-select {
+    min-width: 200px;
+}
+
+/* 加载状态样式 */
+.contract-party-client-select:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* 加载提示样式 */
+.contract-party-loading {
+    display: inline-block;
+    margin-left: 8px;
+    color: #666;
+    font-size: 12px;
+    font-style: italic;
+}
+
+/* 来源标识样式 */
+.contract-party-source-tag {
+    font-size: 11px;
+    color: #888;
+    margin-left: 4px;
+}
+
+/* Inline 组容器样式 */
+.contract-party-inline {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+/* 过滤状态指示器 */
+.contract-party-filter-active {
+    border-left: 3px solid #417690;
+}
+
+/* 错误状态样式 */
+.contract-party-error {
+    border-color: #ba2121;
+}
+
+/* 选项中的来源标签 */
+option[data-source="contract"]::after {
+    content: " [合同]";
+}
+
+option[data-source="supplementary"]::after {
+    content: " [补充协议]";
+}
+
+/* 隐藏案件当事人、案件指派和主管机关 inline 行里的 __str__ 文字 */
+#parties-group td.original p,
+#assignments-group td.original p,
+#supervising_authorities-group td.original p,
+#case_numbers-group td.original p { display: none; }
+
+/* 统一所有 inline 标题栏的 padding */
+#parties-group > .tabular > fieldset > h2,
+#assignments-group > .tabular > fieldset > h2,
+#supervising_authorities-group > .tabular > fieldset > h2,
+#logs-group > fieldset > h2,
+#chats-group > .tabular > fieldset > h2 {
+    padding: 10px 15px !important;
+    margin: 0 !important;
+}
+
+/* 统一所有 tabular inline 的表格 padding */
+#parties-group table,
+#assignments-group table,
+#supervising_authorities-group table,
+#chats-group table {
+    padding: 10px 15px !important;
+}
+
+/* 案件案号备注框自适应宽度 */
+#case_numbers-group textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+/* 隐藏案件日志 inline 每个条目的标题 */
+#logs-group .djn-inline-form > h3 {
+    display: none !important;
+}

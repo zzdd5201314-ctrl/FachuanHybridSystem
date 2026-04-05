@@ -1,0 +1,97 @@
+target-version = "py312"
+line-length = 120
+extend-exclude = [
+    "migrations",
+    ".venv",
+]
+
+[lint]
+select = ["E", "F", "W", "B", "C4", "SIM", "TID", "C90", "UP", "RUF", "S"]
+ignore = [
+    "B005",   # 不使用 .strip() 作为 str.startswith/endswith 参数：项目中存在合理用法
+    "B007",   # 循环变量未在循环体中使用：部分场景仅需迭代次数
+    "B008",   # 不在函数默认参数中调用函数：Django 视图层有合理用法
+    "B019",   # 使用 lru_cache 装饰实例方法：项目中有意为之的缓存策略
+    "B023",   # 函数在循环中定义但未绑定变量：项目中已通过其他方式处理
+    "B027",   # 空方法体未使用 abstractmethod：接口定义中有意留空
+    "E721",   # 使用 type() 比较类型而非 isinstance()：部分场景需精确类型匹配
+    "E741",   # 模糊变量名（l/O/I）：数学公式和算法中有合理用法
+    "F401",   # 未使用的导入：__init__.py 中的公开 API 导入需要保留
+    "F402",   # 导入遮蔽：模块重导出场景中有合理用法
+    "F811",   # 重复定义：条件导入和类型检查块中有合理用法
+    "S101",   # 使用 assert：测试代码和调试断言中有合理用法
+    "S105",   # 硬编码密码字符串：测试配置和示例代码中有合理用法
+    "S106",   # 硬编码密码参数：测试配置和示例代码中有合理用法
+    "SIM102", # 嵌套 if 可合并：部分场景分开写可读性更好
+    "SIM105", # 使用 contextlib.suppress 替代 try/except/pass：显式 try/except 更清晰
+    "SIM113", # 使用 enumerate 替代手动计数：部分场景手动计数更直观
+    "UP035",  # 导入已废弃的 typing 成员：兼容旧版 Python 的代码需要保留
+    "C401",   # 不必要的生成器（可用集合推导式）：部分场景生成器更节省内存
+    "C414",   # 不必要的双重类型转换：部分场景为明确意图保留
+    "E203",   # 切片中冒号前的空格：与 black 格式化工具兼容性问题
+    "E402",   # 模块级导入不在文件顶部：Django apps.py 和条件导入有合理用法
+    "RUF005", # 使用解包替代拼接：部分场景拼接语义更清晰
+    "RUF001", # 字符串中的模糊 Unicode 字符：中文项目中全角字符属正常用法
+    "RUF002", # 文档字符串中的模糊 Unicode 字符：中文注释属正常用法
+    "RUF003", # 注释中的模糊 Unicode 字符：中文注释属正常用法
+    "RUF012", # 可变类属性应使用 ClassVar 注解：Django Model 字段定义不适用此规则
+    "RUF022", # __all__ 未排序：保持原有声明顺序以体现逻辑分组
+    "RUF059", # 解包赋值中未使用的变量：部分场景需要占位符变量
+    "S104",   # 绑定到所有接口（0.0.0.0）：开发环境和容器部署中有合理用法
+    "S107",   # 硬编码密码默认值：测试配置和示例代码中有合理用法
+    "S108",   # 临时文件路径硬编码：测试和脚本中有合理用法
+    "S110",   # try/except/pass 忽略异常：爬虫和配置加载的容错处理
+    "S112",   # try/except/continue 忽略异常：爬虫和配置加载的容错处理
+    "S307",   # 使用 eval()：项目中有受控的动态表达式求值场景
+    "S311",   # 使用伪随机数生成器：项目中非安全敏感场景（如测试数据生成）有合理用法
+    "S324",   # 使用不安全的哈希函数（MD5/SHA1）：遗留数据兼容性场景有合理用法
+    "S603",   # subprocess 调用：SubprocessRunner 已通过白名单校验 args 并强制 shell=False，属安全封装
+    "S608",   # SQL 注入风险（字符串拼接）：项目中已通过 ORM 参数化查询防护
+    "SIM103", # 直接返回条件表达式：部分场景分步写可读性更好
+    "SIM108", # 使用三元运算符：部分场景 if/else 更清晰
+    "SIM110", # 使用列表推导式替代 for 循环：部分场景 for 循环更易读
+    "SIM115", # 使用上下文管理器打开文件：部分场景有合理的非上下文管理器用法
+    "SIM118", # 使用 key in dict 替代 key in dict.keys()：部分场景显式 .keys() 更清晰
+    "SIM401", # 使用 dict.get() 替代条件表达式：部分场景条件表达式语义更明确
+    "UP028",  # 使用 yield from 替代 yield in for 循环：部分场景 for 循环更易读
+    "UP042",  # 使用 str | int 替代 Union[str, int]：兼容旧版类型注解风格
+    "F821",   # 未定义的名称：TYPE_CHECKING 块中的前向引用和动态属性有合理用法
+    "C901",   # 函数复杂度过高：历史遗留复杂业务逻辑，逐步重构中
+    "B904",   # except 块中 raise 缺少 from：历史遗留代码，逐步修复中
+    "B905",   # zip() 缺少 strict 参数：历史遗留代码
+    "F841",   # 未使用的局部变量：部分场景用于副作用或占位
+    "E501",   # 行过长：历史遗留，ruff-format 已处理大部分
+    "TID252", # 相对导入：历史遗留代码
+    "S308",   # mark_safe 使用：Django 模板渲染中有合理用法
+    "UP031",  # printf 风格字符串格式化：历史遗留代码
+    "S314",   # XML 解析安全风险：项目中已控制输入来源
+    "F823",   # 未定义的 __all__ 成员：动态导出场景
+    "TID251", # 禁用的 API：历史遗留代码
+    "SIM222", # or True 表达式：历史遗留代码
+    "SIM117", # 嵌套 with 可合并：历史遗留代码
+    "UP040",  # TypeAlias 改用 type 关键字：条件导入场景不适用
+]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+"conftest.py" = ["S101"]
+"docs/**/*.py" = ["S101"]
+"scripts/**/*.py" = ["S101"]
+"__init__.py" = ["F401", "F403"]
+"admin.py" = ["F401"]
+"**/admin/*.py" = ["F401"]
+"apps/automation/services/token/history_recorder.py" = ["C901"]
+"apps/automation/services/token/token_acquisition_orchestrator.py" = ["C901"]
+"apps/cases/admin/case_inlines_admin.py" = ["C901"]
+"apps/cases/admin/case_widgets_admin.py" = ["F821"]
+"apps/cases/admin/base.py" = ["UP040"]  # TypeAlias 在 TYPE_CHECKING 块中无法使用 type 关键字替代
+"apps/automation/services/ai/prompts.py" = ["E501"]
+"apps/core/utils/typing_helpers.py" = ["UP047"]  # TypeVar 方式与 mypy --strict 更兼容，暂不迁移到 PEP 695 type parameters 语法
+"apps/core/llm/structured_output.py" = ["UP047"]  # CI 在 backend 工作目录运行时使用该相对路径
+"backend/apps/core/llm/structured_output.py" = ["UP047"]  # 统一沿用 TypeVar 风格，避免单文件提前切换 PEP 695 语法
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.flake8-tidy-imports.banned-api]
+requests = { msg = "禁止使用 requests，请改用 httpx" }

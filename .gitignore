@@ -1,0 +1,221 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+venv311/
+venv312/
+ENV/
+env/
+.venv/
+backend/venv311/
+backend/venv312/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+# Kiro IDE
+.kiro/
+# Config snapshots
+.config_snapshots/
+# Django
+*.log
+local_settings.py
+db.sqlite3
+*.sqlite3
+media/
+staticfiles/
+backend/apiSystem/db.sqlite3
+backend/apiSystem/db.sqlite3-shm
+backend/apiSystem/db.sqlite3-wal
+backend/apiSystem/media/
+backend/apiSystem/htmlcov/
+# Environment
+.env
+.env.local
+.env.*.local
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+._*
+# IDE specific (Trae)
+.trae/
+# CodeBuddy IDE
+.codebuddy/
+CODEBUDDY.md
+AGENTS.md
+**/AGENTS.md
+agents.md
+**/agents.md
+# Agent/skill artifacts
+.agents/
+/.playwright-cli/
+# Logs
+logs/
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.hypothesis/
+coverage.xml
+*.cover
+*,cover
+cov_annotate/
+backend/apiSystem/.coverage
+# Playwright screenshots (keep folder, ignore images)
+backend/tests/screenshots/*.png
+backend/tests/screenshots/*.jpg
+backend/tests/screenshots/*.jpeg
+backend/tests/screenshots/*.webp
+# App tests (privacy: do not upload tests under backend/apps)
+backend/apps/**/tests/
+# enterprise_data tests（单独显式标注，便于团队检索）
+backend/apps/enterprise_data/tests/
+# Jupyter
+.ipynb_checkpoints/
+# mypy
+.mypy_cache/
+.ruff_cache/
+backend/docs/
+# Celery
+celerybeat-schedule
+celerybeat.pid
+# Temporary files
+*.tmp
+*.temp
+*.bak
+backend/tmp/
+.cache/
+**/.cache/
+# LLM benchmark scripts (contain hardcoded API keys)
+llm_benchmark/
+
+# Repo-root one-off scripts (keep root clean)
+/analyze_exceptions.py
+/fix_all_silent_exceptions.py
+/fix_exceptions_smart.py
+/fix_silent_exceptions.py
+/run_tests.py
+/mypy_services_errors.txt
+/fix_html.py
+/split_index.py
+# Docker volumes (auto-created on first run)
+docker-volumes/
+# backend/scripts/（本地调试/一次性脚本，不入库）
+backend/scripts/
+backend/tests/screenshots/
+backend/tests/
+
+# ONNX models (large files, not needed in Git)
+backend/apps/automation/services/ocr/models/*.onnx
+
+# macOS paths (user-specific)
+# NOTE: MacOS_FC/ 和 frontend/ 被忽略是因为这些模块尚未开发完成，暂时不纳入版本控制
+# 如果未来开发完成，需要取消忽略并添加具体的忽略规则（如 node_modules/）
+MacOS_FC/
+frontend/
+# Frontend dependencies (when frontend/ is uncommented)
+# frontend/node_modules/
+# frontend/dist/
+# frontend/.env
+backend/deploy/*
+!backend/deploy/docker/
+backend/deploy/docker/*
+!backend/deploy/docker/Dockerfile
+backend/logs/
+backend/tests/
+
+# Cookies (sensitive data)
+backend/apiSystem/cookies/
+backend/cookies/
+
+# Document templates
+backend/apps/documents/docx_templates/
+
+*.mo
+.dmypy.json
+
+# 公众号文章
+articles/
+
+# 截图和临时报告
+backend/bilibili_screenshot.png
+*.png
+!backend/apps/**/static/**/*.png
+/assets/videos/ggbond-competition-20260128.mp4
+
+# docs 目录（个人分析文档，不公开；不要对白名单文件开放跟踪）
+docs/
+
+# SQLite 数据库（包括备份变体）
+backend/apiSystem/db_new.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# 用户上传的媒体文件
+backend/media/
+media/
+
+# API 结构快照（含接口细节，不应公开）
+backend/tests/structure/snapshots/
+
+# legal_research 私有 API 检索实现（本地保留，不入库）
+backend/apps/legal_research/services/sources/weike_api_private/
+backend/apps/legal_research/services/sources/weike/api_private/
+
+# doc_convert 私有 znszj 实现（本地保留，不入库）
+backend/apps/doc_convert/services/znszj_private/
+
+# court_zxfw 纯逆向登录插件（本地保留，不入库）
+backend/apps/automation/services/scraper/sites/court_zxfw_login_private/
+
+# court_filing HTTP 链路插件核心文件（用户需单独获取）
+backend/plugins/court_filing_http/api_service.py
+
+# legal_research 基线评估样本（本地标注数据，不入库）
+backend/apps/legal_research/evaluation/
+backend/apps/legal_research/evaluation/baseline_cases.json
+backend/apps/legal_research/evaluation/reports/
+
+# 临时脚本文件
+/tmp/openclaw_*.js
+backend/apiSystem/apps
+.screenshots/
+
+# 整改方案文档（本地参考，不入库）
+docs/refactor-plans/
+
+backend/.playwright-cli/
+extensions/
+

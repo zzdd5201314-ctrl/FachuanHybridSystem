@@ -1,0 +1,85 @@
+# Pre-commit hooks for code quality
+# Install: uv tool install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^.*\.(md|rst)$
+      - id: end-of-file-fixer
+        exclude: ^.*\.(md|rst)$
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+        exclude: ^backend/\.secrets\.baseline$
+      - id: check-json
+        exclude: ^frontend/tsconfig\.(app|node)\.json$
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Import sorting
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile=black', '--line-length=120']
+        exclude: ^.*/(migrations|\.venv)/.*$
+
+  # Linting (ruff)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.0
+    hooks:
+      - id: ruff-check
+        args: ['--config=backend/ruff.toml', '--fix']
+        files: ^backend/(apps|apiSystem)/.*\.py$
+        exclude: ^.*/(migrations|\.venv)/.*$
+      - id: ruff-format
+        args: ['--config=backend/ruff.toml']
+        files: ^backend/(apps|apiSystem)/.*\.py$
+        exclude: ^.*/(migrations|\.venv)/.*$
+
+  # Type checking (handled by dedicated CI job, skip in pre-commit to avoid env issues)
+  # - repo: local
+  #   hooks:
+  #     - id: mypy
+
+  # Secrets scanning
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', 'backend/.secrets.baseline']
+        exclude: ^.*/(logs|htmlcov|media|migrations|staticfiles|\.venv)/.*$|^backend/\.secrets\.baseline$
+
+  - repo: local
+    hooks:
+      - id: forbid-added-todo-markers
+        name: Forbid added TODO markers
+        entry: python backend/devtools/security_guard.py --check todo --mode staged
+        language: python
+        types: [python]
+
+      - id: forbid-added-print
+        name: Forbid added print/pprint
+        entry: python backend/devtools/security_guard.py --check print --mode staged
+        language: python
+        types: [python]
+
+      - id: forbid-source-binary-artifacts
+        name: Forbid source binary artifacts (.onnx/.mp4/.zip)
+        entry: python backend/devtools/security_guard.py --check binary-ext --mode staged
+        language: python
+        pass_filenames: false
+
+      - id: forbid-sensitive-patterns
+        name: Forbid sensitive patterns (ID/mobile/email/password/token)
+        entry: python backend/devtools/security_guard.py --check sensitive --mode staged
+        language: python
+        files: .*
