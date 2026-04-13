@@ -118,7 +118,7 @@ class CourtDocumentScraper(BaseCourtDocumentScraper):
                 for frame in self.page.frames
                 if frame is not None
             ]
-            if any("sifayun.com" in frame_url for frame_url in frame_urls):
+            if any(self._extract_host(frame_url) in {"sifayun.com", "www.sifayun.com"} for frame_url in frame_urls):
                 logger.info("结构识别命中简易送达特征（sifayun iframe）")
                 return "jysd"
 
