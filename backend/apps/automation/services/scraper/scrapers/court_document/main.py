@@ -88,7 +88,7 @@ class CourtDocumentScraper(BaseCourtDocumentScraper):
             if hasattr(self, "browser"):
                 self._scraper.browser = self.browser
             return cast(dict[str, Any], self._scraper.run())
-        elif "sfpt.cdfy12368.gov.cn" in url:
+        elif "sfpt.cdfy12368.gov.cn" in url or "171.106.48.55:28083" in url:
             self._scraper = SfdwCourtScraper(self.task, self._document_service)
             if hasattr(self, "page"):
                 self._scraper.page = self.page
@@ -96,6 +96,9 @@ class CourtDocumentScraper(BaseCourtDocumentScraper):
                 self._scraper.context = self.context
             if hasattr(self, "browser"):
                 self._scraper.browser = self.browser
-            return cast(dict[str, Any], self._scraper.run())
+            result = self._scraper.run()
+            if not isinstance(result, dict):
+                raise ValueError("司法送达网爬虫返回结果格式错误")
+            return result
         else:
             raise ValueError(f"不支持的链接格式: {url}")
