@@ -73,7 +73,7 @@ class EnhancedContextBuilder:
                     },
                     exc_info=True,
                 )
-                context.update({key: PLACEHOLDER_FALLBACK_VALUE for key in service_keys})
+                context.update(dict.fromkeys(service_keys, PLACEHOLDER_FALLBACK_VALUE))
                 # 继续执行其他服务,不中断整个流程
                 continue
 
