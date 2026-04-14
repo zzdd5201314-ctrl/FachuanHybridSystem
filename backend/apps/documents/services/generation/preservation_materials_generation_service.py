@@ -19,6 +19,7 @@ from apps.core.exceptions import NotFoundError, ValidationException
 from apps.core.utils.path import Path
 from apps.documents.services.infrastructure.wiring import get_case_service, get_document_service
 from apps.documents.services.placeholders import EnhancedContextBuilder
+from apps.documents.services.placeholders.fallback import build_docx_render_context
 
 logger = logging.getLogger("apps.documents.generation")
 FUNCTION_CODE_PRESERVATION_APPLICATION = "preservation_application"
@@ -154,12 +155,12 @@ class PreservationMaterialsGenerationService:
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
             try:
-                preservation_bytes, _ = self.generate_preservation_application(case_id)
+                preservation_bytes, _preservation_filename = self.generate_preservation_application(case_id)
                 zf.writestr("财产保全申请书.docx", preservation_bytes)
             except NotFoundError:
                 logger.warning("未找到财产保全申请书模板: case_id=%s", case_id)
             try:
-                delay_bytes, _ = self.generate_delay_delivery_application(case_id)
+                delay_bytes, _delay_filename = self.generate_delay_delivery_application(case_id)
                 zf.writestr("暂缓送达申请书.docx", delay_bytes)
             except NotFoundError:
                 logger.warning("未找到暂缓送达申请书模板: case_id=%s", case_id)
@@ -282,7 +283,7 @@ class PreservationMaterialsGenerationService:
     def _build_context(self, *, case: Any) -> dict[str, Any]:
         """构建模板上下文"""
         context_data: dict[str, Any] = {"case": case}
-        return EnhancedContextBuilder().build_context(context_data)
+        return cast(dict[str, Any], EnhancedContextBuilder().build_context(context_data))
 
     def _render_template(self, template_path: Path, context: dict[str, Any]) -> bytes:
         """渲染模板"""
@@ -297,7 +298,7 @@ class PreservationMaterialsGenerationService:
                 "财产保全材料渲染模板", extra={"template_path": str(template_path), "keys": list(context.keys())}
             )
             doc = DocxTemplate(str(template_path))
-            doc.render(context)
+            doc.render(build_docx_render_context(doc=doc, context=context))
             buffer = io.BytesIO()
             doc.save(buffer)
             buffer.seek(0)

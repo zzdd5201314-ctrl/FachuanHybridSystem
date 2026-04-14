@@ -11,6 +11,7 @@ from docxtpl import DocxTemplate
 
 from apps.core.exceptions import ValidationException
 from apps.core.utils.path import Path
+from apps.documents.services.placeholders.fallback import build_docx_render_context
 
 logger = logging.getLogger("apps.cases.services")
 
@@ -27,7 +28,7 @@ class DocxRenderer:
             )
 
             doc = DocxTemplate(str(template_path))
-            doc.render(context)
+            doc.render(build_docx_render_context(doc=doc, context=context))
 
             buffer = io.BytesIO()
             doc.save(buffer)
