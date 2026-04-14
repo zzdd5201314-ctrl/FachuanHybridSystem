@@ -98,7 +98,7 @@ def parse_text_get(request: Any, text: str = "") -> dict[str, Any]:
 def validate_id_card(request: Any, payload: IdCardValidateRequest) -> IdCardValidateResponse:
     """校验身份证号码是否合法"""
     result = IdCardUtils.validate_id_card(payload.id_number)
-    return IdCardValidateResponse(valid=result["valid"], message=result["message"])
+    return IdCardValidateResponse(valid=bool(result["valid"]), message=str(result["message"]))
 
 
 @router.get("/clients/check-oa-credential", response=OACredentialCheckOut)
