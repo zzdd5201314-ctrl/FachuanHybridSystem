@@ -62,6 +62,12 @@ class CaseTemplateGenerationService:
         client = None
         clients = None
         if self._is_legal_rep_cert_template(template):
+            if client_id is None:
+                raise ValidationException(
+                    message=_("请先选择我方法人当事人"),
+                    code="MISSING_CLIENT",
+                    errors={"client_id": "法定代表人身份证明书必须指定我方法人当事人"},
+                )
             client = self._get_our_legal_client(case, client_id)
         elif self._is_power_of_attorney_template(template):
             if mode == "combined" and client_ids:

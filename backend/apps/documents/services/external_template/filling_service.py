@@ -15,7 +15,7 @@ import uuid
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from xml.etree import ElementTree as ET
 
 from django.apps import apps
@@ -611,10 +611,12 @@ class FillingService:
         for template_id in template_ids:
             # 获取该模板的自定义值
             tpl_custom: dict[str, str] = {}
-            if custom_values and str(template_id) in custom_values:
-                tpl_custom = custom_values[str(template_id)]
-            elif custom_values and template_id in custom_values:  # type: ignore[operator]
-                tpl_custom = custom_values[template_id]  # type: ignore[index]
+            if custom_values:
+                if str(template_id) in custom_values:
+                    tpl_custom = custom_values[str(template_id)]
+                else:
+                    mixed_key_custom_values = cast(dict[int | str, dict[str, str]], custom_values)
+                    tpl_custom = mixed_key_custom_values.get(template_id, {})
 
             for party_id in effective_party_ids:
                 try:
@@ -737,10 +739,11 @@ class FillingService:
         """
         from apps.documents.models.fill_record import FillRecord
 
-        return (
+        return cast(
+            QuerySet[Any],
             FillRecord.objects.filter(case_id=case_id)
             .select_related("template", "party", "filled_by", "batch_task")
-            .order_by("-filled_at")
+            .order_by("-filled_at"),
         )
 
     def get_fill_history_by_template(self, template_id: int) -> QuerySet[Any]:
@@ -751,10 +754,11 @@ class FillingService:
         """
         from apps.documents.models.fill_record import FillRecord
 
-        return (
+        return cast(
+            QuerySet[Any],
             FillRecord.objects.filter(template_id=template_id)
             .select_related("case", "party", "filled_by", "batch_task")
-            .order_by("-filled_at")
+            .order_by("-filled_at"),
         )
 
     # ------------------------------------------------------------------

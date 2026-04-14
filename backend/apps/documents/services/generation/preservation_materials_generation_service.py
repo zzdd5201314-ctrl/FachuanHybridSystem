@@ -155,12 +155,12 @@ class PreservationMaterialsGenerationService:
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
             try:
-                preservation_bytes, _ = self.generate_preservation_application(case_id)
+                preservation_bytes, _preservation_filename = self.generate_preservation_application(case_id)
                 zf.writestr("财产保全申请书.docx", preservation_bytes)
             except NotFoundError:
                 logger.warning("未找到财产保全申请书模板: case_id=%s", case_id)
             try:
-                delay_bytes, _ = self.generate_delay_delivery_application(case_id)
+                delay_bytes, _delay_filename = self.generate_delay_delivery_application(case_id)
                 zf.writestr("暂缓送达申请书.docx", delay_bytes)
             except NotFoundError:
                 logger.warning("未找到暂缓送达申请书模板: case_id=%s", case_id)
@@ -283,7 +283,7 @@ class PreservationMaterialsGenerationService:
     def _build_context(self, *, case: Any) -> dict[str, Any]:
         """构建模板上下文"""
         context_data: dict[str, Any] = {"case": case}
-        return EnhancedContextBuilder().build_context(context_data)
+        return cast(dict[str, Any], EnhancedContextBuilder().build_context(context_data))
 
     def _render_template(self, template_path: Path, context: dict[str, Any]) -> bytes:
         """渲染模板"""

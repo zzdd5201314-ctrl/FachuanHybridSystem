@@ -15,6 +15,7 @@ from docxtpl import DocxTemplate
 
 from apps.core.exceptions import NotFoundError, ValidationException
 from apps.documents.models import EvidenceItem, EvidenceList
+from apps.documents.services.placeholders.fallback import build_docx_render_context
 
 if TYPE_CHECKING:
     from apps.core.interfaces import IEvidenceListPlaceholderService
