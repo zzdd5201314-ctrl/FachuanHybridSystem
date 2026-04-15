@@ -398,7 +398,7 @@ class IdentityExtractionService:
                     business_score,
                     id_score,
                 )
-                return ClientIdentityDoc.BUSINESS_LICENSE
+                return str(ClientIdentityDoc.BUSINESS_LICENSE)
 
         if business_score >= 2 and business_score >= id_score + 1:
             logger.info(
@@ -408,22 +408,22 @@ class IdentityExtractionService:
                 business_score,
                 id_score,
             )
-            return ClientIdentityDoc.BUSINESS_LICENSE
+            return str(ClientIdentityDoc.BUSINESS_LICENSE)
 
         if has_any(("passport", "护照", "nationality", "passport no", "issuing country")):
-            return ClientIdentityDoc.PASSPORT
+            return str(ClientIdentityDoc.PASSPORT)
 
         if has_any(("港澳", "通行证", "往来港澳", "hk", "macao")):
-            return ClientIdentityDoc.HK_MACAO_PERMIT
+            return str(ClientIdentityDoc.HK_MACAO_PERMIT)
 
         if has_any(("户口本", "常住人口登记", "户主", "与户主关系")):
-            return ClientIdentityDoc.HOUSEHOLD_REGISTER
+            return str(ClientIdentityDoc.HOUSEHOLD_REGISTER)
 
         if has_any(("居住证", "residence permit")):
-            return ClientIdentityDoc.RESIDENCE_PERMIT
+            return str(ClientIdentityDoc.RESIDENCE_PERMIT)
 
         if has_any(("法定代表人", "负责人", "法人身份证")) and re.search(r"(?<!\d)\d{17}[\dXx](?!\d)", text):
-            return ClientIdentityDoc.LEGAL_REP_ID_CARD
+            return str(ClientIdentityDoc.LEGAL_REP_ID_CARD)
 
         logger.info(
             "证件自动判型回退身份证: requested_doc_type=%s, resolved_doc_type=%s, business_score=%s, id_score=%s",
@@ -432,7 +432,7 @@ class IdentityExtractionService:
             business_score,
             id_score,
         )
-        return ClientIdentityDoc.ID_CARD
+        return str(ClientIdentityDoc.ID_CARD)
 
     def _extract_by_rules(self, raw_text: str, doc_type: str) -> dict[str, Any] | None:
         """规则提取：当前覆盖身份证与法代身份证。"""

@@ -20,7 +20,7 @@ class OrientationDetectionService:
     """
 
     def __init__(self) -> None:
-        self._ocr_service = None
+        self._ocr_service: Any | None = None
 
     @property
     def ocr_service(self) -> Any:
@@ -72,7 +72,7 @@ class OrientationDetectionService:
                 scores[rotation] = score
                 logger.debug(f"方向 {rotation}°: 得分={score:.2f}")
 
-            best_rotation = max(scores, key=scores.get)
+            best_rotation = max(scores, key=lambda rotation: scores[rotation])
             best_score = scores[best_rotation]
             total_score = sum(scores.values())
 
@@ -148,7 +148,7 @@ class OrientationDetectionService:
                 scores[rotation] = score
                 logger.debug(f"方向 {rotation}°: 得分={score:.2f}")
 
-            best_rotation = max(scores, key=scores.get)
+            best_rotation = max(scores, key=lambda rotation: scores[rotation])
             best_score = scores[best_rotation]
             total_score = sum(scores.values())
             confidence = best_score / total_score if total_score > 0 else 0
