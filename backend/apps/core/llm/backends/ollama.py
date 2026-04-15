@@ -663,7 +663,7 @@ class OllamaBackend(HttpxErrorMixin):
                 # 兼容旧版 Ollama /api/embeddings 单文本接口
                 if e.response.status_code != 404:
                     raise
-                vectors: list[list[float]] = []
+                legacy_vectors: list[list[float]] = []
                 legacy_url = self._build_legacy_embed_url()
                 for text in texts:
                     legacy_resp = client.post(
@@ -692,6 +692,8 @@ class OllamaBackend(HttpxErrorMixin):
         except Exception as e:
             logger.warning("Ollama embeddings 调用异常", extra={"error": str(e), "error_type": type(e).__name__})
             raise LLMAPIError(message=f"调用 Ollama embeddings 时发生错误: {e!s}", errors={"detail": str(e)}) from e
+
+        raise LLMAPIError(message="调用 Ollama embeddings 失败", errors={"detail": "unknown error"})
 
     def get_default_model(self) -> str:
         """
@@ -750,4 +752,4 @@ class OllamaBackend(HttpxErrorMixin):
 
 
 if TYPE_CHECKING:
-    _backend: ILLMBackend = OllamaBackend()  # type: ignore[assignment]
+    _backend: ILLMBackend = OllamaBackend()

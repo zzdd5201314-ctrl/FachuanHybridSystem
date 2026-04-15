@@ -81,7 +81,7 @@ def _get_ocr_provider() -> str:
     """从 SystemConfig 获取 OCR 提供者"""
     from apps.core.services.system_config_service import SystemConfigService
 
-    return SystemConfigService().get_value("OCR_PROVIDER", "local")
+    return str(SystemConfigService().get_value("OCR_PROVIDER", "local") or "local")
 
 
 class OCRService:
@@ -97,8 +97,8 @@ class OCRService:
         """
         self.use_v5 = use_v5
         self._provider = provider
-        self._ocr = None
-        self._paddleocr_engine = None
+        self._ocr: Any | None = None
+        self._paddleocr_engine: Any | None = None
 
     @property
     def provider(self) -> str:
@@ -190,7 +190,7 @@ class OCRService:
             file_bytes = Path(image_path).read_bytes()
             is_pdf = image_path.lower().endswith(".pdf")
             api_result = self.paddleocr_engine.recognize_bytes(file_bytes, is_pdf=is_pdf)
-            return api_result.text
+            return str(api_result.text)
         except Exception as e:
             logger.warning("PaddleOCR API 调用失败，降级到本地 RapidOCR: %s", e)
             # 降级到本地
@@ -203,7 +203,7 @@ class OCRService:
         """通过 PaddleOCR API 识别图片字节数据"""
         try:
             api_result = self.paddleocr_engine.recognize_bytes(image_bytes, is_pdf=False)
-            return api_result.text
+            return str(api_result.text)
         except Exception as e:
             logger.warning("PaddleOCR API 调用失败，降级到本地 RapidOCR: %s", e)
             # 降级到本地

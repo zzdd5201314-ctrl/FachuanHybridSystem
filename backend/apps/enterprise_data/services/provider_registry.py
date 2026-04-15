@@ -76,7 +76,7 @@ class EnterpriseProviderRegistry:
                 "Invalid TIANYANCHA_MCP_TRANSPORT configured, fallback to default",
                 extra={"configured_transport": raw_transport, "fallback_transport": DEFAULT_TRANSPORT},
             )
-        return DEFAULT_TRANSPORT
+        return str(DEFAULT_TRANSPORT)
 
     def get_rate_limit_requests(self) -> int:
         return 60

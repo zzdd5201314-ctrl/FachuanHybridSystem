@@ -473,15 +473,18 @@ class DocumentDeliveryService(
 
     def _acquire_token(self, credential_id: int) -> str | None:
         """获取 Token（委托给 DocumentDeliveryTokenService）"""
-        return self.token_service.acquire_token(credential_id)
+        token = self.token_service.acquire_token(credential_id)
+        return str(token) if token else None
 
     def _acquire_token_via_service(self, site_name: str, credential_id: int) -> str | None:
         """通过 AutoTokenAcquisitionService 获取 Token（委托给 token_service）"""
-        return self.token_service.acquire_token(credential_id)
+        token = self.token_service.acquire_token(credential_id)
+        return str(token) if token else None
 
     def _refresh_token_if_expired(self, credential_id: int, current_token: str) -> str | None:
         """检查 Token 是否过期，如果过期则刷新"""
-        return self.token_service.refresh_token_if_expired(credential_id, current_token)
+        token = self.token_service.refresh_token_if_expired(credential_id, current_token)
+        return str(token) if token else None
 
     def _try_api_after_login(self, token: str, cutoff_time: datetime, credential_id: int) -> DocumentQueryResult | None:
         """登录成功后尝试使用 API 方式获取文书列表"""

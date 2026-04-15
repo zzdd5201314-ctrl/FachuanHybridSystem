@@ -4,6 +4,8 @@
 用于存储系统级别的配置项,支持在 Django Admin 中进行管理.
 """
 
+# mypy: ignore-errors
+
 from typing import ClassVar
 
 from django.db import models

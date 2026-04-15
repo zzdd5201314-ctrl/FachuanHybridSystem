@@ -92,18 +92,18 @@ class PaddleOCRApiEngine:
         """获取当前使用的模型名称"""
         if self._model:
             return self._model
-        return self._config_service.get_value("PADDLEOCR_API_MODEL", "pp_ocrv5")
+        return str(self._config_service.get_value("PADDLEOCR_API_MODEL", "pp_ocrv5") or "pp_ocrv5")
 
     @property
     def api_url(self) -> str:
         """获取当前模型对应的 API URL"""
         url_key = _MODEL_URL_KEY_MAP.get(self.model, "PADDLEOCR_OCR_API_URL")
-        return self._config_service.get_value(url_key, "")
+        return str(self._config_service.get_value(url_key, "") or "")
 
     @property
     def api_token(self) -> str:
         """获取 API Token"""
-        return self._config_service.get_value("PADDLEOCR_API_TOKEN", "")
+        return str(self._config_service.get_value("PADDLEOCR_API_TOKEN", "") or "")
 
     def _is_configured(self) -> bool:
         """检查是否已配置必要的 API 参数"""
