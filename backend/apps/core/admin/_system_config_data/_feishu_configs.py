@@ -86,6 +86,12 @@ def get_wechat_work_configs() -> list[dict[str, Any]]:
             "is_secret": True,
         },
         {
+            "key": "WECHAT_WORK_DEFAULT_OWNER_ID",
+            "category": "wechat_work",
+            "description": "企业微信默认群主 userid（建群必须指定群主）",
+            "is_secret": False,
+        },
+        {
             "key": "WECHAT_WORK_TIMEOUT",
             "category": "wechat_work",
             "description": "企业微信 API 超时时间（秒）",
