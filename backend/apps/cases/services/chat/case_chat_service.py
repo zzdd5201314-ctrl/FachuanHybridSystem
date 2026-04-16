@@ -89,10 +89,20 @@ class CaseChatService:
 
         return get_config("features.case_chat.default_owner_id", None)
 
+    def _resolve_default_platform(self) -> ChatPlatform:
+        """自动选择第一个可用平台，无可用平台时回退到飞书"""
+        try:
+            from apps.automation.services.chat.factory import ChatProviderFactory
+
+            available = ChatProviderFactory.get_available_platforms()
+            return available[0] if available else ChatPlatform.FEISHU
+        except Exception:
+            return ChatPlatform.FEISHU
+
     def create_chat_for_case(
         self,
         case_id: int,
-        platform: ChatPlatform = ChatPlatform.FEISHU,
+        platform: ChatPlatform | None = None,
         owner_id: str | None = None,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
@@ -124,7 +134,9 @@ class CaseChatService:
             )
             logger.info("创建群聊成功: %s", chat.name)
         """
-        logger.info("开始为案件创建群聊: case_id=%s, platform=%s", case_id, platform.value)
+        logger.info("开始为案件创建群聊: case_id=%s, platform=%s", case_id, platform.value if platform else "auto")
+        if platform is None:
+            platform = self._resolve_default_platform()
         case = self.repo.get_case(case_id=case_id)
         self._require_case_access(case, user=user, org_access=org_access, perm_open_access=perm_open_access, ctx=ctx)
         chat_name = self.name_builder.build(case=case)
@@ -141,7 +153,8 @@ class CaseChatService:
                     errors={"provider_response": result.raw_response, "chat_name": chat_name},
                 )
             case_chat = self.repo.create_binding(
-                case=case, platform=platform, chat_id=result.chat_id, name=result.chat_name or chat_name, is_active=True
+                case=case, platform=platform, chat_id=result.chat_id, name=result.chat_name or chat_name, is_active=True,
+                owner_id=owner_id, creation_audit_log={"chat_name": result.chat_name or chat_name, "owner_id": owner_id or ""},
             )
             logger.info(
                 "群聊创建成功: case_id=%s, chat_id=%s, platform=%s, name=%s",
@@ -164,7 +177,7 @@ class CaseChatService:
     def get_or_create_chat(
         self,
         case_id: int,
-        platform: ChatPlatform = ChatPlatform.FEISHU,
+        platform: ChatPlatform | None = None,
         owner_id: str | None = None,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
@@ -196,7 +209,9 @@ class CaseChatService:
             chat2 = service.get_or_create_chat(case_id=123)
             assert chat1.id == chat2.id
         """
-        logger.debug("获取或创建群聊: case_id=%s, platform=%s", case_id, platform.value)
+        logger.debug("获取或创建群聊: case_id=%s, platform=%s", case_id, platform.value if platform else "auto")
+        if platform is None:
+            platform = self._resolve_default_platform()
         case = self.repo.get_case(case_id=case_id)
         self._require_case_access(case, user=user, org_access=org_access, perm_open_access=perm_open_access, ctx=ctx)
         existing_chat = self.repo.get_active_chat(case_id=case_id, platform=platform)
@@ -222,7 +237,7 @@ class CaseChatService:
         case_id: int,
         sms_content: str,
         document_paths: list[Any] | None = None,
-        platform: ChatPlatform = ChatPlatform.FEISHU,
+        platform: ChatPlatform | None = None,
         title: str = "📋 法院文书通知",
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
@@ -262,9 +277,11 @@ class CaseChatService:
         logger.info(
             "发送文书通知: case_id=%s, platform=%s, file_count=%s",
             case_id,
-            platform.value,
+            platform.value if platform else "auto",
             len(document_paths) if document_paths else 0,
         )
+        if platform is None:
+            platform = self._resolve_default_platform()
         if not sms_content or not sms_content.strip():
             raise ValidationException(
                 message=_("短信内容不能为空"),

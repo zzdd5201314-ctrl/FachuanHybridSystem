@@ -63,8 +63,18 @@ class CaseChatRepository:
         chat_id: str,
         name: str,
         is_active: bool = True,
+        owner_id: str | None = None,
+        owner_verified: bool = False,
+        creation_audit_log: dict | None = None,
     ) -> CaseChat:
         with transaction.atomic():
             return CaseChat.objects.create(
-                case=case, platform=platform, chat_id=chat_id, name=name, is_active=is_active
+                case=case,
+                platform=platform,
+                chat_id=chat_id,
+                name=name,
+                is_active=is_active,
+                owner_id=owner_id,
+                owner_verified=owner_verified,
+                creation_audit_log=creation_audit_log or {},
             )
