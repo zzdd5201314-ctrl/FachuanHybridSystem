@@ -84,9 +84,8 @@ def build_document_delivery_coordinator(
         case_matcher=case_matcher,
         document_renamer=document_renamer,
         notification_service=notification_service,
-        case_log_service=case_log_service,
+        caselog_service=case_log_service,
         case_number_service=case_number_service,
-        history_repo=history_repo,
     )
 
     api_service = DocumentDeliveryApiService(
