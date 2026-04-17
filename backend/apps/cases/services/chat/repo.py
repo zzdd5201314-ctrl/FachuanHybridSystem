@@ -43,7 +43,7 @@ class CaseChatRepository:
                 errors={"chat_id": str(_("群聊ID必须是正整数"))},
             )
 
-        updated_count = CaseChat.objects.filter(id=chat_id, is_active=True).update(is_active=False)
+        updated_count: int = CaseChat.objects.filter(id=chat_id, is_active=True).update(is_active=False)
         return updated_count > 0
 
     def ensure_not_bound(self, *, case_id: int, platform: ChatPlatform, chat_id: str) -> None:

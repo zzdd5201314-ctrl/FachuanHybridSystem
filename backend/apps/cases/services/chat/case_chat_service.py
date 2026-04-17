@@ -183,7 +183,7 @@ class CaseChatService:
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
         ctx: AccessContext | None = None,
-    ) -> None:
+    ) -> Any:
         """获取或创建案件群聊
 
         检查指定案件和平台是否已存在活跃的群聊记录.
@@ -219,17 +219,14 @@ class CaseChatService:
             logger.debug("找到现有群聊: chat_id=%s, name=%s", existing_chat.chat_id, existing_chat.name)
             return existing_chat
         logger.info("未找到现有群聊,开始创建新群聊: case_id=%s, platform=%s", case_id, platform.value)
-        return cast(
-            None,
-            self.create_chat_for_case(
-                case_id,
-                platform,
-                owner_id,
-                user=user,
-                org_access=org_access,
-                perm_open_access=perm_open_access,
-                ctx=ctx,
-            ),
+        return self.create_chat_for_case(
+            case_id,
+            platform,
+            owner_id,
+            user=user,
+            org_access=org_access,
+            perm_open_access=perm_open_access,
+            ctx=ctx,
         )
 
     def send_document_notification(
@@ -302,7 +299,7 @@ class CaseChatService:
             result = usecase.execute(
                 case_id=case_id, platform=platform, chat=chat, content=content, document_paths=document_paths
             )
-            logger.info("文书通知发送完成: case_id=%s, chat_id=%s, success=%s", case_id, chat.chat_id, result.success)
+            logger.info("文书通知发送完成: case_id=%s, chat_id=%s, success=%s", case_id, getattr(chat, "chat_id", ""), result.success)
             return result
         except MessageSendException:
             raise
@@ -366,7 +363,7 @@ class CaseChatService:
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
         ctx: AccessContext | None = None,
-    ) -> None:
+    ) -> Any:
         """手动绑定已存在的群聊
 
         将已存在的群聊(通过chat_id标识)绑定到指定案件.

@@ -162,8 +162,8 @@ class SMSNotificationService:
 
             # 1. 获取或创建群聊
             try:
-                chat = chat_service.get_or_create_chat(  # type: ignore
-                    case_id=sms.case.id,  # type: ignore
+                chat = chat_service.get_or_create_chat(
+                    case_id=sms.case.id,
                     platform=platform,
                 )
                 chat_id = getattr(chat, "chat_id", None)
@@ -180,8 +180,8 @@ class SMSNotificationService:
 
             # 2. 发送文书通知
             try:
-                send_result = chat_service.send_document_notification(  # type: ignore
-                    case_id=sms.case.id,  # type: ignore
+                send_result = chat_service.send_document_notification(
+                    case_id=sms.case.id,
                     sms_content=sms.content,
                     document_paths=document_paths,
                     platform=platform,
@@ -234,7 +234,7 @@ class SMSNotificationService:
         try:
             from apps.automation.services.chat.factory import ChatProviderFactory
 
-            return ChatProviderFactory.get_available_platforms()
+            return list(ChatProviderFactory.get_available_platforms())
         except Exception as e:
             logger.warning(f"获取可用平台失败，回退到飞书: {e!s}")
             return [ChatPlatform.FEISHU]
