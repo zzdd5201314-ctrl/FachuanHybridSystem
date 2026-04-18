@@ -12,6 +12,7 @@ import type { CaseAssignment } from '../types'
 export interface CaseAssignmentSectionProps {
   assignments: CaseAssignment[]
   editable?: boolean
+  caseId?: number
 }
 
 function EmptyState() {

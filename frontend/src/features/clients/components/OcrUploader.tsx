@@ -394,7 +394,7 @@ export function OcrUploader({ onRecognized, onError }: OcrUploaderProps) {
 
       try {
         // 调用 OCR 识别 API - Requirements: 6.4, 6.5, 6.9
-        const result = await clientApi.recognizeIdCard(file)
+        const result = await clientApi.recognizeIdentityDoc(file)
 
         if (result.success && result.extracted_data) {
           // 识别成功 - Requirements: 6.7
