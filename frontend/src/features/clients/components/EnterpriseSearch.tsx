@@ -4,7 +4,7 @@
 
 import { useState, useCallback } from 'react'
 import {
-  Search, Building2, Loader2, CheckCircle2, AlertTriangle, ExternalLink, Sparkles,
+  Search, Building2, Loader2, AlertTriangle, ExternalLink, Sparkles,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'

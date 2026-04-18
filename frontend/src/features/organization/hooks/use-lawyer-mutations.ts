@@ -14,7 +14,6 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import { lawyerApi } from '../api'
 import type { Lawyer, LawyerCreateInput, LawyerUpdateInput } from '../types'
 import { lawyerQueryKey } from './use-lawyer'
-import { lawyersQueryKey } from './use-lawyers'
 
 /**
  * 创建律师参数接口
