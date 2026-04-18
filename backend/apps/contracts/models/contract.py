@@ -83,8 +83,18 @@ class Contract(models.Model):
     )
     representation_stages: Any = models.JSONField(default=list, blank=True, verbose_name=_("代理阶段"))
 
+    log_anchor_case = models.ForeignKey(
+        "cases.Case",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="contracts_as_log_anchor",
+        verbose_name=_("日志中心案件"),
+    )
+
     if TYPE_CHECKING:
         cases: RelatedManager[Case]
+        log_anchor_case: Case | None
         finance_logs: RelatedManager[ContractFinanceLog]
         folder_binding: ContractFolderBinding
         contract_parties: RelatedManager[ContractParty]
@@ -120,6 +130,8 @@ class Contract(models.Model):
         return str(self.name)
 
     def clean(self) -> None:
+        from django.core.exceptions import ValidationError
+
         from apps.contracts.validators import normalize_representation_stages
         from apps.core.exceptions import ValidationException
 
@@ -127,3 +139,13 @@ class Contract(models.Model):
         rep = getattr(self, "representation_stages", None)
         with contextlib.suppress(ValidationException):
             self.representation_stages = normalize_representation_stages(ctype, rep, strict=False)
+
+        anchor_case = getattr(self, "log_anchor_case", None)
+        if anchor_case is not None and self.pk and getattr(anchor_case, "contract_id", None) != self.pk:
+            raise ValidationError({"log_anchor_case": _("日志中心案件必须属于当前合同")})
+
+    @property
+    def resolved_log_anchor_case(self) -> Case | None:
+        if self.log_anchor_case_id:
+            return self.log_anchor_case
+        return self.cases.order_by("id").first()

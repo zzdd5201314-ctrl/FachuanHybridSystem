@@ -5,7 +5,7 @@
  */
 
 import { useEffect } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useNavigate } from 'react-router'
@@ -78,6 +78,7 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
       name: '',
       case_type: undefined,
       status: 'active',
+      start_date: null,
       cause_of_action: null,
       current_stage: null,
       target_amount: null,
@@ -109,6 +110,7 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
         name: caseData.name,
         case_type: (caseData.case_type as CreateFormData['case_type']) ?? undefined,
         status: (caseData.status as 'active' | 'closed') ?? 'active',
+        start_date: caseData.start_date ?? null,
         cause_of_action: caseData.cause_of_action ?? null,
         current_stage: caseData.current_stage ?? null,
         target_amount: caseData.target_amount ?? null,
@@ -121,10 +123,10 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
     }
   }, [isEditMode, caseData, form])
 
-  const watchTargetAmount = form.watch('target_amount')
-  const watchPreservationAmount = form.watch('preservation_amount')
-  const watchCaseType = form.watch('case_type')
-  const watchCauseOfAction = form.watch('cause_of_action')
+  const watchTargetAmount = useWatch({ control: form.control, name: 'target_amount' })
+  const watchPreservationAmount = useWatch({ control: form.control, name: 'preservation_amount' })
+  const watchCaseType = useWatch({ control: form.control, name: 'case_type' })
+  const watchCauseOfAction = useWatch({ control: form.control, name: 'cause_of_action' })
 
   const onSubmit = (data: CreateFormData) => {
     if (isEditMode && caseId) {
@@ -133,6 +135,7 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
       if (data.name !== caseData?.name) update.name = data.name
       if (data.case_type !== caseData?.case_type) update.case_type = data.case_type
       if (data.status !== caseData?.status) update.status = data.status
+      if (data.start_date !== caseData?.start_date) update.start_date = data.start_date
       if (data.cause_of_action !== caseData?.cause_of_action) update.cause_of_action = data.cause_of_action
       if (data.current_stage !== caseData?.current_stage) update.current_stage = data.current_stage
       if (data.target_amount !== caseData?.target_amount) update.target_amount = data.target_amount
@@ -153,6 +156,7 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
           name: data.name,
           case_type: data.case_type,
           status: data.status,
+          start_date: data.start_date,
           cause_of_action: data.cause_of_action,
           current_stage: data.current_stage,
           target_amount: data.target_amount,
@@ -360,6 +364,25 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
                         onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* start_date */}
+                <FormField control={form.control} name="start_date" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>收案日期</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        disabled={isPending}
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                      />
+                    </FormControl>
+                    <p className="text-muted-foreground text-xs">
+                      留空时，系统会优先取绑定合同的开始日期；如果没有绑定合同，则自动取当天日期。
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )} />

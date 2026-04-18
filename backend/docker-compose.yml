@@ -23,6 +23,7 @@ services:
       - "8002:8002"
     volumes:
       - media-data:/app/apiSystem/media
+      - "${HOST_HOME_PATH:-/home}:/home:ro"
     env_file:
       - .env
     environment:
@@ -45,6 +46,7 @@ services:
     entrypoint: ["sh", "-c", "cd /app/apiSystem && uv run python manage.py qcluster"]
     volumes:
       - media-data:/app/apiSystem/media
+      - "${HOST_HOME_PATH:-/home}:/home:ro"
     env_file:
       - .env
     environment:

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, ClassVar, cast
 
 from django.contrib import admin
 from django.http import HttpRequest
+from django.utils.translation import gettext_lazy as _
 
 from apps.cases.admin.base_admin import BaseModelAdmin, BaseStackedInline, BaseTabularInline
 from apps.cases.admin.case_chat_admin import CaseChatInline
@@ -56,7 +57,7 @@ class SupervisingAuthorityInline(BaseTabularInline):
     model = SupervisingAuthority
     form = SupervisingAuthorityInlineForm
     extra = 1
-    fields = ("name", "authority_type")
+    fields = ("authority_type", "name", "handler_name", "handler_phone", "remarks")
 
 
 class CaseLogAttachmentInline(BaseTabularInline):
@@ -94,13 +95,18 @@ class CaseNumberInline(BaseStackedInline):
 
 class CaseLogInline(BaseStackedInline):
     model = CaseLog
+    template = "admin/cases/case/caselog_inline.html"
     extra = 0
-    fields = ("content", "created_at")
+    fields = ("stage", "logged_at", "content", "note", "created_at")
     exclude = ("actor",)
     readonly_fields = ("created_at",)
     show_change_link = True
     verbose_name = ""
     verbose_name_plural = "日志"
+
+    def get_queryset(self, request: HttpRequest):
+        queryset = super().get_queryset(request)
+        return queryset.select_related("actor").prefetch_related("attachments").order_by("-logged_at", "-created_at", "-pk")
 
     if BaseModelAdmin is not admin.ModelAdmin:
         pass
@@ -123,9 +129,9 @@ class CaseAdmin(
     BaseModelAdmin,
 ):
     form = CaseAdminForm
-    list_display = ("id_link", "name_link", "status", "start_date", "effective_date", "is_archived")
+    list_display = ("id_link", "name_link", "current_stage_display", "status", "start_date", "effective_date", "is_archived")
     list_display_links = None
-    list_filter = ("status", "is_archived")
+    list_filter = ("current_stage", "status", "is_archived")
     search_fields = ("name",)
     change_form_template = "admin/cases/case/change_form.html"
     readonly_fields = ("filing_number",)
@@ -138,7 +144,6 @@ class CaseAdmin(
             "cases/admin_case_form.js",
             "cases/js/autocomplete.js",
             "cases/js/autocomplete_init.js",
-            "cases/js/case_log_sort.js",
             "cases/js/litigation_fee.js",
         )
         css = {"all": ("cases/css/case_log_admin.css",)}
@@ -171,3 +176,9 @@ class CaseAdmin(
     def get_file_paths(self, queryset: QuerySet[Case]) -> list[str]:
         service = self._get_case_admin_service()
         return cast(list[str], service.collect_file_paths_for_export(queryset))
+
+    def current_stage_display(self, obj: Case) -> str:
+        return obj.get_current_stage_display() if obj.current_stage else "-"
+
+    current_stage_display.short_description = _("当前阶段")  # type: ignore[attr-defined]
+    current_stage_display.admin_order_field = "current_stage"  # type: ignore[attr-defined]

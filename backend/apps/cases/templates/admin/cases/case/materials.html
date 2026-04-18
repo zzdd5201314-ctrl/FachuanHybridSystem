@@ -3,7 +3,7 @@
 
 {% block extrahead %}
 {{ block.super }}
-<link rel="stylesheet" type="text/css" href="{% static 'cases/css/case_materials_manage.css' %}?v=20260326d">
+<link rel="stylesheet" type="text/css" href="{% static 'cases/css/case_materials_manage.css' %}?v=20260416b">
 {% endblock %}
 
 {% block content_title %}{% endblock %}
@@ -65,6 +65,29 @@
     </header>
 
     <div class="materials-manage-message" x-show="message" x-transition :class="messageType" x-text="message" aria-live="polite"></div>
+
+    <section class="cm-card cm-archive-card" x-show="archiveConfig.enabled || archiveConfig.message || archiveConfig.rootPath">
+        <div class="cm-card-header">
+            <div class="cm-card-title">{% trans "自动归档" %}</div>
+            <div class="cm-card-subtitle">
+                <span x-show="archiveConfig.enabled && archiveConfig.writable">{% trans "保存时会把附件复制到案件绑定目录，你可以直接用自动推荐，也可以手动改到任意子文件夹。" %}</span>
+                <span x-show="archiveConfig.message && !archiveConfig.writable" x-text="archiveConfig.message"></span>
+            </div>
+            <div class="cm-card-actions">
+                <button type="button"
+                        class="button"
+                        :disabled="isRearchiving || !archiveReady()"
+                        @click="rearchiveExisting()">
+                    <span x-text="isRearchiving ? '{% trans "重新归档中..." %}' : '{% trans "一键补归档" %}'">{% trans "一键补归档" %}</span>
+                </button>
+            </div>
+        </div>
+        <div class="cm-archive-root" x-show="archiveConfig.rootPath">
+            <span>{% trans "案件目录" %}：</span>
+            <code x-text="archiveConfig.rootPath"></code>
+        </div>
+        <div class="cm-archive-note" x-show="archiveConfig.enabled && !archiveConfig.writable && archiveConfig.message" x-text="archiveConfig.message"></div>
+    </section>
 
     <section class="cm-card cm-scan-card">
         <div class="cm-card-header cm-scan-header">
@@ -367,6 +390,7 @@
                     <th style="width: 220px;">{% trans "方向/主管机关" %}</th>
                     <th style="width: 240px;">{% trans "当事人（可选）" %}</th>
                     <th>{% trans "类型名称" %}</th>
+                    <th style="width: 260px;">{% trans "归档到" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -427,6 +451,21 @@
                                 <input x-show="row.typeSelect === '__custom__'" type="text" placeholder="{% trans "输入类型名称" %}" x-model="row.customTypeName" @input="onCustomTypeNameChange(row)" />
                             </div>
                         </td>
+                        <td>
+                            <div class="cm-archive-cell">
+                                <template x-if="archiveReady()">
+                                    <select x-model="row.archiveSelection" @change="onArchiveSelectionChange(row, $event)">
+                                        <option value="__auto__" x-text="autoArchiveLabel(row)"></option>
+                                        <template x-for="folder in archiveConfig.folders" :key="folder.relative_path || '__root__'">
+                                            <option :value="folder.relative_path" x-text="folder.display_name"></option>
+                                        </template>
+                                    </select>
+                                </template>
+                                <div class="cm-archive-status" x-text="archiveStatusLabel(row)"></div>
+                                <div class="cm-archive-note" x-show="archiveReasonLabel(row)" x-text="archiveReasonLabel(row)"></div>
+                                <div class="cm-archive-status" x-show="row.archivedAtDisplay" x-text="`归档时间: ${row.archivedAtDisplay}`"></div>
+                            </div>
+                        </td>
                     </tr>
                 </template>
             </tbody>
@@ -435,5 +474,5 @@
 </div>
 
 {% csrf_token %}
-<script src="{% static 'cases/js/case_materials_manage.js' %}?v=20260409d"></script>
+<script src="{% static 'cases/js/case_materials_manage.js' %}?v=20260416b"></script>
 {% endblock %}

@@ -32,6 +32,12 @@ cd FachuanHybridSystem/backend
 
 # 2) 配置环境变量
 cp .env.example .env
+# If you use folder binding / folder scan in Docker, also set HOST_HOME_PATH
+# in .env so the container can browse your real host home directory:
+#   Linux: /home
+#   macOS: /Users
+#   Windows (Docker Desktop): C:/Users
+# Otherwise the container's /home may appear empty in the folder browser.
 # 必须修改 DJANGO_SECRET_KEY，生成命令：
 #   python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 

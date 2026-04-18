@@ -8,6 +8,7 @@ from django.http import HttpRequest
 from ninja import Router
 
 from apps.cases.schemas import (
+    CaseMaterialArchiveConfigOut,
     CaseMaterialBindCandidateOut,
     CaseMaterialBindIn,
     CaseMaterialDeleteAllIn,
@@ -16,6 +17,7 @@ from apps.cases.schemas import (
     CaseMaterialGroupOrderIn,
     CaseMaterialGroupRenameIn,
     CaseMaterialGroupRenameOut,
+    CaseMaterialRearchiveOut,
     CaseMaterialReplaceIn,
     CaseMaterialReplaceOut,
     CaseMaterialUploadOut,
@@ -48,20 +50,48 @@ def list_bind_candidates(request: HttpRequest, case_id: int) -> Any:
     )
 
 
+@router.get("/{case_id}/materials/archive-config", response=CaseMaterialArchiveConfigOut)
+def get_archive_config(request: HttpRequest, case_id: int) -> Any:
+    service = _get_case_material_service()
+    ctx = get_request_access_context(request)
+    return service.get_archive_config(
+        case_id=case_id,
+        user=ctx.user,
+        org_access=ctx.org_access,
+        perm_open_access=ctx.perm_open_access,
+    )
+
+
 @router.post("/{case_id}/materials/bind")
 @rate_limit_from_settings("TASK", by_user=True)
 def bind_materials(request: HttpRequest, case_id: int, payload: CaseMaterialBindIn) -> dict[str, int]:
     service = _get_case_material_service()
     ctx = get_request_access_context(request)
     items: list[dict[str, Any]] = [x.model_dump() for x in payload.items]
-    saved = service.bind_materials(
+    result = service.bind_materials(
         case_id=case_id,
         items=items,
         user=ctx.user,
         org_access=ctx.org_access,
         perm_open_access=ctx.perm_open_access,
     )
-    return {"saved_count": len(saved)}
+    return {
+        "saved_count": len(result.get("materials") or []),
+        "archived_count": int(result.get("archived_count") or 0),
+    }
+
+
+@router.post("/{case_id}/materials/rearchive", response=CaseMaterialRearchiveOut)
+@rate_limit_from_settings("TASK", by_user=True)
+def rearchive_materials(request: HttpRequest, case_id: int) -> dict[str, Any]:
+    service = _get_case_material_service()
+    ctx = get_request_access_context(request)
+    return service.rearchive_case_attachments(
+        case_id=case_id,
+        user=ctx.user,
+        org_access=ctx.org_access,
+        perm_open_access=ctx.perm_open_access,
+    )
 
 
 @router.post("/{case_id}/materials/group-order")
@@ -86,6 +116,7 @@ def save_group_order(request: HttpRequest, case_id: int, payload: CaseMaterialGr
 @rate_limit_from_settings("UPLOAD", by_user=True)
 def upload_materials(request: HttpRequest, case_id: int) -> dict[str, Any]:
     service = _get_caselog_service()
+    material_service = _get_case_material_service()
     ctx = get_request_access_context(request)
     files = request.FILES.getlist("files") if hasattr(request, "FILES") else []
     log = service.create_log(  # type: ignore[call-arg, call-arg]
@@ -102,7 +133,19 @@ def upload_materials(request: HttpRequest, case_id: int) -> dict[str, Any]:
         org_access=ctx.org_access,
         perm_open_access=ctx.perm_open_access,
     )
-    return {"log_id": log.id, "attachment_ids": [x.id for x in created]}  # type: ignore[attr-defined]
+    archive_result = material_service.archive_uploaded_attachments(
+        case_id=case_id,
+        attachments=created,
+        user=ctx.user,
+        org_access=ctx.org_access,
+        perm_open_access=ctx.perm_open_access,
+    )
+    return {
+        "log_id": log.id,
+        "attachment_ids": [x.id for x in created],
+        "archived_count": int(archive_result.get("archived_count") or 0),
+        "archive_enabled": bool(archive_result.get("enabled")),
+    }  # type: ignore[attr-defined]
 
 
 @router.post(

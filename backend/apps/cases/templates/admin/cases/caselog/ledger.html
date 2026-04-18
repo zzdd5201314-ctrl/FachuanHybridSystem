@@ -1,0 +1,185 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'cases/css/case_log_center_admin.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo;
+    <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_label|capfirst }}</a>
+    &rsaquo;
+    <a href="{% url 'admin:cases_caselog_changelist' %}">日志</a>
+    &rsaquo;
+    {{ case_obj.name }}
+</div>
+{% endblock %}
+
+{% block content_title %}{{ title }}{% endblock %}
+{% block content_subtitle %}{% endblock %}
+
+{% block content %}
+<div class="case-log-admin-page">
+    <div class="case-log-admin-layout">
+        <div class="case-log-admin-main">
+            <div class="module table-card">
+                <div class="table-toolbar">
+                    <div class="toolbar-actions">
+                        <a href="{{ back_url }}" class="button">返回案件列表</a>
+                        <a href="{{ case_detail_url }}" class="button">打开案件详情</a>
+                        <a href="{{ create_url }}" class="button default">新增日志</a>
+                    </div>
+                    <div class="toolbar-summary">当前共 {{ log_rows|length }} 条日志</div>
+                </div>
+
+                <div class="table-search-strip">
+                    <form method="get" class="case-log-search-form">
+                        {% if stage_filter %}<input type="hidden" name="stage" value="{{ stage_filter }}">{% endif %}
+                        {% if attachment_filter %}<input type="hidden" name="attachments" value="{{ attachment_filter }}">{% endif %}
+                        {% if actor_filter %}<input type="hidden" name="actor" value="{{ actor_filter }}">{% endif %}
+                        {% if time_order %}<input type="hidden" name="time_order" value="{{ time_order }}">{% endif %}
+                        <input id="id_log_keyword" type="text" name="q" value="{{ search_query }}" placeholder="搜索日志内容或备注">
+                        <button type="submit" class="button">搜索</button>
+                    </form>
+                </div>
+
+                {% if log_rows %}
+                <form method="post">
+                    {% csrf_token %}
+                    {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                    {% if stage_filter %}<input type="hidden" name="stage" value="{{ stage_filter }}">{% endif %}
+                    {% if attachment_filter %}<input type="hidden" name="attachments" value="{{ attachment_filter }}">{% endif %}
+                    {% if actor_filter %}<input type="hidden" name="actor" value="{{ actor_filter }}">{% endif %}
+                    {% if time_order %}<input type="hidden" name="time_order" value="{{ time_order }}">{% endif %}
+                    <div class="admin-action-bar">
+                        <label for="id_log_action_select">动作:</label>
+                        <select id="id_log_action_select" name="action">
+                            <option value="">---------</option>
+                            <option value="delete_selected_logs">删除所选日志</option>
+                        </select>
+                        <button type="submit" class="button button-small">运行</button>
+                    </div>
+
+                <table class="case-log-admin-table ledger-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 44px;">
+                                <input type="checkbox" id="log-action-toggle-all">
+                            </th>
+                            <th style="width: 70px;">序号</th>
+                            <th style="width: 160px;">阶段</th>
+                            <th>日志内容</th>
+                            <th style="width: 180px;">时间</th>
+                            <th style="width: 220px;">备注</th>
+                            <th style="width: 220px;">Files &amp; media</th>
+                            <th style="width: 150px;">操作人</th>
+                            <th style="width: 90px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in log_rows %}
+                        <tr class="clickable-row" onclick="window.location='{{ row.edit_url }}'">
+                            <td onclick="event.stopPropagation();">
+                                <input type="checkbox" name="_selected_action" value="{{ row.id }}" class="log-action-select-item">
+                            </td>
+                            <td>{{ row.index }}</td>
+                            <td>{{ row.stage_label }}</td>
+                            <td class="multiline-cell">{{ row.content|linebreaksbr }}</td>
+                            <td>{{ row.logged_at }}</td>
+                            <td class="multiline-cell">{{ row.note|default:"-"|linebreaksbr }}</td>
+                            <td>
+                                {% if row.attachments %}
+                                <div class="attachment-list">
+                                    {% for attachment in row.attachments %}
+                                    <a href="{{ attachment.url }}" target="_blank" rel="noreferrer" onclick="event.stopPropagation();">{{ attachment.name }}</a>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="muted-text">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.actor_name }}</td>
+                            <td class="action-cell">
+                                <a href="{{ row.edit_url }}" class="button button-small" onclick="event.stopPropagation();">修改</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </form>
+                {% else %}
+                <div class="empty-state empty-card">
+                    <strong>{% if search_query or stage_filter or attachment_filter or actor_filter %}没有符合当前筛选条件的日志{% else %}这个案件还没有日志{% endif %}</strong>
+                    <span>{% if search_query or stage_filter or attachment_filter or actor_filter %}调整右侧过滤器后再试试。{% else %}点击上方“新增日志”，录入这个案件的第一条日志。{% endif %}</span>
+                    <a href="{{ create_url }}" class="button default">新增日志</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <aside class="case-log-admin-sidebar">
+            <div class="module filter-panel">
+                <h2>过滤器</h2>
+                <form method="get" class="case-log-filter-form">
+                    <div class="filter-group">
+                        <label for="id_stage_filter">阶段</label>
+                        <select id="id_stage_filter" name="stage">
+                            {% for option in stage_options %}
+                            <option value="{{ option.value }}" {% if option.value == stage_filter %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="id_attachment_filter">附件状态</label>
+                        <select id="id_attachment_filter" name="attachments">
+                            {% for option in attachment_options %}
+                            <option value="{{ option.value }}" {% if option.value == attachment_filter %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="id_actor_filter">操作人</label>
+                        <select id="id_actor_filter" name="actor">
+                            <option value="">全部操作人</option>
+                            {% for option in actor_options %}
+                            <option value="{{ option.value }}" {% if option.value == actor_filter %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="id_time_order_filter">时间排序</label>
+                        <select id="id_time_order_filter" name="time_order">
+                            {% for option in time_order_options %}
+                            <option value="{{ option.value }}" {% if option.value == time_order %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="button default">应用筛选</button>
+                        <a href="{% url 'admin:cases_caselog_ledger' case_obj.pk %}" class="button">清空筛选</a>
+                    </div>
+                </form>
+            </div>
+        </aside>
+    </div>
+</div>
+<script>
+  (function() {
+    const toggleAll = document.getElementById('log-action-toggle-all');
+    if (!toggleAll) return;
+    const items = Array.from(document.querySelectorAll('.log-action-select-item'));
+    toggleAll.addEventListener('change', function() {
+      items.forEach((item) => {
+        item.checked = toggleAll.checked;
+      });
+    });
+  })();
+</script>
+{% endblock %}

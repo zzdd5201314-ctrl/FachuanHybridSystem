@@ -1,0 +1,174 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'cases/css/case_log_center_admin.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo;
+    <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_label|capfirst }}</a>
+    &rsaquo;
+    {{ title }}
+</div>
+{% endblock %}
+
+{% block content_title %}日志{% endblock %}
+{% block content_subtitle %}{% endblock %}
+
+{% block content %}
+<div class="case-log-admin-page">
+    <div class="case-log-admin-layout">
+        <div class="case-log-admin-main">
+            <div class="module table-card">
+                <div class="table-search-strip">
+                    <form method="get" class="case-log-search-form">
+                        {% if case_type_filter %}<input type="hidden" name="case_type" value="{{ case_type_filter }}">{% endif %}
+                        {% if current_stage_filter %}<input type="hidden" name="current_stage" value="{{ current_stage_filter }}">{% endif %}
+                        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                        {% if archive_filter %}<input type="hidden" name="archived" value="{{ archive_filter }}">{% endif %}
+                        {% if lawyer_filter %}<input type="hidden" name="lawyer" value="{{ lawyer_filter }}">{% endif %}
+                        {% if date_order %}<input type="hidden" name="date_order" value="{{ date_order }}">{% endif %}
+                        <input id="id_case_keyword" type="text" name="q" value="{{ search_query }}" placeholder="搜索案件名称或案号">
+                        <button type="submit" class="button">搜索</button>
+                    </form>
+                </div>
+
+                <table class="case-log-admin-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">ID</th>
+                            <th>案件名称</th>
+                            <th style="width: 140px;">当前阶段</th>
+                            <th style="width: 260px;">案号</th>
+                            <th style="width: 180px;">经办律师</th>
+                            <th style="width: 120px;">案件状态</th>
+                            <th style="width: 120px;">日期</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if case_rows %}
+                            {% for row in case_rows %}
+                            <tr class="clickable-row" onclick="window.location='{{ row.ledger_url }}'">
+                                <td>{{ row.id }}</td>
+                                <td>
+                                    <div class="case-name-cell">
+                                        <a href="{{ row.ledger_url }}" class="primary-link" onclick="event.stopPropagation();">
+                                            {{ row.name }}
+                                        </a>
+                                        {% if row.is_archived %}
+                                        <span class="status-pill archived">已归档</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>{{ row.current_stage_label }}</td>
+                                <td>{{ row.case_numbers_text }}</td>
+                                <td>{{ row.lawyer_text }}</td>
+                                <td>
+                                    <span class="status-pill {{ row.status_key|default:'default' }}">{{ row.status_label }}</span>
+                                </td>
+                                <td class="mono-cell">{{ row.start_date_text }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <strong>暂无案件</strong>
+                                        <span>这里仅显示案件列表。点击案件名称后，再进入该案件的全部日志台账。</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page_obj.paginator.num_pages > 1 %}
+            <div class="paginator">
+                {% if page_obj.has_previous %}
+                <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if status_filter %}status={{ status_filter|urlencode }}&amp;{% endif %}{% if case_type_filter %}case_type={{ case_type_filter|urlencode }}&amp;{% endif %}{% if current_stage_filter %}current_stage={{ current_stage_filter|urlencode }}&amp;{% endif %}{% if archive_filter %}archived={{ archive_filter|urlencode }}&amp;{% endif %}{% if lawyer_filter %}lawyer={{ lawyer_filter|urlencode }}&amp;{% endif %}{% if date_order %}date_order={{ date_order|urlencode }}&amp;{% endif %}p={{ page_obj.previous_page_number }}">上一页</a>
+                {% endif %}
+                <span class="this-page">第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页</span>
+                {% if page_obj.has_next %}
+                <a href="?{% if search_query %}q={{ search_query|urlencode }}&amp;{% endif %}{% if status_filter %}status={{ status_filter|urlencode }}&amp;{% endif %}{% if case_type_filter %}case_type={{ case_type_filter|urlencode }}&amp;{% endif %}{% if current_stage_filter %}current_stage={{ current_stage_filter|urlencode }}&amp;{% endif %}{% if archive_filter %}archived={{ archive_filter|urlencode }}&amp;{% endif %}{% if lawyer_filter %}lawyer={{ lawyer_filter|urlencode }}&amp;{% endif %}{% if date_order %}date_order={{ date_order|urlencode }}&amp;{% endif %}p={{ page_obj.next_page_number }}">下一页</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <aside class="case-log-admin-sidebar">
+            <div class="module filter-panel">
+                <h2>过滤器</h2>
+                <form method="get" class="case-log-filter-form">
+                    <div class="filter-group">
+                        <label for="id_case_type_filter">案件类型</label>
+                        <select id="id_case_type_filter" name="case_type">
+                            <option value="">全部类型</option>
+                            {% for option in case_type_options %}
+                            <option value="{{ option.value }}" {% if option.value == case_type_filter %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="id_status_filter">案件状态</label>
+                        <select id="id_status_filter" name="status">
+                            <option value="">全部状态</option>
+                            {% for option in status_options %}
+                            <option value="{{ option.value }}" {% if option.value == status_filter %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="id_current_stage_filter">当前阶段</label>
+                        <select id="id_current_stage_filter" name="current_stage">
+                            <option value="">全部阶段</option>
+                            {% for option in current_stage_options %}
+                            <option value="{{ option.value }}" {% if option.value == current_stage_filter %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="id_archived_filter">归档状态</label>
+                        <select id="id_archived_filter" name="archived">
+                            {% for option in archive_options %}
+                            <option value="{{ option.value }}" {% if option.value == archive_filter %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="id_lawyer_filter">经办律师</label>
+                        <select id="id_lawyer_filter" name="lawyer">
+                            <option value="">全部律师</option>
+                            {% for option in lawyer_options %}
+                            <option value="{{ option.value }}" {% if option.value == lawyer_filter %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="id_date_order_filter">日期排序</label>
+                        <select id="id_date_order_filter" name="date_order">
+                            {% for option in date_order_options %}
+                            <option value="{{ option.value }}" {% if option.value == date_order %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="button default">应用筛选</button>
+                        <a href="{% url 'admin:cases_caselog_changelist' %}" class="button">清空筛选</a>
+                    </div>
+                </form>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

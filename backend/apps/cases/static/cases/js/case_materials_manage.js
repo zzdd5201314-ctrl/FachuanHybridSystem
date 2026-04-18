@@ -26,6 +26,16 @@
     const draft = prefill || {};
     const draftPartyIds = Array.isArray(draft.party_ids) ? draft.party_ids.map(String) : [];
     const draftAuthorityId = draft.supervising_authority_id ? String(draft.supervising_authority_id) : '';
+    const currentArchiveRelativePath = material
+      ? (material.archive_relative_path || '')
+      : (candidate.attachment_archive_relative_path || '');
+    const archivedFilePath = material
+      ? (material.archived_file_path || '')
+      : (candidate.attachment_archived_file_path || '');
+    const archivedAt = material
+      ? (material.archived_at || '')
+      : (candidate.attachment_archived_at || '');
+    const hasArchivedCopy = Boolean(archivedFilePath);
     const row = {
       attachmentId: candidate.attachment_id,
       fileName: candidate.file_name,
@@ -41,6 +51,13 @@
       supervisingAuthorityId: material ? (material.supervising_authority_id || '') : draftAuthorityId,
       typeSelect: material && material.type_id ? String(material.type_id) : '',
       customTypeName: material && !material.type_id ? (material.type_name || '') : (draft.type_name_hint || ''),
+      archiveSelection: material ? (material.archive_relative_path || '') : '__auto__',
+      currentArchiveRelativePath,
+      archiveSuggestedRelativePath: candidate.archive_suggested_relative_path || '',
+      archiveSuggestedReason: candidate.archive_suggested_reason || '',
+      archivedFilePath,
+      archivedAt,
+      archivedAtDisplay: archivedAt ? formatTime(archivedAt) : '',
     };
     if (!row.typeSelect && row.customTypeName) row.typeSelect = '__custom__';
     return row;
@@ -80,6 +97,9 @@
         ourParties: config.ourParties || [],
         opponentParties: config.opponentParties || [],
         supervisingAuthorities: config.supervisingAuthorities || [],
+        archiveConfig: { enabled: false, writable: false, rootPath: '', message: '', folders: [] },
+        isLoadingArchiveConfig: false,
+        isRearchiving: false,
 
         rows: [],
         isLoading: false,
@@ -222,6 +242,7 @@
             this.scanSessionId = sessionFromQuery;
             this.scanPanelVisible = true;
           }
+          this.loadArchiveConfig();
           this.load();
           // 始终加载子文件夹列表，确保"指定子文件夹"选项可点击
           this.loadScanSubfolders(false);
@@ -279,6 +300,114 @@
           if (row.category === 'party') return this.partyTypes;
           if (row.category === 'non_party') return this.nonPartyTypes;
           return [];
+        },
+
+        loadArchiveConfig() {
+          this.isLoadingArchiveConfig = true;
+          return fetch(`/api/v1/cases/${this.caseId}/materials/archive-config`, {
+            headers: { 'X-CSRFToken': getCsrfToken() },
+          })
+            .then((resp) => {
+              if (!resp.ok) throw new Error('archive config failed');
+              return resp.json();
+            })
+            .then((data) => {
+              this.archiveConfig = {
+                enabled: Boolean(data && data.enabled),
+                writable: Boolean(data && data.writable),
+                rootPath: (data && data.root_path) || '',
+                message: (data && data.message) || '',
+                folders: Array.isArray(data && data.folders) ? data.folders : [],
+              };
+            })
+            .catch(() => {
+              this.archiveConfig = {
+                enabled: false,
+                writable: false,
+                rootPath: '',
+                message: '归档目录加载失败，当前仅保存材料分类。',
+                folders: [],
+              };
+            })
+            .finally(() => {
+              this.isLoadingArchiveConfig = false;
+            });
+        },
+
+        archiveFolderLabel(relativePath) {
+          const folders = (this.archiveConfig && this.archiveConfig.folders) || [];
+          const raw = relativePath || '';
+          const found = folders.find((item) => String(item.relative_path || '') === String(raw));
+          if (found && found.display_name) return found.display_name;
+          return raw || '案件根目录';
+        },
+
+        autoArchiveLabel(row) {
+          return `自动推荐 (${this.archiveFolderLabel(row && row.archiveSuggestedRelativePath)})`;
+        },
+
+        archiveReady() {
+          return Boolean(this.archiveConfig && this.archiveConfig.enabled && this.archiveConfig.writable);
+        },
+
+        archiveStatusLabel(row) {
+          if (!this.archiveReady()) {
+            return this.archiveConfig.message || '未绑定案件目录，当前不会自动归档。';
+          }
+          if (row && row.archivedFilePath) {
+            const currentLabel = this.archiveFolderLabel(row.currentArchiveRelativePath || row.archiveSuggestedRelativePath);
+            if (!row.archiveSelection || row.archiveSelection === '__auto__') {
+              if (
+                row.archiveSuggestedRelativePath &&
+                String(row.archiveSuggestedRelativePath) !== String(row.currentArchiveRelativePath || '')
+              ) {
+                return `已归档到: ${currentLabel}；保存后按推荐改到: ${this.archiveFolderLabel(row.archiveSuggestedRelativePath)}`;
+              }
+              return `已归档到: ${currentLabel}`;
+            }
+            if (String(row.archiveSelection) === String(row.currentArchiveRelativePath || '')) {
+              return `已归档到: ${currentLabel}`;
+            }
+            return `已归档到: ${currentLabel}；保存后改到: ${this.archiveFolderLabel(row.archiveSelection)}`;
+          }
+          if (row && row.archiveSelection === '__auto__') {
+            return `当前建议: ${this.archiveFolderLabel(row.archiveSuggestedRelativePath)}`;
+          }
+          return `保存时归档到: ${this.archiveFolderLabel(row && row.archiveSelection)}`;
+        },
+
+        archiveReasonLabel(row) {
+          if (!row || !row.archiveSuggestedReason) return '';
+          return row.archiveSuggestedReason;
+        },
+
+        async rearchiveExisting() {
+          if (this.isRearchiving) return;
+          if (!this.archiveReady()) {
+            this.showMessage(this.archiveConfig.message || '褰撳墠缁戝畾鐩綍涓嶅彲鐢紝鏃犳硶鎵ц閲嶆柊褰掓。', 'error');
+            return;
+          }
+
+          this.isRearchiving = true;
+          try {
+            const resp = await fetch(`/api/v1/cases/${this.caseId}/materials/rearchive`, {
+              method: 'POST',
+              headers: { 'X-CSRFToken': getCsrfToken() },
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+              throw new Error((data && (data.message || data.detail)) || '閲嶆柊褰掓。澶辫触');
+            }
+            await this.load();
+            this.showMessage(
+              `宸插鐞? ${(data && data.processed_count) || 0} 涓檮浠讹紝褰掓。 ${(data && data.archived_count) || 0} 涓紝璺宠繃 ${(data && data.skipped_count) || 0} 涓€?`,
+              'success'
+            );
+          } catch (err) {
+            this.showMessage((err && err.message) || '閲嶆柊褰掓。澶辫触', 'error');
+          } finally {
+            this.isRearchiving = false;
+          }
         },
 
         isUserEvent(event) {
@@ -365,6 +494,16 @@
             this.broadcastToSelected((target) => {
               if (target.typeSelect !== '__custom__') return;
               target.customTypeName = value;
+            });
+          }
+        },
+
+        onArchiveSelectionChange(row, event) {
+          if (!this.isUserEvent(event)) return;
+          const archiveSelection = row.archiveSelection || '';
+          if (this.shouldBroadcast(row)) {
+            this.broadcastToSelected((target) => {
+              target.archiveSelection = archiveSelection;
             });
           }
         },
@@ -807,6 +946,7 @@
               side: row.category === 'party' ? row.side : null,
               party_ids: row.category === 'party' ? (row.partyIds || []).map((x) => parseInt(x, 10)) : [],
               supervising_authority_id: row.category === 'non_party' ? row.supervisingAuthorityId : null,
+              archive_relative_path: row.archiveSelection === '__auto__' ? null : (row.archiveSelection || ''),
             };
             if (row.typeSelect === '__custom__') {
               item.type_id = null;
@@ -851,7 +991,7 @@
             if (!resp.ok) throw new Error('保存失败');
             const data = await resp.json();
             const count = (data && data.saved_count) || 0;
-            this.showMessage(`已保存 ${count} 条材料分类，正在返回案件详情...`, 'success');
+            this.showMessage(`已保存 ${count} 条材料，归档 ${(data && data.archived_count) || 0} 个文件，正在返回案件详情...`, 'success');
             this.lastUploadedIds = [];
             this.redirectToDetailAfterSave();
           } catch (err) {
@@ -882,14 +1022,22 @@
               if (!resp.ok) throw new Error('upload failed');
               return resp.json();
             })
-            .then((data) => {
+            .then(async (data) => {
               this.lastUploadedIds = (data && data.attachment_ids) || [];
               this.pendingFiles = [];
               this.recentUploadedCount = this.lastUploadedIds.length || files.length;
-              this.showMessage('上传成功，正在刷新...', 'success');
-              window.setTimeout(() => {
-                window.location.reload();
-              }, 600);
+              await this.load();
+              const archivedCount = (data && data.archived_count) || 0;
+              const archiveEnabled = Boolean(data && data.archive_enabled);
+              if (archivedCount > 0) {
+                this.showMessage(`上传成功，已自动归档 ${archivedCount} 个文件，请继续完善分类后保存`, 'success');
+                return;
+              }
+              if (archiveEnabled) {
+                this.showMessage('上传成功，请继续完善分类后保存', 'success');
+                return;
+              }
+              this.showMessage('上传成功，当前案件还没有可用的归档目录，请继续完善分类后保存', 'success');
             })
             .catch(() => {
               this.showMessage('上传失败', 'error');

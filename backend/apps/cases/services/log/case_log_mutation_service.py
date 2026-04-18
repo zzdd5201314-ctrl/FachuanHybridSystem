@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, cast
 
 from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.cases.models import Case, CaseLog, CaseLogVersion
@@ -23,6 +24,12 @@ class CaseLogMutationService:
         *,
         case_id: int,
         content: str,
+        stage: str | None = None,
+        note: str = "",
+        logged_at: datetime | None = None,
+        log_type: str | None = None,
+        source: str | None = None,
+        is_pinned: bool = False,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
@@ -50,7 +57,25 @@ class CaseLogMutationService:
         if not actor_id:
             raise ValidationException(_("操作人不能为空"), errors={"actor": _("缺少有效的操作人")})
 
-        log = CaseLog.objects.create(case_id=case_id, content=content, actor_id=actor_id)
+        valid_stages = set(CaseLog._meta.get_field("stage").choices or [])
+        stage_values = {value for value, _label in valid_stages}
+        stage_value = stage if stage in stage_values else case.current_stage
+        log_type_value = log_type if log_type in CaseLog.LogType.values else CaseLog.LogType.MANUAL
+        source_value = source if source in CaseLog.Source.values else CaseLog.Source.CASE
+        if source_value == CaseLog.Source.CONTRACT and case.contract_id is None:
+            source_value = CaseLog.Source.CASE
+
+        log = CaseLog.objects.create(
+            case_id=case_id,
+            content=content,
+            stage=stage_value,
+            note=note or "",
+            logged_at=logged_at or timezone.now(),
+            actor_id=actor_id,
+            log_type=log_type_value,
+            source=source_value,
+            is_pinned=is_pinned,
+        )
 
         if reminder_type and reminder_time:
             from apps.core.interfaces import ServiceLocator
@@ -89,6 +114,16 @@ class CaseLogMutationService:
 
         old_content = log.content
         actor_id = getattr(user, "id", None) if user else None
+
+        if "stage" in data:
+            valid_stages = {value for value, _label in (CaseLog._meta.get_field("stage").choices or [])}
+            stage_value = data.get("stage")
+            if stage_value not in valid_stages and stage_value not in (None, ""):
+                raise ValidationException(_("无效的审理阶段"), errors={"stage": _("无效的审理阶段")})
+            data["stage"] = stage_value or None
+
+        if "note" in data and data.get("note") is None:
+            data["note"] = ""
 
         for key, value in data.items():
             setattr(log, key, value)

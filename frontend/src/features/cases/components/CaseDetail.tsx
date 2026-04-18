@@ -173,7 +173,7 @@ function BasicInfoTab({ caseData }: { caseData: Case }) {
           <InfoItem icon={Briefcase} label="案件名称" value={caseData.name} />
           <InfoItem icon={Scale} label="案件类型" value={caseData.case_type ? SIMPLE_CASE_TYPE_LABELS[caseData.case_type]?.zh : null} />
           <InfoItem icon={FileText} label="状态" value={caseData.status ? CASE_STATUS_LABELS[caseData.status as CaseStatus]?.zh ?? caseData.status : null} />
-          <InfoItem icon={Calendar} label="立案日期" value={formatDate(caseData.start_date)} mono />
+          <InfoItem icon={Calendar} label="收案日期" value={formatDate(caseData.start_date)} mono />
           <InfoItem icon={Calendar} label="生效日期" value={formatDate(caseData.effective_date)} mono />
           <InfoItem icon={Scale} label="案由" value={caseData.cause_of_action} />
           <InfoItem icon={FileText} label="当前阶段" value={stageLabel} />
@@ -310,7 +310,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         </TabsContent>
 
         <TabsContent value="logs" className="mt-4">
-          <CaseLogSection logs={caseData.logs ?? []} editable={false} />
+          <CaseLogSection logs={caseData.logs ?? []} editable={false} caseId={caseData.id} />
         </TabsContent>
 
         <TabsContent value="numbers" className="mt-4">

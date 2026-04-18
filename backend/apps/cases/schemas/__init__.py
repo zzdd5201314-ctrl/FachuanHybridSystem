@@ -46,6 +46,8 @@ from .log_schemas import (
     CaseLogVersionOut,
 )
 from .material_schemas import (
+    CaseMaterialArchiveConfigOut,
+    CaseMaterialArchiveFolderOut,
     CaseMaterialBindCandidateOut,
     CaseMaterialBindIn,
     CaseMaterialBindingOut,
@@ -56,6 +58,7 @@ from .material_schemas import (
     CaseMaterialGroupOrderIn,
     CaseMaterialGroupRenameIn,
     CaseMaterialGroupRenameOut,
+    CaseMaterialRearchiveOut,
     CaseMaterialReplaceIn,
     CaseMaterialReplaceOut,
     CaseMaterialUploadOut,
@@ -107,6 +110,8 @@ __all__ = [
     "CaseLogOut",
     "CaseLogUpdate",
     "CaseLogVersionOut",
+    "CaseMaterialArchiveConfigOut",
+    "CaseMaterialArchiveFolderOut",
     "CaseMaterialBindCandidateOut",
     "CaseMaterialBindIn",
     "CaseMaterialBindItemIn",
@@ -117,6 +122,7 @@ __all__ = [
     "CaseMaterialGroupOrderIn",
     "CaseMaterialGroupRenameIn",
     "CaseMaterialGroupRenameOut",
+    "CaseMaterialRearchiveOut",
     "CaseMaterialReplaceIn",
     "CaseMaterialReplaceOut",
     "CaseMaterialUploadOut",

@@ -54,6 +54,36 @@ class FolderFilesystemService:
 
         return str(file_path)
 
+    def save_fileobj(
+        self,
+        base_path: str,
+        relative_dir_parts: list[str],
+        file_name: str,
+        file_obj: io.BufferedReader,
+        *,
+        overwrite_path: str | None = None,
+    ) -> str:
+        base_dir = Path(base_path)
+        safe_file_name = self.validator.sanitize_file_name(file_name)
+
+        file_dir = base_dir
+        for part in relative_dir_parts:
+            file_dir = file_dir / part
+
+        if overwrite_path:
+            file_path = Path(overwrite_path)
+        else:
+            file_path = self._get_unique_path(file_dir, safe_file_name)
+        self.validator.ensure_within_base(base_dir, file_path)
+
+        parent_dir = file_path.parent if hasattr(file_path, "parent") else Path(str(file_path)).dirname()
+        self.validator.mkdirs(parent_dir)
+
+        with open(str(file_path), "wb") as dst:
+            shutil.copyfileobj(file_obj, dst)
+
+        return str(file_path)
+
     def _get_unique_path(self, parent_dir: Path, file_name: str) -> Path:
         """如果文件已存在则返回带序号后缀的唯一路径，如 file.docx → file_1.docx"""
         stem = Path(file_name).stem
