@@ -81,7 +81,7 @@ agents.md
 .agents/
 /.playwright-cli/
 # Logs
-logs/
+/logs/
 # Testing
 .coverage
 htmlcov/
