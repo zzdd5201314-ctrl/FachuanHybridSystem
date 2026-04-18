@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from pydantic import Field
+
 from .base import Schema, datetime
 
 
@@ -15,6 +17,9 @@ class CaseMaterialBindingOut(Schema):
     side: str | None = None
     party_ids: ClassVar[list[int]] = []
     supervising_authority_id: int | None = None
+    archive_relative_path: str = ""
+    archived_file_path: str = ""
+    archived_at: datetime | None = None
 
 
 class CaseMaterialBindCandidateOut(Schema):
@@ -26,6 +31,11 @@ class CaseMaterialBindCandidateOut(Schema):
     log_created_at: datetime | None = None
     actor_name: str
     material: CaseMaterialBindingOut | None = None
+    archive_suggested_relative_path: str = ""
+    archive_suggested_reason: str = ""
+    attachment_archive_relative_path: str = ""
+    attachment_archived_file_path: str = ""
+    attachment_archived_at: datetime | None = None
 
 
 class CaseMaterialBindItemIn(Schema):
@@ -36,10 +46,24 @@ class CaseMaterialBindItemIn(Schema):
     side: str | None = None
     party_ids: ClassVar[list[int]] = []
     supervising_authority_id: int | None = None
+    archive_relative_path: str | None = None
 
 
 class CaseMaterialBindIn(Schema):
     items: list[CaseMaterialBindItemIn]
+
+
+class CaseMaterialArchiveFolderOut(Schema):
+    relative_path: str = ""
+    display_name: str
+
+
+class CaseMaterialArchiveConfigOut(Schema):
+    enabled: bool = False
+    writable: bool = False
+    root_path: str = ""
+    message: str = ""
+    folders: list[CaseMaterialArchiveFolderOut] = Field(default_factory=list)
 
 
 class CaseMaterialGroupOrderIn(Schema):
@@ -52,6 +76,18 @@ class CaseMaterialGroupOrderIn(Schema):
 class CaseMaterialUploadOut(Schema):
     log_id: int
     attachment_ids: list[int]
+    archived_count: int = 0
+    archive_enabled: bool = False
+
+
+class CaseMaterialRearchiveOut(Schema):
+    enabled: bool = False
+    message: str = ""
+    processed_count: int = 0
+    archived_count: int = 0
+    bound_count: int = 0
+    unbound_count: int = 0
+    skipped_count: int = 0
 
 
 class CaseMaterialReplaceIn(Schema):
@@ -105,6 +141,8 @@ class CaseMaterialDeleteAllOut(Schema):
 
 
 __all__: list[str] = [
+    "CaseMaterialArchiveConfigOut",
+    "CaseMaterialArchiveFolderOut",
     "CaseMaterialBindCandidateOut",
     "CaseMaterialBindIn",
     "CaseMaterialBindItemIn",
@@ -115,6 +153,7 @@ __all__: list[str] = [
     "CaseMaterialGroupOrderIn",
     "CaseMaterialGroupRenameIn",
     "CaseMaterialGroupRenameOut",
+    "CaseMaterialRearchiveOut",
     "CaseMaterialReplaceIn",
     "CaseMaterialReplaceOut",
     "CaseMaterialUploadOut",

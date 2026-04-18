@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from django.contrib import admin
 from django.http import HttpRequest
+from django.utils.translation import gettext_lazy as _
 
 from apps.cases.admin.base_admin import BaseModelAdmin, BaseStackedInline, BaseTabularInline
 from apps.cases.admin.case_chat_admin import CaseChatInline
@@ -179,9 +180,9 @@ class CaseAdmin(
         if "status__exact" not in request.GET:
             return HttpResponseRedirect(f"{request.path}?status__exact=active")
         return super().changelist_view(request, extra_context=extra_context)
-    list_display = ("id_link", "name_link", "status", "start_date", "effective_date", "is_filed")
+    list_display = ("id_link", "name_link", "current_stage_display", "status", "start_date", "effective_date", "is_filed")
     list_display_links = None
-    list_filter = ("status", "is_filed")
+    list_filter = ("current_stage", "status", "is_filed")
     search_fields = ("name",)
     change_form_template = "admin/cases/case/change_form.html"
     readonly_fields = ("filing_number",)
@@ -223,4 +224,10 @@ class CaseAdmin(
 
     def get_file_paths(self, queryset: QuerySet[Case]) -> list[str]:
         service = self._get_case_admin_service()
-        return service.collect_file_paths_for_export(queryset)
+        return cast(list[str], service.collect_file_paths_for_export(queryset))
+
+    def current_stage_display(self, obj: Case) -> str:
+        return obj.get_current_stage_display() if obj.current_stage else "-"
+
+    current_stage_display.short_description = _("当前阶段")  # type: ignore[attr-defined]
+    current_stage_display.admin_order_field = "current_stage"  # type: ignore[attr-defined]

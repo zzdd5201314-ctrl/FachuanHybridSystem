@@ -172,6 +172,19 @@ class ContractAdmin(
             self.fields["representation_stages"].initial = list(
                 getattr(self.instance, "representation_stages", []) or []
             )
+            if "log_anchor_case" in self.fields:
+                from apps.cases.models import Case
+
+                if getattr(self.instance, "pk", None):
+                    self.fields["log_anchor_case"].queryset = Case.objects.filter(contract_id=self.instance.pk).order_by(
+                        "-start_date", "id"
+                    )
+                    self.fields["log_anchor_case"].help_text = _(
+                        "选择这份合同的日志中心案件，后续需要统一归口的合同日志建议都写入这里。"
+                    )
+                else:
+                    self.fields["log_anchor_case"].queryset = Case.objects.none()
+                    self.fields["log_anchor_case"].help_text = _("请先保存合同并创建关联案件，再选择日志中心案件。")
 
         def clean(self) -> dict[str, Any]:
             cleaned = super().clean() or {}
@@ -183,6 +196,10 @@ class ContractAdmin(
                 cleaned["representation_stages"] = normalize_representation_stages(ctype, rep, strict=False)
             except Exception:
                 logger.exception("操作失败")
+            anchor_case = cleaned.get("log_anchor_case")
+            if anchor_case is not None and getattr(self.instance, "pk", None):
+                if getattr(anchor_case, "contract_id", None) != self.instance.pk:
+                    self.add_error("log_anchor_case", _("日志中心案件必须属于当前合同"))
             return cleaned
 
     form = ContractAdminForm

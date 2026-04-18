@@ -1,118 +1,181 @@
-/**
- * 案件日志 Admin Inline 样式优化
- */
-
-/* 隐藏每个日志条目的标题文字，但保留删除按钮 */
-#logs-group .djn-inline-form > h3 {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: transparent !important;
-    border: none !important;
+.case-log-section {
+    margin-top: 12px;
 }
 
-#logs-group .djn-inline-form > h3 > b,
-#logs-group .djn-inline-form > h3 > .inline_label {
-    display: none !important;
+.case-log-section > h2 {
+    margin: 0;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, #417690 0%, #36697f 100%);
+    color: #fff;
+    border-radius: 4px 4px 0 0;
 }
 
-#logs-group .djn-inline-form > h3 > .delete {
-    display: block !important;
-    float: right;
-    margin-bottom: 8px;
+.case-log-content {
+    padding: 12px;
+    background: #f8f8f8;
+    border: 1px solid #d9d9d9;
+    border-top: 0;
+    border-radius: 0 0 4px 4px;
 }
 
-/* 标题栏样式 - 添加排序按钮 */
-#logs-group > fieldset {
-    padding: 0;
+.case-log-summary-card,
+.case-log-table-card {
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    box-shadow: none;
 }
 
-#logs-group > fieldset > h2 {
+.case-log-summary-card {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 0;
-    padding: 10px 15px;
-    background: #417690;
-    color: white;
-}
-
-/* 日志列表容器 */
-#logs-group .djn-items {
-    padding: 10px 15px;
-    background: #f5f5f5;
-}
-
-/* 优化日志条目布局 - 移除分割线，统一背景 */
-#logs-group .djn-inline-form fieldset.module {
-    border: none;
-    background: white;
-    border-radius: 4px;
+    justify-content: space-between;
+    gap: 14px;
     margin-bottom: 10px;
-    padding: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    clear: both;
+    padding: 12px 14px;
 }
 
-/* 日志内容和创建日期放在同一个区域 */
-#logs-group .djn-inline-form .form-row {
-    margin-bottom: 8px;
-    border: none;
-    padding: 0;
-}
-
-#logs-group .djn-inline-form .form-row label {
-    font-weight: 600;
-    color: #333;
+.case-log-summary-title {
     margin-bottom: 4px;
+    color: #333;
+    font-size: 14px;
+    font-weight: 600;
 }
 
-/* 创建日期样式 */
-#logs-group .djn-inline-form .field-created_at p {
+.case-log-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
     color: #666;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.case-log-summary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.case-log-summary-actions .button {
+    min-width: 0;
+    padding: 6px 10px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.case-log-primary-action {
+    background: #79aec8 !important;
+    border-color: #609ab6 !important;
+    color: #fff !important;
+}
+
+.case-log-primary-action:hover {
+    background: #609ab6 !important;
+    border-color: #4f8aa5 !important;
+}
+
+.case-log-summary-hint {
+    color: #666;
+    font-size: 12px;
+}
+
+.case-log-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid #e5e5e5;
+    color: #333;
     font-size: 13px;
-    margin: 0;
+    font-weight: 600;
 }
 
-/* 日志内容文本框 */
-#logs-group .djn-inline-form textarea {
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 8px;
+.case-log-table-caption {
+    color: #777;
+    font-size: 12px;
+    font-weight: 400;
 }
 
-/* 添加按钮区域 */
-#logs-group .djn-add-item {
-    padding: 10px 15px;
-    background: #f5f5f5;
-    margin: 0;
+.case-log-compact-table {
+    width: 100%;
+    border-collapse: collapse;
 }
 
-/* 排序按钮样式 - 白色链接样式 */
-.case-log-sort-btn {
-    display: inline-block;
-    padding: 0;
-    margin-left: 10px;
-    background: transparent;
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: normal;
+.case-log-compact-table th,
+.case-log-compact-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+    vertical-align: top;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.case-log-compact-table th {
+    background: #fafafa;
+    color: #666;
+    font-weight: 600;
+}
+
+.case-log-compact-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.case-log-compact-content {
+    min-width: 260px;
+    color: #333;
+}
+
+.case-log-inline-link {
+    color: #417690;
     text-decoration: none;
-    transition: opacity 0.2s;
+    font-weight: 600;
 }
 
-.case-log-sort-btn:hover {
-    opacity: 0.8;
+.case-log-inline-link:hover {
     text-decoration: underline;
 }
 
-/* Select2 下拉菜单防溢出 */
-.select2-container--admin-autocomplete .select2-dropdown {
-    max-width: calc(100vw - 40px) !important;
+.case-log-empty-state {
+    padding: 16px 14px;
+    color: #666;
+    font-size: 12px;
 }
-/* 合同字段 Select2 宽度自适应 */
-.field-contract .select2-container--admin-autocomplete {
-    min-width: 200px;
-    max-width: 100%;
+
+@media (max-width: 1100px) {
+    .case-log-summary-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .case-log-summary-actions {
+        justify-content: flex-start;
+    }
+
+    .case-log-compact-table th,
+    .case-log-compact-table td {
+        padding: 8px 10px;
+    }
+
+    .case-log-compact-content {
+        min-width: 180px;
+    }
+}
+
+.authority-main {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.authority-meta {
+    margin-top: 4px;
+    color: #666;
+    font-size: 12px;
+    line-height: 1.5;
 }

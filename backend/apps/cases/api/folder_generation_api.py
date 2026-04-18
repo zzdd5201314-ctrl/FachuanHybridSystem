@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import zipfile
+from datetime import date
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -11,10 +12,32 @@ from typing import Any
 from django.http import HttpRequest, HttpResponse
 from ninja import Router
 
+from apps.core.models.enums import CaseStage, CaseType
 from apps.documents.api.download_response_factory import build_download_response
 
 logger = logging.getLogger("apps.cases.api")
 router = Router()
+
+
+def _get_case_stage_display(case: Any) -> str:
+    stage_display = ""
+    display_method = getattr(case, "get_current_stage_display", None)
+    if callable(display_method):
+        stage_display = str(display_method() or "").strip()
+
+    if not stage_display:
+        current_stage = getattr(case, "current_stage", None)
+        stage_display = str(dict(CaseStage.choices).get(current_stage, current_stage or "")).strip()
+
+    return stage_display or "未设置阶段"
+
+
+def build_case_folder_root_name(case: Any, *, current_date: date | None = None) -> str:
+    folder_date = (current_date or date.today()).strftime("%Y.%m.%d")
+    case_type_display = str(dict(CaseType.choices).get(getattr(case, "case_type", None), getattr(case, "case_type", None) or ""))
+    stage_display = _get_case_stage_display(case)
+    case_name = str(getattr(case, "name", None) or "未命名案件").strip()
+    return f"{folder_date}-[{case_type_display}]-[{stage_display}]-{case_name}"
 
 
 @router.post("/{case_id}/generate-folder")
@@ -60,14 +83,8 @@ def generate_case_folder(request: HttpRequest, case_id: int) -> Any:
     matched_template_id = matched_candidates[0]["id"]
     matched = FolderTemplate.objects.get(pk=matched_template_id)
 
-    # 生成文件夹名称：日期-案件名
-    from datetime import date
-
-    from apps.core.models.enums import CaseType
-
-    today = date.today().strftime("%Y.%m.%d")
-    case_type_display = dict(CaseType.choices).get(case.case_type, case.case_type or "")
-    root_name = f"{today}-[{case_type_display}]{case.name}"
+    # 生成文件夹名称：日期-[案件类型]-[阶段]-案件名称
+    root_name = build_case_folder_root_name(case)
 
     svc = FolderGenerationService()
 

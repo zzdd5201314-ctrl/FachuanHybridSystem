@@ -1,4 +1,4 @@
-"""Business workflow orchestration."""
+"""Workflow helpers for binding uploaded attachments into case materials."""
 
 from __future__ import annotations
 
@@ -22,14 +22,23 @@ from apps.core.exceptions import NotFoundError, ValidationException
 
 
 class CaseMaterialBindingWorkflow:
-    def __init__(self, case_service: Any | None = None) -> None:
+    def __init__(self, case_service: Any | None = None, archive_service: Any | None = None) -> None:
         self._case_service = case_service
+        self._archive_service = archive_service
 
     @property
     def case_service(self) -> Any:
         if self._case_service is None:
-            raise RuntimeError("CaseMaterialBindingWorkflow.case_service 未注入")
+            raise RuntimeError("CaseMaterialBindingWorkflow.case_service not configured")
         return self._case_service
+
+    @property
+    def archive_service(self) -> Any:
+        if self._archive_service is None:
+            from .case_material_archive_service import CaseMaterialArchiveService
+
+            self._archive_service = CaseMaterialArchiveService(case_service=self._case_service)
+        return self._archive_service
 
     def bind_materials(
         self,
@@ -38,35 +47,47 @@ class CaseMaterialBindingWorkflow:
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
-    ) -> list[CaseMaterial]:
+    ) -> dict[str, Any]:
         self.case_service.get_case(case_id, user=user, org_access=org_access, perm_open_access=perm_open_access)
-        attachment_ids = [int(x["attachment_id"]) for x in items if x.get("attachment_id") is not None]
+        attachment_ids = [int(item["attachment_id"]) for item in items if item.get("attachment_id") is not None]
         attachments = {
-            a.id: a
-            for a in CaseLogAttachment.objects.filter(log__case_id=case_id, id__in=attachment_ids).select_related("log")
+            attachment.id: attachment
+            for attachment in CaseLogAttachment.objects.filter(log__case_id=case_id, id__in=attachment_ids).select_related(
+                "log"
+            )
         }
-        missing = [aid for aid in attachment_ids if aid not in attachments]
+        missing = [attachment_id for attachment_id in attachment_ids if attachment_id not in attachments]
         if missing:
             raise NotFoundError(_("部分附件不存在或不属于该案件"))
-        parties_by_id = {p.id: p for p in CaseParty.objects.filter(case_id=case_id).select_related("client").all()}
-        authorities_by_id = {a.id: a for a in SupervisingAuthority.objects.filter(case_id=case_id).all()}
+
+        parties_by_id = {
+            party.id: party for party in CaseParty.objects.filter(case_id=case_id).select_related("client").all()
+        }
+        authorities_by_id = {
+            authority.id: authority for authority in SupervisingAuthority.objects.filter(case_id=case_id).all()
+        }
         law_firm_id = getattr(user, "law_firm_id", None) if user else None
         type_cache: dict[str, CaseMaterialType] = {}
         saved: list[CaseMaterial] = []
+        archived_count = 0
+        archive_folders = self.archive_service.get_archive_config_for_case(case_id=case_id).get("folders") or []
+
         with transaction.atomic():
             for payload in items:
-                att_id_raw = payload.get("attachment_id")
-                att_id = int(att_id_raw) if att_id_raw is not None else 0
+                attachment_id = int(payload.get("attachment_id") or 0)
                 category = (payload.get("category") or "").strip()
                 type_id = payload.get("type_id")
                 type_name = (payload.get("type_name") or "").strip()
                 side = payload.get("side")
                 party_ids = payload.get("party_ids") or []
                 supervising_authority_id = payload.get("supervising_authority_id")
+                archive_relative_path = payload.get("archive_relative_path")
+
                 if category not in {CaseMaterialCategory.PARTY, CaseMaterialCategory.NON_PARTY}:
                     raise ValidationException(message=_("材料大类不合法"), errors={"category": category})
                 if not type_name:
                     raise ValidationException(message=_("类型名称不能为空"), errors={"type_name": "required"})
+
                 if category == CaseMaterialCategory.PARTY:
                     if side not in {CaseMaterialSide.OUR, CaseMaterialSide.OPPONENT}:
                         raise ValidationException(message=_("当事人方向不合法"), errors={"side": side})
@@ -75,7 +96,8 @@ class CaseMaterialBindingWorkflow:
                     side = None
                     if not supervising_authority_id:
                         raise ValidationException(
-                            message=_("必须选择主管机关"), errors={"supervising_authority_id": "required"}
+                            message=_("必须选择主管机关"),
+                            errors={"supervising_authority_id": "required"},
                         )
                     supervising_authority_id = int(supervising_authority_id)
                     if supervising_authority_id not in authorities_by_id:
@@ -83,11 +105,16 @@ class CaseMaterialBindingWorkflow:
                             message=_("主管机关不属于该案件"),
                             errors={"supervising_authority_id": supervising_authority_id},
                         )
+
                 resolved_type = self._resolve_type_cached(
-                    cache=type_cache, category=category, type_id=type_id, type_name=type_name, law_firm_id=law_firm_id
+                    cache=type_cache,
+                    category=category,
+                    type_id=type_id,
+                    type_name=type_name,
+                    law_firm_id=law_firm_id,
                 )
                 material, _created = CaseMaterial.objects.update_or_create(
-                    source_attachment=attachments[att_id],
+                    source_attachment=attachments[attachment_id],
                     defaults={
                         "case_id": case_id,
                         "category": category,
@@ -97,27 +124,29 @@ class CaseMaterialBindingWorkflow:
                         "supervising_authority_id": supervising_authority_id,
                     },
                 )
+
                 if category == CaseMaterialCategory.PARTY:
                     validated_party_ids = self._validate_party_ids(party_ids, parties_by_id, side)
                     material.parties.set(validated_party_ids)
                 else:
                     material.parties.clear()
+
+                archived_path = self.archive_service.sync_material_archive(
+                    case_id=case_id,
+                    material=material,
+                    archive_relative_path=archive_relative_path,
+                    folder_options=archive_folders,
+                )
+                if archived_path:
+                    archived_count += 1
                 saved.append(material)
 
-        # 根据绑定顺序自动创建/更新分组排序，保留用户文件夹顺序
         if saved:
             self._ensure_group_orders(case_id, saved)
 
-        return saved
+        return {"materials": saved, "archived_count": archived_count}
 
     def _ensure_group_orders(self, case_id: int, saved: list[CaseMaterial]) -> None:
-        """根据绑定顺序自动创建/更新分组排序记录，保留用户文件夹顺序。
-
-        遍历 saved 列表（按前端传入顺序），收集每个 (category, side, supervising_authority_id)
-        下的 type 首次出现顺序，然后用 update_or_create 写入 CaseMaterialGroupOrder。
-        已存在的分组排序记录（之前通过拖拽设置的）会被保留，只补充新出现的分组。
-        """
-        # 收集每个 (category, side, authority_id) 下的 type 出现顺序
         group_order_map: dict[tuple[str, str | None, int | None], list[int]] = {}
         for material in saved:
             if not material.type_id:
@@ -126,14 +155,12 @@ class CaseMaterialBindingWorkflow:
             if material.type_id not in group_order_map.get(key, []):
                 group_order_map.setdefault(key, []).append(material.type_id)
 
-        # 读取已有的分组排序，确定已有分组的 sort_index
         existing_orders = CaseMaterialGroupOrder.objects.filter(case_id=case_id)
         existing_max_index: dict[tuple[str, str | None, int | None], int] = {}
         for order in existing_orders:
             key = (order.category, order.side, order.supervising_authority_id)
             existing_max_index[key] = max(existing_max_index.get(key, -1), order.sort_index)
 
-        # 对每个分组维度，为未设置排序的新分组追加 sort_index
         for (category, side, authority_id), type_ids in group_order_map.items():
             existing_type_ids = set(
                 CaseMaterialGroupOrder.objects.filter(
@@ -175,14 +202,19 @@ class CaseMaterialBindingWorkflow:
         return resolved
 
     def _resolve_type(
-        self, *, category: str, type_id: int | None, type_name: str, law_firm_id: int | None
+        self,
+        *,
+        category: str,
+        type_id: int | None,
+        type_name: str,
+        law_firm_id: int | None,
     ) -> CaseMaterialType:
         if type_id:
             try:
-                t = CaseMaterialType.objects.get(id=int(type_id), category=category, is_active=True)
+                return CaseMaterialType.objects.get(id=int(type_id), category=category, is_active=True)
             except CaseMaterialType.DoesNotExist:
                 raise ValidationException(message=_("材料类型不存在"), errors={"type_id": type_id}) from None
-            return t
+
         qs = CaseMaterialType.objects.filter(category=category, name=type_name, is_active=True).order_by(
             models.Case(
                 models.When(law_firm_id=law_firm_id, then=0),
@@ -191,29 +223,35 @@ class CaseMaterialBindingWorkflow:
                 output_field=models.IntegerField(),
             )
         )
-        t: CaseMaterialType | None = qs.first()  # type: ignore
-        if t is not None:
-            return t
+        resolved: CaseMaterialType | None = qs.first()  # type: ignore[assignment]
+        if resolved is not None:
+            return resolved
         return CaseMaterialType.objects.create(
-            category=category, name=type_name, law_firm_id=law_firm_id, is_active=True
+            category=category,
+            name=type_name,
+            law_firm_id=law_firm_id,
+            is_active=True,
         )
 
     def _validate_party_ids(
-        self, party_ids: Sequence[Any], parties_by_id: dict[int, CaseParty], side: str
+        self,
+        party_ids: Sequence[Any],
+        parties_by_id: dict[int, CaseParty],
+        side: str,
     ) -> list[int]:
         validated: list[int] = []
-        for pid in party_ids:
+        for party_id in party_ids:
             try:
-                pid_int = int(pid)
+                parsed_party_id = int(party_id)
             except (TypeError, ValueError):
                 continue
-            party = parties_by_id.get(pid_int)
+            party = parties_by_id.get(parsed_party_id)
             if not party:
-                raise ValidationException(message=_("包含无效当事人"), errors={"party_ids": pid_int})
+                raise ValidationException(message=_("包含无效当事人"), errors={"party_ids": parsed_party_id})
             is_our = bool(getattr(getattr(party, "client", None), "is_our_client", False))
-            if side == CaseMaterialSide.OUR and (not is_our):
-                raise ValidationException(message=_("当事人不属于我方"), errors={"party_ids": pid_int})
+            if side == CaseMaterialSide.OUR and not is_our:
+                raise ValidationException(message=_("当事人不属于我方"), errors={"party_ids": parsed_party_id})
             if side == CaseMaterialSide.OPPONENT and is_our:
-                raise ValidationException(message=_("当事人不属于对方"), errors={"party_ids": pid_int})
-            validated.append(pid_int)
+                raise ValidationException(message=_("当事人不属于对方"), errors={"party_ids": parsed_party_id})
+            validated.append(parsed_party_id)
         return validated

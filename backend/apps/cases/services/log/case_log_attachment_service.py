@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from django.core.files.uploadedfile import UploadedFile
@@ -13,10 +14,21 @@ from apps.core.exceptions import NotFoundError, ValidationException
 
 from .case_log_query_service import CaseLogQueryService
 
+logger = logging.getLogger("apps.cases")
+
 
 class CaseLogAttachmentService:
-    def __init__(self, query_service: CaseLogQueryService | None = None) -> None:
+    def __init__(self, query_service: CaseLogQueryService | None = None, archive_service: Any | None = None) -> None:
         self.query_service = query_service or CaseLogQueryService()
+        self._archive_service = archive_service
+
+    @property
+    def archive_service(self) -> Any:
+        if self._archive_service is None:
+            from apps.cases.services.material.case_material_archive_service import CaseMaterialArchiveService
+
+            self._archive_service = CaseMaterialArchiveService()
+        return self._archive_service
 
     def upload_attachments(
         self,
@@ -44,6 +56,21 @@ class CaseLogAttachmentService:
             self._validate_attachment(f)
             created.append(CaseLogAttachment.objects.create(log=log, file=f))
 
+        if created:
+            try:
+                self.archive_service.archive_uploaded_attachments(
+                    case_id=log.case_id,
+                    attachments=created,
+                    user=user,
+                    org_access=org_access,
+                    perm_open_access=perm_open_access,
+                )
+            except Exception:
+                logger.exception(
+                    "case_log_attachment_auto_archive_failed",
+                    extra={"log_id": int(log.id), "case_id": int(log.case_id), "attachment_count": len(created)},
+                )
+
         return created
 
     def delete_attachment(
@@ -69,6 +96,7 @@ class CaseLogAttachmentService:
                 message=_("无权限删除此附件"),
             )
 
+        self.archive_service.cleanup_attachment_archive(attachment=attachment, save=False)
         if attachment.file:
             attachment.file.delete(save=False)
 

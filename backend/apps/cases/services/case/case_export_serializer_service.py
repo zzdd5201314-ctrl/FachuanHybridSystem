@@ -99,6 +99,18 @@ def serialize_case_obj(obj: Case) -> SerializedPayload:
         ],
         "logs": [
             {
+                "case_id": log.case_id,
+                "case_name": log.case.name,
+                "contract_id": getattr(log.case, "contract_id", None),
+                "contract_name": getattr(getattr(log.case, "contract", None), "name", None),
+                "stage": log.stage,
+                "note": log.note,
+                "logged_at": log.logged_at.isoformat() if getattr(log, "logged_at", None) else None,
+                "log_type": log.log_type,
+                "log_type_display": log.get_log_type_display(),
+                "source": log.source,
+                "source_display": log.get_source_display(),
+                "is_pinned": log.is_pinned,
                 "content": log.content,
                 "created_at": log.created_at.isoformat(),
                 "actor": {"real_name": log.actor.real_name, "phone": log.actor.phone, "username": log.actor.username},

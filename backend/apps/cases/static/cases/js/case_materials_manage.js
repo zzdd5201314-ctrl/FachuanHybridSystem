@@ -29,6 +29,15 @@
     const dc = ['party', 'non_party'].includes(defaultCategory) ? defaultCategory : '';
     const materialCategory = material ? (material.category || '') : '';
     const singleAuthorityId = (supervisingAuthorities || []).length === 1 ? String(supervisingAuthorities[0].id) : '';
+    const currentArchiveRelativePath = material
+      ? (material.archive_relative_path || '')
+      : (candidate.attachment_archive_relative_path || '');
+    const archivedFilePath = material
+      ? (material.archived_file_path || '')
+      : (candidate.attachment_archived_file_path || '');
+    const archivedAt = material
+      ? (material.archived_at || '')
+      : (candidate.attachment_archived_at || '');
     const row = {
       attachmentId: candidate.attachment_id,
       fileName: candidate.file_name,
@@ -44,6 +53,13 @@
       supervisingAuthorityId: material ? (material.supervising_authority_id || '') : draftAuthorityId,
       typeSelect: material && material.type_id ? String(material.type_id) : '',
       customTypeName: material && !material.type_id ? (material.type_name || '') : (draft.type_name_hint || ''),
+      archiveSelection: material ? (material.archive_relative_path || '') : '__auto__',
+      currentArchiveRelativePath,
+      archiveSuggestedRelativePath: candidate.archive_suggested_relative_path || '',
+      archiveSuggestedReason: candidate.archive_suggested_reason || '',
+      archivedFilePath,
+      archivedAt,
+      archivedAtDisplay: archivedAt ? formatTime(archivedAt) : '',
     };
     // 非当事人材料且只有一个主管机关时，自动选择
     if (row.category === 'non_party' && !row.supervisingAuthorityId && singleAuthorityId) {
@@ -533,7 +549,7 @@
               if (!resp.ok) throw new Error('load failed');
               return resp.json();
             })
-            .then((data) => {
+            .then(async (data) => {
               const uploadedSet = new Set(this.lastUploadedIds.map(String));
               const prefillMap = this.scanPrefillMap || {};
               const dc = this.defaultCategory;
@@ -864,6 +880,7 @@
               side: row.category === 'party' ? row.side : null,
               party_ids: row.category === 'party' ? (row.partyIds || []).map((x) => parseInt(x, 10)) : [],
               supervising_authority_id: row.category === 'non_party' ? row.supervisingAuthorityId : null,
+              archive_relative_path: row.archiveSelection === '__auto__' ? null : (row.archiveSelection || ''),
             };
             if (row.typeSelect === '__custom__') {
               item.type_id = null;
@@ -908,7 +925,13 @@
             if (!resp.ok) throw new Error('保存失败');
             const data = await resp.json();
             const count = (data && data.saved_count) || 0;
+            const archivedCount = (data && data.archived_count) || 0;
+            this.showMessage(`Saved ${count} materials, archived ${archivedCount} files, returning to case detail...`, 'success');
+            /*
             this.showMessage(`已保存 ${count} 条材料分类，正在返回案件详情...`, 'success');
+            this.showMessage(`宸蹭繚瀛?${count} 鏉℃潗鏂欙紝褰掓。 ${archivedCount} 涓枃浠讹紝姝ｅ湪杩斿洖妗堜欢璇︽儏...`, 'success');
+            this.showMessage(`Saved ${count} materials, archived ${archivedCount} files, returning to case detail...`, 'success');
+            */
             this.lastUploadedIds = [];
             this.redirectToDetailAfterSave();
           } catch (err) {
@@ -939,11 +962,36 @@
               if (!resp.ok) throw new Error('upload failed');
               return resp.json();
             })
-            .then((data) => {
+            .then(async (data) => {
               this.lastUploadedIds = (data && data.attachment_ids) || [];
               this.pendingFiles = [];
               this.recentUploadedCount = this.lastUploadedIds.length || files.length;
+              await this.load();
+              const archivedCount = (data && data.archived_count) || 0;
+              const archiveEnabled = Boolean(data && data.archive_enabled);
+              if (archivedCount > 0) {
+                this.showMessage(`Upload succeeded. Auto-archived ${archivedCount} files.`, 'success');
+                return;
+              }
+              if (archiveEnabled) {
+                this.showMessage('Upload succeeded. Please finish categorizing and save.', 'success');
+                return;
+              }
+              this.showMessage('Upload succeeded. No writable archive directory is available for this case yet.', 'success');
+              return;
+              /*
+              if (archivedCount > 0) {
+                this.showMessage(`涓婁紶鎴愬姛锛屽凡鑷姩褰掓。 ${archivedCount} 涓枃浠讹紝璇风户缁畬鍠勫垎绫诲悗淇濆瓨`, 'success');
+                return;
+              }
+              if (archiveEnabled) {
+                this.showMessage('涓婁紶鎴愬姛锛岃缁х画瀹屽杽鍒嗙被鍚庝繚瀛?,', 'success');
+                return;
+              }
+              this.showMessage('涓婁紶鎴愬姛锛屽綋鍓嶆浠惰繕娌℃湁鍙敤鐨勫綊妗ｇ洰褰曪紝璇风户缁畬鍠勫垎绫诲悗淇濆瓨', 'success');
+              return;
               this.showMessage('上传成功，正在刷新...', 'success');
+              */
               window.setTimeout(() => {
                 window.location.reload();
               }, 600);

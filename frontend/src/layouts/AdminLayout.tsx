@@ -1,44 +1,56 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { X } from 'lucide-react'
 
-import { cn } from '@/lib/utils'
-import { useUIStore } from '@/stores/ui'
-import { Sidebar } from './components/Sidebar'
-import { Navbar } from './components/Navbar'
-import { Breadcrumb, type BreadcrumbItem } from './components/Breadcrumb'
+import { BreadcrumbProvider, useBreadcrumbContext } from '@/contexts/BreadcrumbContext'
 import { PATHS } from '@/routes/paths'
-import {
-  BreadcrumbProvider,
-  useBreadcrumbContext,
-} from '@/contexts/BreadcrumbContext'
+import { useUIStore } from '@/stores/ui'
+import { cn } from '@/lib/utils'
+import { Breadcrumb, type BreadcrumbItem } from './components/Breadcrumb'
+import { Navbar } from './components/Navbar'
+import { Sidebar } from './components/Sidebar'
 
 const MOBILE_BREAKPOINT = 768
 
 function generateBreadcrumbItems(pathname: string): BreadcrumbItem[] {
-  const items: BreadcrumbItem[] = [
-    { label: '首页', path: PATHS.ADMIN_DASHBOARD },
-  ]
-
+  const items: BreadcrumbItem[] = [{ label: '首页', path: PATHS.ADMIN_DASHBOARD }]
   const segments = pathname.split('/').filter(Boolean)
+
   if (segments[0] === 'admin') segments.shift()
-  if (segments.length === 0 || segments[0] === 'dashboard') return [{ label: '首页' }]
+  if (segments.length === 0 || segments[0] === 'dashboard') {
+    return [{ label: '首页' }]
+  }
 
   const routeLabels: Record<string, string> = {
-    cases: '案件', contracts: '合同', clients: '当事人', documents: '文书',
-    settings: '设置', automation: '自动化工具', 'preservation-quotes': '财产保全询价',
-    'document-recognition': '文书智能识别', new: '新建', edit: '编辑',
-    user: '用户设置', system: '系统配置',
+    cases: '案件',
+    contracts: '合同',
+    clients: '当事人',
+    logs: '日志',
+    documents: '文书',
+    reminders: '提醒',
+    settings: '设置',
+    automation: '自动化工具',
+    'preservation-quotes': '财产保全报价',
+    'document-recognition': '文书智能识别',
+    organization: '组织管理',
+    lawfirms: '律所',
+    lawyers: '律师',
+    teams: '团队',
+    credentials: '凭证',
+    new: '新建',
+    edit: '编辑',
+    user: '用户设置',
+    system: '系统设置',
   }
 
   let currentPath = '/admin'
   segments.forEach((segment, index) => {
-    const isLast = index === segments.length - 1
-    const label = routeLabels[segment] || segment
     if (/^\d+$/.test(segment) || /^[a-f0-9-]{36}$/i.test(segment)) return
     currentPath += `/${segment}`
+    const isLast = index === segments.length - 1
+    const label = routeLabels[segment] ?? segment
     items.push(isLast ? { label } : { label, path: currentPath })
   })
 
@@ -62,12 +74,15 @@ function AdminLayoutContent() {
       setIsMobile(mobile)
       if (mobile && !sidebarCollapsed) setSidebarCollapsed(true)
     }
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [setSidebarCollapsed, sidebarCollapsed])
 
-  useEffect(() => { setMobileMenuOpen(false) }, [location.pathname])
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [location.pathname])
 
   const handleMobileMenuClick = useCallback(() => setMobileMenuOpen(true), [])
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
@@ -78,12 +93,10 @@ function AdminLayoutContent() {
 
   return (
     <div className="bg-background relative min-h-screen">
-      {/* 桌面端 Sidebar */}
       {!isMobile && !isTopbarMode && (
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       )}
 
-      {/* 移动端遮罩 */}
       <div
         className={cn(
           'fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-200',
@@ -93,7 +106,6 @@ function AdminLayoutContent() {
         aria-hidden="true"
       />
 
-      {/* 移动端 Sidebar 抽屉 */}
       <div
         className={cn(
           'fixed left-0 top-0 z-50 h-full w-[280px] transition-transform duration-300 ease-out',
@@ -102,7 +114,7 @@ function AdminLayoutContent() {
       >
         <button
           onClick={closeMobileMenu}
-          className="text-muted-foreground hover:text-foreground hover:bg-accent/50 dark:hover:bg-accent/30 absolute right-2 top-4 z-50 rounded-lg p-2 transition-colors duration-200"
+          className="text-muted-foreground hover:text-foreground hover:bg-accent/50 absolute right-2 top-4 z-50 rounded-lg p-2 transition-colors duration-200"
           aria-label="关闭菜单"
         >
           <X className="size-5" />
@@ -110,7 +122,6 @@ function AdminLayoutContent() {
         <Sidebar collapsed={false} onToggle={closeMobileMenu} />
       </div>
 
-      {/* 主内容区域 */}
       <div
         className="flex min-h-screen flex-col transition-[margin-left] duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
         style={{ marginLeft: mainMarginLeft }}

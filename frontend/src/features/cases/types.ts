@@ -160,7 +160,7 @@ export interface Case {
   status: string | null
   is_filed: boolean
   case_type: SimpleCaseType | null
-  start_date: string
+  start_date: string | null
   effective_date: string | null
   target_amount: number | null
   preservation_amount: number | null
@@ -180,6 +180,7 @@ export interface CaseInput {
   status?: string
   is_filed?: boolean
   case_type?: SimpleCaseType
+  start_date?: string | null
   target_amount?: number | null
   preservation_amount?: number | null
   cause_of_action?: string | null
@@ -192,6 +193,7 @@ export interface CaseUpdate {
   status?: string
   is_filed?: boolean
   case_type?: string
+  start_date?: string | null
   target_amount?: number | null
   preservation_amount?: number | null
   cause_of_action?: string | null
@@ -203,7 +205,17 @@ export interface CaseCreateFull {
   case: CaseInput
   parties?: { client_id: number; legal_status?: string }[]
   assignments?: { lawyer_id: number }[]
-  logs?: { content: string; reminder_type?: string; reminder_time?: string }[]
+  logs?: {
+    content: string
+    stage?: string | null
+    note?: string | null
+    logged_at?: string | null
+    log_type?: string | null
+    source?: string | null
+    is_pinned?: boolean
+    reminder_type?: string
+    reminder_time?: string
+  }[]
   supervising_authorities?: { name?: string; authority_type?: string }[]
 }
 
@@ -240,6 +252,15 @@ export interface CaseLogReminder {
 export interface CaseLog {
   id: number
   case: number
+  case_name?: string | null
+  contract_id?: number | null
+  contract_name?: string | null
+  stage?: string | null
+  note?: string | null
+  logged_at?: string | null
+  log_type?: string | null
+  source?: string | null
+  is_pinned?: boolean
   content: string
   actor: number
   actor_detail: LawyerDetail
@@ -327,6 +348,7 @@ export const caseFormSchema = z.object({
   name: z.string().min(1, { message: '案件名称不能为空' }),
   case_type: z.enum(['civil', 'administrative', 'criminal', 'execution', 'bankruptcy']).optional(),
   status: z.enum(['active', 'closed']).default('active'),
+  start_date: z.string().nullable().optional(),
   cause_of_action: z.string().nullable().optional(),
   current_stage: z.string().nullable().optional(),
   target_amount: z.number().nonnegative().nullable().optional(),

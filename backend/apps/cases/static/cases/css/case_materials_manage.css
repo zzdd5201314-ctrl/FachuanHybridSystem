@@ -60,8 +60,45 @@
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
 }
 
+.cm-archive-card {
+  margin-bottom: 12px;
+}
+
+.cm-archive-card .cm-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cm-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cm-archive-root {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--cm-muted);
+}
+
+.cm-archive-root code {
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
 .cm-card-header {
   margin-bottom: 8px;
+}
+
+.cm-archive-note {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--cm-muted);
 }
 
 .cm-card-title {
@@ -406,6 +443,24 @@
   flex-direction: column;
   gap: 6px;
   min-width: 140px;
+}
+
+.cm-archive-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.cm-archive-cell select {
+  width: 100%;
+}
+
+.cm-archive-status {
+  font-size: 12px;
+  color: var(--cm-muted);
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .type-cell select {

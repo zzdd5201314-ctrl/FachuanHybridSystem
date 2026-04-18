@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import ClassVar
 
 from .assignment_schemas import CaseAssignmentCreate, CaseAssignmentOut
@@ -20,6 +21,7 @@ class CaseIn(ModelSchema):
             "status",
             "is_filed",
             "case_type",
+            "start_date",
             "target_amount",
             "preservation_amount",
             "cause_of_action",
@@ -62,7 +64,7 @@ class CaseOut(ModelSchema):
 
     @staticmethod
     def resolve_logs(obj: Case) -> list[CaseLog]:
-        return list(obj.logs.all())
+        return list(obj.logs.order_by("-is_pinned", "-created_at"))
 
     @staticmethod
     def resolve_status(obj: Case) -> str | None:
@@ -90,6 +92,7 @@ class CaseUpdate(Schema):
     status: str | None = None
     is_filed: bool | None = None
     case_type: str | None = None
+    start_date: date | None = None
     target_amount: float | None = None
     preservation_amount: float | None = None
     cause_of_action: str | None = None

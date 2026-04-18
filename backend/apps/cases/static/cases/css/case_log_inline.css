@@ -125,6 +125,17 @@
 .log-time { color: #666; font-size: 11px; font-weight: 500; }
 .log-author { color: #417690; font-size: 11px; font-weight: 600; padding: 1px 6px; background: #e3f2fd; border-radius: 8px; }
 .log-reminder-badge { font-size: 10px; padding: 1px 6px; background: #fff3e0; color: #e65100; border-radius: 8px; }
+.log-type-badge,
+.log-source-badge,
+.log-pin-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: #eef2ff;
+    color: #374151;
+}
+.log-source-badge { background: #ecfeff; color: #155e75; }
+.log-pin-badge { background: #fef3c7; color: #92400e; }
 
 .log-actions { display: flex; gap: 6px; }
 .log-expand-btn, .log-edit-link {
@@ -141,6 +152,21 @@
 
 /* 卡片内容 */
 .log-card-body { padding: 6px 10px; }
+.log-contract-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+    font-size: 11px;
+}
+.log-contract-label { color: #64748b; }
+.log-contract-name {
+    color: #0f172a;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
 .log-content-preview, .log-content-full {
     color: #333;
     font-size: 12px;
@@ -234,6 +260,14 @@
 
 /* 空表单隐藏 */
 .case-log-item.empty-form { display: none; }
+.log-day-divider {
+    margin: 10px 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
 
 /* 滚动条 */
 .case-log-content::-webkit-scrollbar { width: 5px; }

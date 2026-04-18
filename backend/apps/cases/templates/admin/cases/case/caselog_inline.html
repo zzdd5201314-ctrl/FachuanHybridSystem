@@ -3,200 +3,99 @@
 <div class="case-log-section js-inline-admin-formset inline-group" id="{{ inline_admin_formset.formset.prefix }}-group"
      data-inline-type="stacked"
      data-inline-formset="{{ inline_admin_formset.inline_formset_data }}">
+    {% with total_logs=inline_admin_formset.formset.initial_form_count case_pk=inline_admin_formset.formset.instance.pk %}
+    <h2>{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}</h2>
 
-    <!-- 标题栏 - 使用 Django Admin 标准样式 -->
-    <h2 style="cursor: pointer;" onclick="toggleCaseLogSection()">
-        {{ inline_admin_formset.opts.verbose_name_plural|capfirst }}
-        <span style="font-weight: normal; font-size: 12px;">({{ inline_admin_formset.formset.initial_form_count }}{% trans "条" %}，<a href="javascript:void(0)" id="case-log-sort-link" style="color: #fff;">{% trans "倒序" %}</a>)</span>
-        <span class="case-log-toggle" style="float: right; font-size: 10px;">▼</span>
-    </h2>
-
-    <!-- 日志内容区域 -->
     <div class="case-log-content">
         {{ inline_admin_formset.formset.management_form }}
         {{ inline_admin_formset.formset.non_form_errors }}
 
-        <!-- 日志列表 -->
-        <div class="case-log-timeline">
-            {% for inline_admin_form in inline_admin_formset %}
-            <div class="case-log-item {% if inline_admin_form.original %}existing{% else %}new{% endif %} inline-related {% if forloop.last and inline_admin_formset.has_add_permission %}empty-form last-related{% endif %}"
-                 id="{{ inline_admin_formset.formset.prefix }}-{% if forloop.last and inline_admin_formset.has_add_permission %}empty{% else %}{{ forloop.counter0 }}{% endif %}"
-                 {% if inline_admin_form.original %}data-created-at="{{ inline_admin_form.original.created_at|date:'Y-m-d H:i:s' }}"{% endif %}>
-
-                {% if inline_admin_form.original %}
-                <!-- 已有日志 - 卡片样式 -->
-                <div class="log-card">
-                    <div class="log-card-header">
-                        <div class="log-meta">
-                            <span class="log-time">{{ inline_admin_form.original.created_at|date:"Y-m-d H:i" }}</span>
-                            {% if inline_admin_form.original.actor %}
-                            <span class="log-author">{{ inline_admin_form.original.actor }}</span>
-                            {% endif %}
-                            {% if inline_admin_form.original.has_reminders %}
-                            <span class="log-reminder-badge">{% trans "提醒" %} {{ inline_admin_form.original.reminder_count }} {% trans "条" %}</span>
-                            {% endif %}
-                        </div>
-                        <div class="log-actions">
-                            <button type="button" class="log-expand-btn" onclick="toggleLogDetail(this)">{% trans "展开" %}</button>
-                            {% if inline_admin_form.show_url %}
-                            <a href="{{ inline_admin_form.show_url }}" class="log-edit-link">{% trans "编辑" %}</a>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="log-card-body">
-                        <div class="log-content-preview">{{ inline_admin_form.original.content|truncatechars:100 }}</div>
-                        <div class="log-content-full" style="display: none;">{{ inline_admin_form.original.content|linebreaksbr }}</div>
-
-                        {% if inline_admin_form.original.has_reminders %}
-                        <div class="log-reminder-info">
-                            {% for r in inline_admin_form.original.reminder_entries %}
-                            <div>{% trans "提醒" %}：{{ r.reminder_type_label|default:r.reminder_type }} {{ r.due_at|date:"Y-m-d H:i" }}（{{ r.content }}）</div>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-
-                        <!-- 附件列表 -->
-                        {% if inline_admin_form.original.attachments.exists %}
-                        <div class="log-attachments">
-                            <span class="attachment-label">{% trans "附件" %}：</span>
-                            {% for attachment in inline_admin_form.original.attachments.all %}
-                            <a href="{{ attachment.file.url }}" target="_blank" class="attachment-link">
-                                {{ attachment.file.name|cut:"case_logs/" }}
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
+        <div class="case-log-summary-card">
+            <div class="case-log-summary-copy">
+                <div class="case-log-summary-title">{% trans "日志概况" %}</div>
+                <div class="case-log-summary-meta">
+                    <span>{% blocktrans count counter=total_logs %}已记录 {{ counter }} 条日志{% plural %}已记录 {{ counter }} 条日志{% endblocktrans %}</span>
+                    {% if total_logs %}
+                        {% with latest_log=inline_admin_formset.formset.queryset.0 %}
+                        <span>{% trans "最近更新" %}：{{ latest_log.logged_at|default:latest_log.created_at|date:"Y-m-d H:i" }}</span>
+                        {% endwith %}
+                    {% else %}
+                        <span>{% trans "当前案件还没有日志" %}</span>
+                    {% endif %}
                 </div>
+            </div>
 
-                <!-- 隐藏的表单字段 -->
-                <div class="log-form-fields" style="display: none;">
-                    {% for fieldset in inline_admin_form %}
-                        {% for line in fieldset %}
-                            {% for field in line %}
-                                {{ field.field }}
-                            {% endfor %}
+            <div class="case-log-summary-actions">
+                {% if case_pk %}
+                <a href="{% url 'admin:cases_caselog_ledger' case_pk %}" class="button case-log-primary-action">{% trans "进入日志台账" %}</a>
+                <a href="{% url 'admin:cases_caselog_create' case_pk %}" class="button">{% trans "新增日志" %}</a>
+                {% else %}
+                <span class="case-log-summary-hint">{% trans "保存案件后可管理日志" %}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="case-log-table-card">
+            <div class="case-log-table-header">
+                <span>{% trans "最近日志" %}</span>
+                {% if total_logs > 5 %}
+                <span class="case-log-table-caption">{% trans "仅显示最近 5 条，完整内容请进入日志台账查看" %}</span>
+                {% endif %}
+            </div>
+
+            {% if total_logs %}
+            <table class="case-log-compact-table">
+                <thead>
+                    <tr>
+                        <th>{% trans "时间" %}</th>
+                        <th>{% trans "阶段" %}</th>
+                        <th>{% trans "内容摘要" %}</th>
+                        <th>{% trans "附件" %}</th>
+                        <th>{% trans "编辑" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in inline_admin_formset.formset.queryset|slice:":5" %}
+                    <tr>
+                        <td>{{ log.logged_at|default:log.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ log.get_stage_display|default:"-" }}</td>
+                        <td class="case-log-compact-content">{{ log.content|truncatechars:70 }}</td>
+                        <td>
+                            {% with attachment_count=log.attachments.count %}
+                                {% if attachment_count %}
+                                    {{ attachment_count }} {% trans "个附件" %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <a href="{% url 'admin:cases_caselog_edit' log.case_id log.pk %}" class="case-log-inline-link">{% trans "编辑" %}</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="case-log-empty-state">
+                <p>{% trans "当前案件还没有日志，建议从日志台账页统一新增和维护。" %}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="case-log-hidden-forms" style="display: none;">
+            {% for inline_admin_form in inline_admin_formset %}
+                {% for fieldset in inline_admin_form %}
+                    {% for line in fieldset %}
+                        {% for field in line %}
+                            {{ field.field }}
                         {% endfor %}
                     {% endfor %}
-                    {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
-                    {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
-                </div>
-
-                {% else %}
-                <!-- 新增日志表单 -->
-                <div class="log-add-form">
-                    <div class="log-add-header">
-                        <span>{% trans "添加新日志" %}</span>
-                    </div>
-                    <div class="log-add-body">
-                        {% for fieldset in inline_admin_form %}
-                            {% for line in fieldset %}
-                                <div class="form-row {% if line.errors %}errors{% endif %}">
-                                    {% for field in line %}
-                                    <div class="field-box {% if field.field.name %}field-{{ field.field.name }}{% endif %}">
-                                        {% if field.is_readonly %}
-                                            <label>{{ field.label }}:</label>
-                                            <div class="readonly">{{ field.contents }}</div>
-                                        {% else %}
-                                            {{ field.label_tag }}
-                                            {{ field.field }}
-                                            {% if field.field.help_text %}
-                                            <p class="help">{{ field.field.help_text|safe }}</p>
-                                            {% endif %}
-                                        {% endif %}
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            {% endfor %}
-                        {% endfor %}
-                        {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
-                        {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
-                    </div>
-                </div>
-                {% endif %}
-
-            </div>
+                {% endfor %}
+                {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+                {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
             {% endfor %}
         </div>
     </div>
+    {% endwith %}
 </div>
-
-<script>
-var caseLogSortAsc = false; // 默认倒序
-
-// 绑定排序链接点击事件
-document.addEventListener('DOMContentLoaded', function() {
-    var sortLink = document.getElementById('case-log-sort-link');
-    if (sortLink) {
-        sortLink.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            toggleLogSort();
-        });
-    }
-});
-
-function toggleCaseLogSection() {
-    var section = document.querySelector('.case-log-section');
-    var content = section.querySelector('.case-log-content');
-    var toggle = section.querySelector('.case-log-toggle');
-
-    if (content.style.display === 'none') {
-        content.style.display = 'block';
-        toggle.textContent = '▼';
-        section.classList.remove('collapsed');
-    } else {
-        content.style.display = 'none';
-        toggle.textContent = '▶';
-        section.classList.add('collapsed');
-    }
-}
-
-function toggleLogDetail(btn) {
-    var card = btn.closest('.log-card');
-    var preview = card.querySelector('.log-content-preview');
-    var full = card.querySelector('.log-content-full');
-
-    if (full.style.display === 'none') {
-        preview.style.display = 'none';
-        full.style.display = 'block';
-        btn.textContent = '收起';
-    } else {
-        preview.style.display = 'block';
-        full.style.display = 'none';
-        btn.textContent = '展开';
-    }
-}
-
-function toggleLogSort() {
-    caseLogSortAsc = !caseLogSortAsc;
-
-    var link = document.getElementById('case-log-sort-link');
-    if (link) {
-        link.textContent = caseLogSortAsc ? '正序' : '倒序';
-    }
-
-    var timeline = document.querySelector('.case-log-timeline');
-    var items = Array.from(timeline.querySelectorAll('.case-log-item.existing'));
-    var newForm = timeline.querySelector('.case-log-item.new');
-
-    items.sort(function(a, b) {
-        var dateA = a.getAttribute('data-created-at') || '';
-        var dateB = b.getAttribute('data-created-at') || '';
-        if (caseLogSortAsc) {
-            return dateA.localeCompare(dateB);
-        } else {
-            return dateB.localeCompare(dateA);
-        }
-    });
-
-    items.forEach(function(item) {
-        timeline.appendChild(item);
-    });
-
-    if (newForm) {
-        timeline.appendChild(newForm);
-    }
-}
-</script>
