@@ -34,7 +34,7 @@ def auto_submit_preservation_quote(
         return
 
     try:
-        task_id = async_task(
+        task_id = submit_task(
             "apps.automation.tasks.execute_preservation_quote_task",
             instance.id,
             task_name=f"询价任务 #{instance.id}",
@@ -79,7 +79,7 @@ def _handle_sms_download_failed(sms: Any, instance: Any) -> bool:
     """处理下载失败的 SMS，返回是否需要 continue（跳过重试逻辑）"""
     if sms.status == CourtSMSStatus.MATCHING:
         logger.info("下载失败但继续匹配流程: SMS ID=%s", sms.id)
-        task_id = async_task(
+        task_id = submit_task(
             "apps.automation.services.sms.court_sms_service.process_sms_async",
             sms.id,
             task_name=f"court_sms_continue_after_download_failed_{sms.id}",

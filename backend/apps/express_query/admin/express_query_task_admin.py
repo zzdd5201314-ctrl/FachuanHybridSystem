@@ -162,7 +162,7 @@ class ExpressQueryToolAdmin(admin.ModelAdmin[ExpressQueryTool]):
             task.created_by = request.user
         task.save()
 
-        queue_task_id = str(async_task("apps.express_query.tasks.execute_express_query_task", task.id))
+        queue_task_id = str(submit_task("apps.express_query.tasks.execute_express_query_task", task.id))
         task.queue_task_id = queue_task_id
         task.save(update_fields=["queue_task_id", "updated_at"])
 

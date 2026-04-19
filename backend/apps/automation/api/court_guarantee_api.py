@@ -312,7 +312,7 @@ def retry_case_quote(request: HttpRequest, quote_id: int, payload: CaseQuoteOper
         ]
     )
 
-    async_task(
+    submit_task(
         "apps.automation.tasks.execute_preservation_quote_task",
         quote.id,
         task_name=f"询价任务重试 #{quote.id}",

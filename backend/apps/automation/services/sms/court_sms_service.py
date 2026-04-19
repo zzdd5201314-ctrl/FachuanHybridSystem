@@ -298,7 +298,7 @@ class CourtSMSService(SMSCaseBindingMixin, SMSDocumentMixin, SMSDownloadMixin):
 
             logger.info(f"重置短信状态成功: SMS ID={sms_id}, 重试次数={sms.retry_count}")
 
-            task_id = async_task(
+            task_id = submit_task(
                 "apps.automation.services.sms.court_sms_service.process_sms_async",
                 sms.id,
                 task_name=f"court_sms_retry_{sms.id}_{sms.retry_count}",
