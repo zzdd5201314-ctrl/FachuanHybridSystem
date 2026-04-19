@@ -84,7 +84,7 @@ def trigger_case_import(request: HttpRequest) -> Any:
         lawyer=lawyer,
         credential=credential,
         status="pending",
-        uploaded_filename=file.name or "",  # type: ignore[union-attr]
+        uploaded_filename=file.name or "",
     )
 
     logger.info("创建案件导入会话: session_id=%d filename=%s", session.id, file.name)
