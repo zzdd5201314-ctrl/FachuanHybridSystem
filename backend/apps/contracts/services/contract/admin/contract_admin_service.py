@@ -256,5 +256,5 @@ class ContractAdminService:
             "total_client_payment": total_client_payment,
         }
 
-    def handle_contract_filing_change(self, contract_id: int, is_archived: bool) -> str | None:
-        return self.mutation_service.handle_contract_filing_change(contract_id, is_archived)
+    def handle_contract_filing_change(self, contract_id: int, is_filed: bool) -> str | None:
+        return self.mutation_service.handle_contract_filing_change(contract_id, is_filed)
