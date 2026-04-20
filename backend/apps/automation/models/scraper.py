@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, ClassVar
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django_lifecycle import AFTER_UPDATE, LifecycleModel, hook
 
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import RelatedManager
 
     from apps.automation.models.court_document import CourtDocument
     from apps.automation.models.court_sms import CourtSMS
+
+logger = logging.getLogger("apps.automation")
 
 
 class ScraperTaskType(models.TextChoices):
@@ -32,7 +36,7 @@ class ScraperTaskStatus(models.TextChoices):
     FAILED = "failed", _("失败")
 
 
-class ScraperTask(models.Model):
+class ScraperTask(LifecycleModel):
     """网络爬虫任务"""
 
     id: int
@@ -92,3 +96,22 @@ class ScraperTask(models.Model):
         if self.scheduled_at is None:
             return True
         return self.scheduled_at <= timezone.now()
+
+    @hook(AFTER_UPDATE, when="status", has_changed=True)
+    def on_status_change_trigger_sms_flow(self) -> None:
+        """状态变为 SUCCESS/FAILED 时委托 Service 层处理 CourtSMS 后续流程"""
+        if self.status not in [ScraperTaskStatus.SUCCESS, ScraperTaskStatus.FAILED]:
+            return
+
+        try:
+            from apps.automation.services.sms.court_sms_service import CourtSMSService
+
+            CourtSMSService().handle_scraper_task_status_change(self)
+        except Exception as e:
+            logger.error(
+                "❌ 处理下载完成信号失败: Task ID=%s, 错误: %s",
+                self.id,
+                e,
+                extra={"action": "download_signal_failed", "task_id": self.id, "error": str(e)},
+                exc_info=True,
+            )
