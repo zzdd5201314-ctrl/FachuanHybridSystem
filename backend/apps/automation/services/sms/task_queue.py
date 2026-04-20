@@ -18,6 +18,7 @@ class DjangoQTaskQueue:
     def enqueue(
         self, func_path: str | Callable[..., Any], *args: Any, task_name: str | None = None, **kwargs: Any
     ) -> Any:
-        from django_q.tasks import async_task
+        from apps.core.tasking import submit_task
 
-        return async_task(func_path, *args, task_name=task_name, **kwargs)
+        target = f"{func_path.__module__}.{func_path.__qualname__}" if callable(func_path) else func_path
+        return submit_task(target, *args, task_name=task_name)

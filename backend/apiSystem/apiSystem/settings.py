@@ -413,16 +413,70 @@ CACHES = get_cache_config()
 SENTRY_DSN = (os.environ.get("SENTRY_DSN", "") or "").strip()
 if SENTRY_DSN:
     try:
+        import logging
+
         import sentry_sdk
         from sentry_sdk.integrations.django import DjangoIntegration
+        from sentry_sdk.integrations.httpx import HttpxIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+
+        def _sentry_before_send(event: dict, hint: dict) -> dict:  # type: ignore[type-arg]
+            """Sentry before_send 钩子：注入 request_id / trace_id / task_name 到 tags"""
+            try:
+                from apps.core.infrastructure.request_context import (
+                    get_request_id,
+                    get_task_name,
+                    get_trace_ids,
+                )
+
+                request_id = get_request_id(fallback_generate=False)
+                trace_id, span_id = get_trace_ids()
+                task_name = get_task_name()
+
+                tags = event.setdefault("tags", {})
+                if request_id:
+                    tags["request_id"] = request_id
+                if trace_id:
+                    tags["trace_id"] = trace_id
+                if span_id:
+                    tags["span_id"] = span_id
+                if task_name:
+                    tags["task_name"] = task_name
+
+                contexts = event.setdefault("contexts", {})
+                app_ctx = contexts.setdefault("app", {})
+                if request_id:
+                    app_ctx["request_id"] = request_id
+                if task_name:
+                    app_ctx["task_name"] = task_name
+            except Exception:
+                pass
+            return event
+
+        # APM 采样率：开发默认 0（避免本地噪音），生产默认 0.1（10% 采样）
+        _sentry_traces_rate_env = (os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "") or "").strip()
+        if _sentry_traces_rate_env:
+            _sentry_traces_rate = float(_sentry_traces_rate_env)
+        elif DEBUG:
+            _sentry_traces_rate = 0.0
+        else:
+            _sentry_traces_rate = 0.1
 
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            integrations=[DjangoIntegration()],
-            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0") or "0"),
+            integrations=[
+                DjangoIntegration(),
+                HttpxIntegration(),  # 自动追踪出站 HTTP 请求（法院系统/LLM 接口等）
+                LoggingIntegration(
+                    level=logging.INFO,  # Capture INFO and above as breadcrumbs
+                    event_level=logging.ERROR,  # Send ERROR and above as events
+                ),
+            ],
+            traces_sample_rate=_sentry_traces_rate,
             send_default_pii=False,
             environment=os.environ.get("ENVIRONMENT_TYPE", "production"),
             release=os.environ.get("APP_VERSION", None),
+            before_send=_sentry_before_send,
         )
     except Exception:
         import logging
@@ -448,12 +502,16 @@ if not DEBUG:
     if _multiprocess:
         _cache_backend = ((CACHES or {}).get("default", {}) or {}).get("BACKEND", "")
         if _cache_backend == "django.core.cache.backends.locmem.LocMemCache":
-            raise RuntimeError("生产多进程环境必须配置 Redis cache（DJANGO_CACHE_REDIS_URL）以保证限流一致性")
+            raise RuntimeError(
+                "生产多进程环境必须配置 Redis cache（设置 REDIS_URL 或 DJANGO_CACHE_REDIS_URL）以保证限流一致性"
+            )
 
         _channel_layers: dict[str, Any] = dict(CHANNEL_LAYERS.items()) if isinstance(CHANNEL_LAYERS, dict) else {}
         _channel_backend = (_channel_layers.get("default") or {}).get("BACKEND", "")
         if _channel_backend == "channels.layers.InMemoryChannelLayer":
-            raise RuntimeError("生产多进程环境必须配置 Redis channel layer（DJANGO_CHANNEL_REDIS_URL）")
+            raise RuntimeError(
+                "生产多进程环境必须配置 Redis channel layer（设置 REDIS_URL 或 DJANGO_CHANNEL_REDIS_URL）"
+            )
 
 # ============================================================
 # Django Admin 界面配置

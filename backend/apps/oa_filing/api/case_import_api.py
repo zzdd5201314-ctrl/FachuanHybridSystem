@@ -56,7 +56,7 @@ def trigger_case_import(request: HttpRequest) -> Any:
         return {"error": "未找到金诚同达OA账号凭证"}
 
     # 获取上传的文件
-    file: UploadedFile | None = request.FILES.get("file")
+    file: UploadedFile | None = request.FILES.get("file")  # type: ignore[assignment]
     if not file:
         return {"error": "未上传文件"}
 
@@ -66,7 +66,7 @@ def trigger_case_import(request: HttpRequest) -> Any:
 
     from django.conf import settings
 
-    upload_dir = Path(settings.BASE_DIR) / "media" / "oa_imports"
+    upload_dir = Path(settings.BASE_DIR) / "media" / "oa_imports"  # type: ignore[misc]
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     filename = f"{uuid.uuid4().hex}_{file.name}"
@@ -84,15 +84,15 @@ def trigger_case_import(request: HttpRequest) -> Any:
         lawyer=lawyer,
         credential=credential,
         status="pending",
-        uploaded_filename=file.name,
+        uploaded_filename=file.name or "",
     )
 
     logger.info("创建案件导入会话: session_id=%d filename=%s", session.id, file.name)
 
     # 启动后台任务进行预览
-    from django_q.tasks import async_task
+    from apps.core.tasking import submit_task
 
-    async_task(
+    submit_task(
         "apps.oa_filing.tasks.run_case_import_preview_task",
         session.id,
         str(file_path),
@@ -142,13 +142,13 @@ def execute_case_import(request: HttpRequest, session_id: int) -> HttpResponse:
         return JsonResponse({"error": "案件编号列表为空"}, status=400)
 
     # 启动后台任务执行导入
-    from django_q.tasks import async_task
+    from apps.core.tasking import submit_task
 
-    async_task(
+    submit_task(
         "apps.oa_filing.tasks.run_case_import_task",
         session.id,
         case_nos,
-        matched_case_nos=matched_case_nos,
+        kwargs={"matched_case_nos": matched_case_nos},
         timeout=CASE_IMPORT_TASK_TIMEOUT_SECONDS,
         task_name=f"oa_case_import_{session.id}",
     )

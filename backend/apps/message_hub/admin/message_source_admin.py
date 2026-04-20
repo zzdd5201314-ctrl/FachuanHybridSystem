@@ -69,9 +69,9 @@ class MessageSourceAdmin(admin.ModelAdmin[MessageSource]):
 
     def _sync_view(self, request: HttpRequest, pk: int) -> HttpResponse:
         from django.shortcuts import redirect
-        from django_q.tasks import async_task
+        from apps.core.tasking import submit_task
 
-        async_task("apps.message_hub.tasks.sync_source_by_id", pk)
+        submit_task("apps.message_hub.tasks.sync_source_by_id", pk)
         self.message_user(request, _("同步任务已提交，稍后刷新查看结果"), messages.SUCCESS)
         return redirect("..")
 
@@ -88,7 +88,7 @@ class MessageSourceAdmin(admin.ModelAdmin[MessageSource]):
     @admin.display(description=_("同步状态"))
     def sync_status_badge(self, obj: MessageSource) -> SafeString:
         colors = {SyncStatus.SUCCESS: "#28a745", SyncStatus.FAILED: "#dc3545", SyncStatus.PENDING: "#6c757d"}
-        color = colors.get(obj.last_sync_status, "#6c757d")
+        color = colors.get(obj.last_sync_status, "#6c757d")  # type: ignore[call-overload]
         return format_html(
             '<span style="background:{};color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">{}</span>',
             color,
