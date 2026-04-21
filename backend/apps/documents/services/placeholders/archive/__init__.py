@@ -32,6 +32,8 @@ class ArchivePlaceholderService(BasePlaceholderService):
         "律所OA案件编号",
         "案件案号",
         "管辖法院",
+        "案件当前阶段",
+        "案件审理结果",
         "归档日期",
         "生成日期",
     ]
@@ -76,6 +78,16 @@ class ArchivePlaceholderService(BasePlaceholderService):
             "description": "案件审理法院名称",
             "example_value": "某某市某某区人民法院",
         },
+        "案件当前阶段": {
+            "display_name": "案件当前阶段",
+            "description": "案件当前审理阶段(如一审、二审等)",
+            "example_value": "一审",
+        },
+        "案件审理结果": {
+            "display_name": "案件审理结果",
+            "description": "案件裁判文书中的判决/调解主文内容",
+            "example_value": "一、被告某某公司于本判决生效之日起十日内向原告支付欠款100万元...",
+        },
         "归档日期": {
             "display_name": "归档日期",
             "description": "归档操作日期(中文格式)",
@@ -113,8 +125,13 @@ class ArchivePlaceholderService(BasePlaceholderService):
             result["合同名称"] = self._get_contract_name(contract)
             result["合同类型"] = self._get_contract_type(contract)
             result["合同我方当事人名称"] = self._get_our_party_names(contract)
-            result["合同对方当事人名称"] = self._get_opposing_party_names(contract)
             result["律所OA案件编号"] = self._get_oa_case_number(contract)
+
+            # 合同对方当事人：先从合同当事人找，找不到则从关联回案件找
+            opposing = self._get_opposing_party_names(contract)
+            if not opposing and case:
+                opposing = self._get_opposing_party_names_from_case(case)
+            result["合同对方当事人名称"] = opposing
 
         # 主办律师姓名：优先从 case 获取，回退到 contract.assignments
         if case:
@@ -126,6 +143,8 @@ class ArchivePlaceholderService(BasePlaceholderService):
         if case:
             result["案件案号"] = self._get_case_number(case)
             result["管辖法院"] = self._get_court_name(case)
+            result["案件当前阶段"] = self._get_case_stage(case)
+            result["案件审理结果"] = self._get_trial_result(case)
 
         return result
 
@@ -279,3 +298,52 @@ class ArchivePlaceholderService(BasePlaceholderService):
         except Exception:
             logger.warning("获取管辖法院失败", extra={"case_id": getattr(case, "id", None)})
             return ""
+
+    @staticmethod
+    def _get_case_stage(case: Any) -> str:
+        """获取案件当前阶段"""
+        if not getattr(case, "current_stage", None):
+            return ""
+        try:
+            return case.get_current_stage_display() or ""
+        except Exception:
+            return str(getattr(case, "current_stage", "") or "")
+
+    @staticmethod
+    def _get_trial_result(case: Any) -> str:
+        """获取案件审理结果(首个案号的执行依据主文)"""
+        try:
+            # 优先取已生效案号，其次取第一个案号
+            cn = case.case_numbers.filter(is_active=True).first()
+            if not cn:
+                cn = case.case_numbers.first()
+            if cn:
+                content = getattr(cn, "document_content", None) or ""
+                return str(content).strip()
+        except Exception:
+            logger.warning("获取案件审理结果失败", extra={"case_id": getattr(case, "id", None)})
+        return ""
+
+    @staticmethod
+    def _get_opposing_party_names_from_case(case: Any) -> str:
+        """从案件当事人中获取对方当事人名称(非我方当事人,顿号分隔)"""
+        try:
+            parties = case.parties.select_related("client").all()
+        except Exception:
+            logger.warning("获取案件当事人失败", extra={"case_id": getattr(case, "id", None)})
+            return ""
+
+        names: list[str] = []
+        seen: set[str] = set()
+        for party in parties:
+            client = getattr(party, "client", None)
+            if not client:
+                continue
+            # 非我方当事人即为对方
+            if getattr(client, "is_our_client", False):
+                continue
+            name = str(getattr(client, "name", "") or "").strip()
+            if name and name not in seen:
+                seen.add(name)
+                names.append(name)
+        return "、".join(names)

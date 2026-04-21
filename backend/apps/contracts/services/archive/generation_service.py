@@ -61,8 +61,15 @@ class ArchiveGenerationService:
 
         from apps.documents.services.generation.pipeline import DocxPreviewService, PipelineContextBuilder
 
+        # 自动查找关联合同的首个案件
+        case = contract.cases.select_related(
+            "contract",
+        ).prefetch_related(
+            "supervising_authorities", "case_numbers", "assignments__lawyer", "parties__client",
+        ).first()
+
         context_builder = PipelineContextBuilder()
-        context = context_builder.build_archive_context(contract)
+        context = context_builder.build_archive_context(contract, case)
 
         rows = DocxPreviewService().preview(str(template_path), context)
         return {"success": True, "data": rows}
