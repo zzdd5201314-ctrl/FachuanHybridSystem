@@ -45,6 +45,9 @@
             <button type="button" class="btn btn-secondary btn-sm" onclick="detectSupervisionCard({{ contract.pk }})">
                 {% trans "自动检测监督卡" %}
             </button>
+            <button type="button" class="btn btn-info btn-sm" onclick="syncCaseMaterials({{ contract.pk }})">
+                {% trans "从案件材料同步" %}
+            </button>
             {% if can_archive %}
             <button type="button" class="btn btn-warning btn-sm ac-btn-archive" onclick="confirmArchive({{ contract.pk }})">
                 {% trans "确认归档" %}
@@ -78,6 +81,10 @@
                         <span class="ac-badge ac-badge-generate" title="{% trans '可自动生成' %}">⚡</span>
                     {% elif item.auto_detect == 'supervision_card' %}
                         <span class="ac-badge ac-badge-detect" title="{% trans '可自动检测' %}">🔍</span>
+                    {% elif item.has_case_material %}
+                        <span class="ac-badge ac-badge-sync" title="{% trans '可从案件材料同步' %}">📋</span>
+                    {% elif item.source == 'case' %}
+                        <span class="ac-badge ac-badge-sync-dim" title="{% trans '案件材料' %}">📋</span>
                     {% elif item.required %}
                         <span class="ac-badge ac-badge-required" title="{% trans '必需' %}">!</span>
                     {% else %}
@@ -420,8 +427,13 @@
 .ac-badge-done { color: #16a34a; }
 .ac-badge-generate { color: #2563eb; cursor: help; }
 .ac-badge-detect { color: #7c3aed; cursor: help; }
+.ac-badge-sync { color: #0891b2; cursor: help; }
+.ac-badge-sync-dim { color: #9ca3af; cursor: help; opacity: 0.5; }
 .ac-badge-required { color: #dc2626; cursor: help; }
 .ac-badge-optional { color: #9ca3af; cursor: help; }
+
+.btn-info { background: #0891b2; border-color: #0e7490; color: #fff; }
+.btn-info:hover { background: #0e7490; border-color: #155e75; }
 
 {# ===== 扫描弹窗样式（保留） ===== #}
 .fm-scan-modal { max-width: 880px; }
@@ -549,6 +561,57 @@
             }
         })
         .catch(function(e) { alert('请求失败: ' + e.message); });
+    };
+
+    // 从案件材料同步到归档
+    window.syncCaseMaterials = function(contractId) {
+        // 先查询匹配映射，展示给用户确认
+        fetch('/admin/contracts/contract/' + contractId + '/case-material-match-map/', {
+            headers: { 'X-CSRFToken': getCSRF() },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+            if (!result.success) {
+                alert('查询案件材料匹配失败: ' + (result.error || '未知错误'));
+                return;
+            }
+            var data = result.data;
+            var matches = data.matches || [];
+            var syncable = matches.filter(function(m) { return m.case_material_ids.length > 0 && !m.already_synced; });
+
+            if (syncable.length === 0) {
+                alert('没有可同步的案件材料。\n所有案件材料已同步，或案件材料类型无法自动匹配。');
+                return;
+            }
+
+            var lines = syncable.map(function(m) {
+                return '· ' + m.archive_item_name + '（' + m.case_material_ids.length + '份）';
+            });
+            var msg = '以下归档清单项可从案件材料同步：\n\n' + lines.join('\n') +
+                      '\n\n确认同步？已有归档材料的清单项将被跳过。';
+
+            if (!confirm(msg)) return;
+
+            fetch('/admin/contracts/contract/' + contractId + '/sync-case-materials/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+                body: JSON.stringify({
+                    archive_item_codes: syncable.map(function(m) { return m.archive_item_code; })
+                }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    alert('同步完成！成功 ' + (data.synced_count || 0) + ' 份，跳过 ' + (data.skipped_count || 0) + ' 项' +
+                          (data.error_count > 0 ? '，失败 ' + data.error_count + ' 项' : ''));
+                    location.reload();
+                } else {
+                    alert('同步失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(function(e) { alert('请求失败: ' + e.message); });
+        })
+        .catch(function(e) { alert('查询失败: ' + e.message); });
     };
 
     // 确认归档

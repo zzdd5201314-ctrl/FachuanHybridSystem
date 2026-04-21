@@ -216,7 +216,7 @@ class ContractAdminService:
         related_cases = self.query_service.get_related_cases(contract.pk)
 
         finalized_materials = contract.finalized_materials.exclude(
-            category=MaterialCategory.ARCHIVE_DOCUMENT,
+            category__in=(MaterialCategory.ARCHIVE_DOCUMENT, MaterialCategory.CASE_MATERIAL),
         )
         finalized_materials_grouped: dict[str, list[Any]] = {}
         for material in finalized_materials:

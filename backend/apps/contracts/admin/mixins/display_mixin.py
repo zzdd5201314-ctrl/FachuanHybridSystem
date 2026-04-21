@@ -209,6 +209,16 @@ class ContractDisplayMixin:
                 self.admin_site.admin_view(self.confirm_archive_view),
                 name="contracts_contract_confirm_archive",
             ),
+            path(
+                "<int:object_id>/sync-case-materials/",
+                self.admin_site.admin_view(self.sync_case_materials_view),
+                name="contracts_contract_sync_case_materials",
+            ),
+            path(
+                "<int:object_id>/case-material-match-map/",
+                self.admin_site.admin_view(self.case_material_match_map_view),
+                name="contracts_contract_case_material_match_map",
+            ),
         ]
         return custom_urls + urls
 
@@ -488,4 +498,75 @@ class ContractDisplayMixin:
             return JsonResponse({"success": True})
         except Exception as e:
             logger.exception("确认归档失败: contract_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def sync_case_materials_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """从案件材料同步到归档的 Admin view"""
+        from django.http import JsonResponse
+
+        if request.method != "POST":
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+        if not self.has_change_permission(request):
+            return JsonResponse({"success": False, "error": str(_("无权限"))}, status=403)
+
+        try:
+            import json
+
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            # 解析请求体，获取要同步的 archive_item_codes（可选）
+            codes: list[str] | None = None
+            try:
+                body = json.loads(request.body) if request.body else {}
+                codes = body.get("archive_item_codes")
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+            from apps.contracts.services.archive.wiring import build_archive_checklist_service
+
+            checklist_service = build_archive_checklist_service()
+            result = checklist_service.sync_case_materials_to_archive(contract, codes)
+
+            synced_count = len(result["synced"])
+            error_count = len(result["errors"])
+
+            if error_count:
+                logger.warning(
+                    "案件材料同步部分失败: contract_id=%s, errors=%d",
+                    object_id,
+                    error_count,
+                )
+
+            return JsonResponse({
+                "success": synced_count > 0 or error_count == 0,
+                "synced_count": synced_count,
+                "skipped_count": len(result["skipped"]),
+                "error_count": error_count,
+                "details": result,
+            })
+        except Exception as e:
+            logger.exception("同步案件材料失败: contract_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def case_material_match_map_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """获取案件材料匹配映射的 Admin view"""
+        from django.http import JsonResponse
+
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+
+        try:
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            from apps.contracts.services.archive.wiring import build_archive_checklist_service
+
+            checklist_service = build_archive_checklist_service()
+            result = checklist_service.get_case_material_match_map(contract)
+
+            return JsonResponse({"success": True, "data": result})
+        except Exception as e:
+            logger.exception("获取案件材料匹配映射失败: contract_id=%s", object_id)
             return JsonResponse({"success": False, "error": str(e)}, status=500)

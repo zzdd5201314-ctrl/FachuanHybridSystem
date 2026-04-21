@@ -20,6 +20,7 @@ class MaterialCategory(models.TextChoices):
     ARCHIVE_DOCUMENT = "archive_document", _("归档文书")
     SUPERVISION_CARD = "supervision_card", _("监督卡")
     AUTHORIZATION_MATERIAL = "authorization_material", _("授权委托材料")
+    CASE_MATERIAL = "case_material", _("案件材料同步")
 
 
 class FinalizedMaterial(models.Model):

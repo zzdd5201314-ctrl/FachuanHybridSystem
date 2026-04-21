@@ -72,6 +72,7 @@ class ArchivePlaceholderService(BasePlaceholderService):
         "归档日期",
         "生成日期",
         "结案归档材料",
+        "卷内目录",
     ]
     placeholder_metadata: ClassVar[dict[str, dict[str, Any]]] = {
         "主办律师姓名": {
@@ -139,6 +140,11 @@ class ArchivePlaceholderService(BasePlaceholderService):
             "description": "已完成的归档检查项材料目录，按序号排列，硬换行分隔",
             "example_value": "1.委托代理合同、风险告知书\n2.收费凭证\n3.律师办案工作日记",
         },
+        "卷内目录": {
+            "display_name": "卷内目录",
+            "description": "卷内目录表格数据列表，每项含序号、材料名称、页码",
+            "example_value": '[{"序号": 1, "材料名称": "委托代理合同", "页码": "1-3"}]',
+        },
     }
 
     def generate(self, context_data: dict[str, Any]) -> dict[str, Any]:
@@ -190,6 +196,7 @@ class ArchivePlaceholderService(BasePlaceholderService):
         # 结案归档材料：实时检测已完成的检查项，生成编号目录
         if contract:
             result["结案归档材料"] = self._get_archive_materials_list(contract)
+            result["卷内目录"] = self._get_inner_catalog_items(contract)
 
         return result
 
@@ -450,3 +457,129 @@ class ArchivePlaceholderService(BasePlaceholderService):
                 rt.add_break()  # 硬换行 (shift+enter)
             rt.add(line)
         return rt
+
+    @staticmethod
+    def _get_inner_catalog_items(contract: Any) -> list[dict[str, Any]]:
+        """
+        生成卷内目录表格数据。
+
+        实时检测归档检查清单中已完成的项，跳过案卷封面/登记表/目录，
+        对每项材料计算页码范围。
+
+        Returns:
+            [{"序号": int, "材料名称": str, "页码": str}, ...]
+        """
+        from apps.contracts.services.archive.checklist_service import ArchiveChecklistService
+
+        checklist_service = ArchiveChecklistService()
+        checklist = checklist_service.get_checklist_with_status(contract)
+
+        items = checklist.get("items", [])
+
+        # 需要跳过的检查项
+        skip_codes = {"nl_1", "nl_2", "nl_3", "lt_1", "lt_2", "lt_3", "cr_1", "cr_2", "cr_3"}
+        skip_templates = {"case_cover", "closing_archive_register", "inner_catalog"}
+
+        catalog_items: list[dict[str, Any]] = []
+        seq = 1
+        current_page = 1
+
+        for item in items:
+            code = item.get("code", "")
+            template = item.get("template")
+            name = item.get("name", "")
+            completed = item.get("completed", False)
+            material_ids = item.get("material_ids", [])
+
+            # 跳过封面/登记表/目录
+            if code in skip_codes or template in skip_templates:
+                continue
+
+            # 只包含已完成的项
+            if not completed:
+                continue
+
+            # 计算该材料的页数
+            page_count = ArchivePlaceholderService._calculate_material_page_count(
+                contract, code, material_ids
+            )
+
+            # 计算页码范围
+            if page_count > 0:
+                page_start = current_page
+                page_end = current_page + page_count - 1
+                if page_start == page_end:
+                    page_range = str(page_start)
+                else:
+                    page_range = f"{page_start}-{page_end}"
+                current_page = page_end + 1
+            else:
+                page_range = "-"
+
+            catalog_items.append({
+                "序号": seq,
+                "材料名称": name,
+                "页码": page_range,
+            })
+            seq += 1
+
+        return catalog_items
+
+    @staticmethod
+    def _calculate_material_page_count(
+        contract: Any,
+        archive_item_code: str,
+        material_ids: list[int],
+    ) -> int:
+        """计算某检查项关联材料的总页数"""
+        from apps.contracts.models.finalized_material import FinalizedMaterial
+
+        if not material_ids:
+            # 尝试通过 archive_item_code 查找
+            materials = FinalizedMaterial.objects.filter(
+                contract=contract,
+                archive_item_code=archive_item_code,
+            )
+        else:
+            materials = FinalizedMaterial.objects.filter(
+                id__in=material_ids,
+            )
+
+        total_pages = 0
+        for mat in materials:
+            page_count = ArchivePlaceholderService._get_file_page_count(mat)
+            if page_count > 0:
+                total_pages += page_count
+            else:
+                total_pages += 1  # 无法识别页数的文件默认1页
+
+        return total_pages
+
+    @staticmethod
+    def _get_file_page_count(material: Any) -> int:
+        """读取归档材料文件的页数"""
+        from pathlib import Path
+        from django.conf import settings as django_settings
+
+        file_path = Path(material.file_path)
+        if not file_path.is_absolute():
+            file_path = Path(django_settings.MEDIA_ROOT) / file_path
+
+        if not file_path.exists():
+            return 0
+
+        suffix = file_path.suffix.lower()
+        if suffix == ".pdf":
+            try:
+                from apps.documents.services.infrastructure.pdf_utils import get_pdf_page_count
+
+                with open(str(file_path), "rb") as f:
+                    return get_pdf_page_count(f, default=0)
+            except Exception as e:
+                logger.warning("读取PDF页数失败: %s, error: %s", material.original_filename, e)
+                return 0
+        elif suffix == ".docx":
+            # docx 文件默认按1页计算（精确计算需要转PDF）
+            return 1
+        else:
+            return 1
