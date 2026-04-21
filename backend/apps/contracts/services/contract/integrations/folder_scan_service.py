@@ -193,6 +193,7 @@ class ContractFolderScanService:
                 MaterialCategory.INVOICE,
                 MaterialCategory.ARCHIVE_DOCUMENT,
                 MaterialCategory.SUPERVISION_CARD,
+                MaterialCategory.AUTHORIZATION_MATERIAL,
             }:
                 category = MaterialCategory.ARCHIVE_DOCUMENT
 

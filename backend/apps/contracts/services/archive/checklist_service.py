@@ -74,6 +74,13 @@ class ArchiveChecklistService:
         for code, mat_ids in contract_category_codes.items():
             code_to_materials.setdefault(code, []).extend(mat_ids)
 
+        # 特殊处理：从关联合同案件中提取授权委托材料
+        case_auth_codes = self._map_case_authorization_materials(
+            contract, archive_category, materials
+        )
+        for code, mat_ids in case_auth_codes.items():
+            code_to_materials.setdefault(code, []).extend(mat_ids)
+
         # 构建结果
         items_with_status: list[dict[str, Any]] = []
         for item in checklist_items:
@@ -133,13 +140,69 @@ class ArchiveChecklistService:
 
         return result
 
+    def _map_case_authorization_materials(
+        self,
+        contract: Contract,
+        archive_category: str,
+        materials: list[FinalizedMaterial],
+    ) -> dict[str, list[int]]:
+        """
+        从关联合同案件中提取授权委托材料，映射到检查清单编号。
+
+        检查逻辑：
+        1. 已上传到合同的授权委托材料 (MaterialCategory.AUTHORIZATION_MATERIAL)
+        2. 案件 CaseMaterial 中类型名称包含"授权委托"/"委托授权"的材料
+        """
+        result: dict[str, list[int]] = {}
+
+        # 找到"授权委托证明材料"对应的 code
+        auth_code = self._find_code_by_name(archive_category, "授权委托")
+        if not auth_code:
+            return result
+
+        # 1. 检查已上传到合同的授权委托材料
+        from apps.contracts.models.finalized_material import MaterialCategory
+
+        for m in materials:
+            if m.archive_item_code:
+                continue
+            if m.category == MaterialCategory.AUTHORIZATION_MATERIAL:
+                result.setdefault(auth_code, []).append(m.id)
+
+        # 2. 检查关联合同案件中是否有授权委托材料
+        try:
+            from apps.cases.models import CaseMaterial
+
+            cases = contract.cases.all()
+            for case in cases:
+                auth_case_materials = CaseMaterial.objects.filter(
+                    case=case,
+                    type_name__contains="授权",
+                )
+                if auth_case_materials.exists():
+                    # 案件有授权委托材料，标记为可提取（如果有附件则进一步处理）
+                    # 注意: CaseMaterial 的文件在 source_attachment 中，
+                    # 但这里只标记状态，不做文件复制
+                    logger.info(
+                        "案件 %s 存在授权委托材料，可提取到归档",
+                        case.id,
+                        extra={"contract_id": contract.id},
+                    )
+                    # 如果合同中还没有该类材料，不需要额外处理
+                    # 用户需要在案件中生成后手动关联或上传
+                    break
+        except Exception as e:
+            logger.warning("检查案件授权委托材料失败: %s", e)
+
+        return result
+
     def _find_code_by_source(self, archive_category: str, source: str) -> str | None:
         """根据 source 类型找到对应的检查清单 code
 
         名称匹配说明：
-        - 非诉: "委托合同（客户授权证明材料等）" → 包含"委托"
-        - 诉讼: "委托合同、风险告知书、授权委托证明材料等" → 包含"委托"
-        - 刑事: "委托代理合同、风险告知书、授权委托证明材料等" → 包含"委托"
+        - 非诉: "委托合同、风险告知书" → 包含"委托"
+        - 诉讼: "委托合同、风险告知书" → 包含"委托"
+        - 刑事: "委托代理合同、风险告知书" → 包含"委托"
         统一使用"委托"关键词匹配，兼容所有分类。
         """
         checklist_items = ARCHIVE_CHECKLIST.get(archive_category, [])

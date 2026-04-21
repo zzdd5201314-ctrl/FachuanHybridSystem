@@ -1,9 +1,9 @@
 """归档检查清单常量定义
 
 三种归档分类对应的检查清单项：
-- non_litigation: 法律顾问及非诉事务 (11项)
-- litigation: 诉讼/仲裁 (19项)
-- criminal: 刑事案件 (17项)
+- non_litigation: 法律顾问及非诉事务 (12项)
+- litigation: 诉讼/仲裁 (20项)
+- criminal: 刑事案件 (18项)
 
 序号由前端 CSS counter 自动生成，code 字段仅作为唯一标识符。
 """
@@ -31,7 +31,8 @@ NON_LITIGATION_CHECKLIST: list[ChecklistItem] = [
     {"code": "nl_1", "name": "案卷封面", "template": "case_cover", "required": True, "auto_detect": None, "source": "template"},
     {"code": "nl_2", "name": "结案归档登记表", "template": "closing_archive_register", "required": True, "auto_detect": None, "source": "template"},
     {"code": "nl_3", "name": "案卷目录", "template": "inner_catalog", "required": True, "auto_detect": None, "source": "template"},
-    {"code": "nl_4", "name": "委托合同（客户授权证明材料等）", "template": None, "required": True, "auto_detect": None, "source": "contract"},
+    {"code": "nl_4", "name": "委托合同、风险告知书", "template": None, "required": True, "auto_detect": None, "source": "contract"},
+    {"code": "nl_12", "name": "授权委托证明材料", "template": None, "required": True, "auto_detect": None, "source": "case"},
     {"code": "nl_5", "name": "收费凭证", "template": None, "required": False, "auto_detect": None, "source": "contract"},
     {"code": "nl_6", "name": "律师办案工作日记", "template": "lawyer_work_log", "required": True, "auto_detect": None, "source": "template"},
     {"code": "nl_7", "name": "委托人提供的案件材料", "template": None, "required": False, "auto_detect": None, "source": "case"},
@@ -48,7 +49,8 @@ LITIGATION_CHECKLIST: list[ChecklistItem] = [
     {"code": "lt_1", "name": "案卷封面", "template": "case_cover", "required": True, "auto_detect": None, "source": "template"},
     {"code": "lt_2", "name": "结案归档登记表", "template": "closing_archive_register", "required": True, "auto_detect": None, "source": "template"},
     {"code": "lt_3", "name": "案卷目录", "template": "inner_catalog", "required": True, "auto_detect": None, "source": "template"},
-    {"code": "lt_4", "name": "委托合同、风险告知书、授权委托证明材料等", "template": None, "required": True, "auto_detect": None, "source": "contract"},
+    {"code": "lt_4", "name": "委托合同、风险告知书", "template": None, "required": True, "auto_detect": None, "source": "contract"},
+    {"code": "lt_20", "name": "授权委托证明材料", "template": None, "required": True, "auto_detect": None, "source": "case"},
     {"code": "lt_5", "name": "收费凭证", "template": None, "required": False, "auto_detect": None, "source": "contract"},
     {"code": "lt_6", "name": "律师办案工作日记", "template": "lawyer_work_log", "required": True, "auto_detect": None, "source": "template"},
     {"code": "lt_7", "name": "起诉书、上诉书或答辩书", "template": None, "required": True, "auto_detect": None, "source": "case"},
@@ -73,7 +75,8 @@ CRIMINAL_CHECKLIST: list[ChecklistItem] = [
     {"code": "cr_1", "name": "案卷封面", "template": "case_cover", "required": True, "auto_detect": None, "source": "template"},
     {"code": "cr_2", "name": "结案归档登记表", "template": "closing_archive_register", "required": True, "auto_detect": None, "source": "template"},
     {"code": "cr_3", "name": "案卷目录", "template": "inner_catalog", "required": True, "auto_detect": None, "source": "template"},
-    {"code": "cr_4", "name": "委托代理合同、风险告知书、授权委托证明材料等", "template": None, "required": True, "auto_detect": None, "source": "contract"},
+    {"code": "cr_4", "name": "委托代理合同、风险告知书", "template": None, "required": True, "auto_detect": None, "source": "contract"},
+    {"code": "cr_18", "name": "授权委托证明材料", "template": None, "required": True, "auto_detect": None, "source": "case"},
     {"code": "cr_5", "name": "收费凭证", "template": None, "required": False, "auto_detect": None, "source": "contract"},
     {"code": "cr_6", "name": "律师办案工作日记", "template": "lawyer_work_log", "required": True, "auto_detect": None, "source": "template"},
     {"code": "cr_7", "name": "会见被告人、委托人、证人笔录", "template": None, "required": False, "auto_detect": None, "source": "case"},
