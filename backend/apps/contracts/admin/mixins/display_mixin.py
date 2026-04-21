@@ -190,6 +190,16 @@ class ContractDisplayMixin:
                 name="contracts_contract_generate_archive_docs",
             ),
             path(
+                "<int:object_id>/generate-archive-doc/<str:archive_item_code>/",
+                self.admin_site.admin_view(self.generate_single_archive_doc_view),
+                name="contracts_contract_generate_single_archive_doc",
+            ),
+            path(
+                "<int:object_id>/download-archive-item/<str:archive_item_code>/",
+                self.admin_site.admin_view(self.download_archive_item_view),
+                name="contracts_contract_download_archive_item",
+            ),
+            path(
                 "<int:object_id>/detect-supervision-card/",
                 self.admin_site.admin_view(self.detect_supervision_card_view),
                 name="contracts_contract_detect_supervision_card",
@@ -331,6 +341,72 @@ class ContractDisplayMixin:
             })
         except Exception as e:
             logger.exception("生成归档文书失败: contract_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def generate_single_archive_doc_view(self, request: HttpRequest, object_id: int, archive_item_code: str) -> HttpResponse:
+        """生成单个归档文书的 Admin view"""
+        from django.http import JsonResponse
+
+        if request.method != "POST":
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+        if not self.has_change_permission(request):
+            return JsonResponse({"success": False, "error": str(_("无权限"))}, status=403)
+
+        try:
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            from apps.contracts.services.archive import ArchiveGenerationService
+
+            gen_service = ArchiveGenerationService()
+            result = gen_service.generate_single_archive_document(contract, archive_item_code)
+
+            if result.get("error"):
+                return JsonResponse({"success": False, "error": result["error"]})
+
+            return JsonResponse({
+                "success": True,
+                "template_subtype": result.get("template_subtype"),
+                "filename": result.get("filename"),
+                "material_id": result.get("material_id"),
+            })
+        except Exception as e:
+            logger.exception("生成单个归档文书失败: contract_id=%s, code=%s", object_id, archive_item_code)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def download_archive_item_view(self, request: HttpRequest, object_id: int, archive_item_code: str) -> HttpResponse:
+        """下载归档检查项材料的 Admin view（多个文件自动合并为PDF）"""
+        from django.http import HttpResponse as DjangoHttpResponse
+
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+
+        try:
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            from apps.contracts.services.archive import ArchiveGenerationService
+
+            gen_service = ArchiveGenerationService()
+            result = gen_service.download_archive_item(contract, archive_item_code)
+
+            if result.get("error"):
+                from django.http import JsonResponse
+                return JsonResponse({"success": False, "error": result["error"]}, status=404)
+
+            import urllib.parse
+
+            response = DjangoHttpResponse(
+                result["content"],
+                content_type=result["content_type"],
+            )
+            encoded_filename = urllib.parse.quote(result["filename"].encode("utf-8"))
+            response["Content-Disposition"] = f"attachment; filename*=UTF-8''{encoded_filename}"
+            return response
+        except Exception as e:
+            logger.exception("下载归档材料失败: contract_id=%s, code=%s", object_id, archive_item_code)
+            from django.http import JsonResponse
             return JsonResponse({"success": False, "error": str(e)}, status=500)
 
     def detect_supervision_card_view(self, request: HttpRequest, object_id: int) -> HttpResponse:

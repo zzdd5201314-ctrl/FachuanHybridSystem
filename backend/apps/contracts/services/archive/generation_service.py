@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -134,6 +135,209 @@ class ArchiveGenerationService:
             results.append(result)
 
         return results
+
+    def generate_single_archive_document(
+        self,
+        contract: Contract,
+        archive_item_code: str,
+        case: Any | None = None,
+    ) -> dict[str, Any]:
+        """
+        生成单个归档文书。
+
+        Args:
+            contract: 合同实例
+            archive_item_code: 归档检查清单编号 (如 "cr_1", "lt_6")
+            case: 案件实例（可选）
+
+        Returns:
+            生成结果字典
+        """
+        archive_category = get_archive_category(contract.case_type)
+        checklist_items = ARCHIVE_CHECKLIST.get(archive_category, [])
+
+        # 查找目标项
+        target_item = None
+        for item in checklist_items:
+            if item["code"] == archive_item_code:
+                target_item = item
+                break
+
+        if not target_item:
+            return {"template_subtype": None, "error": f"未找到检查清单项: {archive_item_code}"}
+
+        if not target_item["template"]:
+            return {"template_subtype": None, "error": "该检查项不支持模板生成"}
+
+        # 如果没有传入 case，自动查找
+        if case is None:
+            case = contract.cases.select_related(
+                "contract",
+            ).prefetch_related(
+                "supervising_authorities", "case_numbers", "assignments__lawyer", "parties__client",
+            ).first()
+
+        return self._generate_single_document(contract, target_item, case)
+
+    def download_archive_item(
+        self,
+        contract: Contract,
+        archive_item_code: str,
+    ) -> dict[str, Any]:
+        """
+        下载归档检查项对应的材料文件。
+
+        如果同一检查项下有多个文件，合并为一个 PDF 后返回。
+
+        Args:
+            contract: 合同实例
+            archive_item_code: 归档检查清单编号
+
+        Returns:
+            {"content": bytes, "filename": str, "content_type": str} 或 {"error": str}
+        """
+        materials = list(
+            FinalizedMaterial.objects.filter(
+                contract=contract,
+                archive_item_code=archive_item_code,
+            ).order_by("order", "-uploaded_at")
+        )
+
+        # 如果没有 archive_item_code，也检查通过 _map 逻辑关联的材料
+        if not materials:
+            from apps.contracts.models.finalized_material import MaterialCategory
+
+            # 委托合同项：CONTRACT_ORIGINAL / SUPPLEMENTARY_AGREEMENT
+            if "委托" in archive_item_code or self._is_contract_item(contract, archive_item_code):
+                materials = list(
+                    FinalizedMaterial.objects.filter(
+                        contract=contract,
+                        category__in=(MaterialCategory.CONTRACT_ORIGINAL, MaterialCategory.SUPPLEMENTARY_AGREEMENT),
+                    ).order_by("order", "-uploaded_at")
+                )
+
+        if not materials:
+            return {"error": "未找到对应的归档材料"}
+
+        # 单个文件直接返回
+        if len(materials) == 1:
+            return self._read_material_file(materials[0])
+
+        # 多个文件：合并为 PDF
+        return self._merge_materials_to_pdf(materials, archive_item_code)
+
+    def _is_contract_item(self, contract: Contract, archive_item_code: str) -> bool:
+        """判断 archive_item_code 是否为"委托合同"相关的检查项"""
+        archive_category = get_archive_category(contract.case_type)
+        checklist_items = ARCHIVE_CHECKLIST.get(archive_category, [])
+        for item in checklist_items:
+            if item["code"] == archive_item_code and item["source"] == "contract" and "委托" in item["name"]:
+                return True
+        return False
+
+    def _read_material_file(self, material: FinalizedMaterial) -> dict[str, Any]:
+        """读取单个材料文件的内容"""
+        from django.conf import settings as django_settings
+
+        file_path = Path(material.file_path)
+        if not file_path.is_absolute():
+            file_path = Path(django_settings.MEDIA_ROOT) / file_path
+
+        if not file_path.exists():
+            return {"error": f"文件不存在: {material.original_filename}"}
+
+        content = file_path.read_bytes()
+        # 判断文件类型
+        suffix = file_path.suffix.lower()
+        if suffix == ".pdf":
+            content_type = "application/pdf"
+        elif suffix == ".docx":
+            content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else:
+            content_type = "application/octet-stream"
+
+        return {
+            "content": content,
+            "filename": material.original_filename,
+            "content_type": content_type,
+        }
+
+    def _merge_materials_to_pdf(
+        self,
+        materials: list[FinalizedMaterial],
+        archive_item_code: str,
+    ) -> dict[str, Any]:
+        """将多个材料文件合并为一个 PDF"""
+        import fitz  # PyMuPDF
+        from django.conf import settings as django_settings
+
+        merged_doc = fitz.open()
+        filenames: list[str] = []
+
+        try:
+            for material in materials:
+                file_path = Path(material.file_path)
+                if not file_path.is_absolute():
+                    file_path = Path(django_settings.MEDIA_ROOT) / file_path
+
+                if not file_path.exists():
+                    logger.warning("合并时文件不存在: %s", material.original_filename)
+                    continue
+
+                suffix = file_path.suffix.lower()
+
+                if suffix == ".pdf":
+                    try:
+                        src_doc = fitz.open(str(file_path))
+                        merged_doc.insert_pdf(src_doc)
+                        src_doc.close()
+                        filenames.append(material.original_filename)
+                    except Exception as e:
+                        logger.warning("合并PDF失败: %s, error: %s", material.original_filename, e)
+                elif suffix == ".docx":
+                    # DOCX 需要先转为 PDF
+                    try:
+                        from apps.documents.services.infrastructure.pdf_merge_utils import convert_docx_to_pdf
+
+                        pdf_bytes = convert_docx_to_pdf(str(file_path))
+                        if pdf_bytes:
+                            src_doc = fitz.open("pdf", pdf_bytes)
+                            merged_doc.insert_pdf(src_doc)
+                            src_doc.close()
+                            filenames.append(material.original_filename)
+                    except Exception as e:
+                        logger.warning("DOCX转PDF失败: %s, error: %s", material.original_filename, e)
+                else:
+                    logger.warning("不支持的文件类型: %s", suffix)
+
+            if len(merged_doc) == 0:
+                return {"error": "没有可合并的文件"}
+
+            # 保存合并后的 PDF
+            buffer = BytesIO()
+            merged_doc.save(buffer)
+            content = buffer.getvalue()
+
+            # 生成文件名
+            from apps.contracts.services.archive.constants import ARCHIVE_CHECKLIST
+            from .category_mapping import get_archive_category
+
+            item_name = archive_item_code
+            archive_category = get_archive_category(materials[0].contract.case_type)
+            for item in ARCHIVE_CHECKLIST.get(archive_category, []):
+                if item["code"] == archive_item_code:
+                    item_name = item["name"]
+                    break
+
+            filename = f"{item_name}_合并.pdf"
+
+            return {
+                "content": content,
+                "filename": filename,
+                "content_type": "application/pdf",
+            }
+        finally:
+            merged_doc.close()
 
     def _generate_single_document(
         self,

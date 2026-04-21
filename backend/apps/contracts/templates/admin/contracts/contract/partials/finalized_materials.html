@@ -63,6 +63,16 @@
                             onclick="previewArchiveTemplate({{ contract.pk }}, '{{ item.template }}', '{{ item.name }}')">
                         {% trans "预览" %}
                     </button>
+                    <button type="button" class="ac-btn-generate" title="{% trans '生成此文书' %}"
+                            onclick="generateSingleArchiveDoc({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
+                        {% trans "生成" %}
+                    </button>
+                    {% endif %}
+                    {% if item.completed %}
+                    <button type="button" class="ac-btn-download" title="{% trans '下载材料' %}"
+                            onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
+                        {% trans "下载" %}
+                    </button>
                     {% endif %}
                 </span>
                 <span class="ac-item-status">
@@ -376,6 +386,36 @@
     border-color: #60a5fa;
 }
 
+.ac-btn-generate {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #86efac;
+    border-radius: 4px;
+    background: #f0fdf4;
+    color: #15803d;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.ac-btn-generate:hover {
+    background: #dcfce7;
+    border-color: #4ade80;
+}
+
+.ac-btn-download {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #c4b5fd;
+    border-radius: 4px;
+    background: #f5f3ff;
+    color: #6d28d9;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.ac-btn-download:hover {
+    background: #ede9fe;
+    border-color: #a78bfa;
+}
+
 .ac-badge {
     font-size: 12px;
     flex-shrink: 0;
@@ -470,6 +510,30 @@
             }
         })
         .catch(function(e) { alert('请求失败: ' + e.message); });
+    };
+
+    // 生成单个归档文书
+    window.generateSingleArchiveDoc = function(contractId, archiveItemCode, itemName) {
+        if (!confirm('确认生成「' + itemName + '」？已有同编号文书将被覆盖。')) return;
+        fetch('/admin/contracts/contract/' + contractId + '/generate-archive-doc/' + archiveItemCode + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                alert('「' + itemName + '」生成成功');
+                location.reload();
+            } else {
+                alert('生成失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(function(e) { alert('请求失败: ' + e.message); });
+    };
+
+    // 下载归档检查项材料（多文件自动合并为PDF）
+    window.downloadArchiveItem = function(contractId, archiveItemCode, itemName) {
+        window.location.href = '/admin/contracts/contract/' + contractId + '/download-archive-item/' + archiveItemCode + '/';
     };
 
     // 自动检测监督卡
