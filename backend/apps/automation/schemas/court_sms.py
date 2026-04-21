@@ -101,7 +101,7 @@ class CourtSMSDetailOut(BaseModel):
             status=obj.status,
             error_message=obj.error_message,
             retry_count=obj.retry_count,
-            case={},
+            case={"id": obj.case.id, "name": obj.case.name} if obj.case else None,
             documents=[
                 {
                     "id": ref.court_document_id,

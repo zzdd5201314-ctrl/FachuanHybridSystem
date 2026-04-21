@@ -131,6 +131,13 @@ class CourtSMSService(SMSCaseBindingMixin, SMSDocumentMixin, SMSDownloadMixin):
             self._notification = SMSNotificationService()
         return self._notification
 
+    def get_sms_detail(self, sms_id: int) -> CourtSMS:
+        """获取短信处理详情"""
+        try:
+            return CourtSMS.objects.get(id=sms_id)
+        except CourtSMS.DoesNotExist as e:
+            raise NotFoundError(f"短信记录不存在: ID={sms_id}") from e
+
     def list_sms(
         self,
         *,
