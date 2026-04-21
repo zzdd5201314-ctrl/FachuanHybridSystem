@@ -190,6 +190,16 @@ class ContractDisplayMixin:
                 name="contracts_contract_generate_archive_docs",
             ),
             path(
+                "<int:object_id>/generate-archive-doc/<str:archive_item_code>/",
+                self.admin_site.admin_view(self.generate_single_archive_doc_view),
+                name="contracts_contract_generate_single_archive_doc",
+            ),
+            path(
+                "<int:object_id>/download-archive-item/<str:archive_item_code>/",
+                self.admin_site.admin_view(self.download_archive_item_view),
+                name="contracts_contract_download_archive_item",
+            ),
+            path(
                 "<int:object_id>/detect-supervision-card/",
                 self.admin_site.admin_view(self.detect_supervision_card_view),
                 name="contracts_contract_detect_supervision_card",
@@ -198,6 +208,26 @@ class ContractDisplayMixin:
                 "<int:object_id>/confirm-archive/",
                 self.admin_site.admin_view(self.confirm_archive_view),
                 name="contracts_contract_confirm_archive",
+            ),
+            path(
+                "<int:object_id>/sync-case-materials/",
+                self.admin_site.admin_view(self.sync_case_materials_view),
+                name="contracts_contract_sync_case_materials",
+            ),
+            path(
+                "<int:object_id>/case-material-match-map/",
+                self.admin_site.admin_view(self.case_material_match_map_view),
+                name="contracts_contract_case_material_match_map",
+            ),
+            path(
+                "<int:object_id>/toggle-compact-archive/",
+                self.admin_site.admin_view(self.toggle_compact_archive_view),
+                name="contracts_contract_toggle_compact_archive",
+            ),
+            path(
+                "<int:object_id>/scale-to-a4/",
+                self.admin_site.admin_view(self.scale_to_a4_view),
+                name="contracts_contract_scale_to_a4",
             ),
         ]
         return custom_urls + urls
@@ -299,7 +329,7 @@ class ContractDisplayMixin:
             return False
 
     def generate_archive_docs_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
-        """生成归档文书的 Admin view"""
+        """生成归档文件夹的 Admin view"""
         import json
 
         from django.http import JsonResponse
@@ -311,26 +341,110 @@ class ContractDisplayMixin:
             admin_service = _get_contract_admin_service()
             contract = admin_service.query_service.get_contract_detail(object_id)
 
+            # 检查合同是否绑定了文件夹
+            from apps.contracts.models.folder_binding import ContractFolderBinding
+
+            try:
+                binding = contract.folder_binding
+            except ContractFolderBinding.DoesNotExist:
+                binding = None
+
+            if not binding or not binding.folder_path:
+                return JsonResponse(
+                    {"success": False, "error": str(_("请先在「文档与提醒」中绑定文件夹"))},
+                    status=400,
+                )
+
             from apps.contracts.services.archive import ArchiveGenerationService
 
             gen_service = ArchiveGenerationService()
-            results = gen_service.generate_archive_documents(contract)
+            result = gen_service.generate_archive_folder(contract)
 
-            generated_count = sum(1 for r in results if r.get("error") is None)
-            errors = [r for r in results if r.get("error")]
+            if not result["success"]:
+                return JsonResponse({"success": False, "error": result.get("error", "未知错误")}, status=500)
+
+            generated_docs = result.get("generated_docs", [])
+            errors = result.get("errors", [])
 
             if errors:
-                error_msgs = "; ".join(f"{r.get('template_subtype', '?')}: {r['error']}" for r in errors)
-                logger.warning("归档文书部分生成失败: %s", error_msgs)
+                logger.warning("归档文件夹部分生成失败: %s", "; ".join(errors))
 
             return JsonResponse({
                 "success": True,
-                "generated_count": generated_count,
-                "total_count": len(results),
-                "errors": [{"subtype": r.get("template_subtype"), "error": r["error"]} for r in errors],
+                "generated_docs": generated_docs,
+                "archive_dir": result.get("archive_dir", ""),
+                "errors": errors,
             })
         except Exception as e:
-            logger.exception("生成归档文书失败: contract_id=%s", object_id)
+            logger.exception("生成归档文件夹失败: contract_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def generate_single_archive_doc_view(self, request: HttpRequest, object_id: int, archive_item_code: str) -> HttpResponse:
+        """生成单个归档文书的 Admin view"""
+        from django.http import JsonResponse
+
+        if request.method != "POST":
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+        if not self.has_change_permission(request):
+            return JsonResponse({"success": False, "error": str(_("无权限"))}, status=403)
+
+        try:
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            from apps.contracts.services.archive import ArchiveGenerationService
+
+            gen_service = ArchiveGenerationService()
+            result = gen_service.generate_single_archive_document(contract, archive_item_code)
+
+            if result.get("error"):
+                return JsonResponse({"success": False, "error": result["error"]})
+
+            return JsonResponse({
+                "success": True,
+                "template_subtype": result.get("template_subtype"),
+                "filename": result.get("filename"),
+                "material_id": result.get("material_id"),
+            })
+        except Exception as e:
+            logger.exception("生成单个归档文书失败: contract_id=%s, code=%s", object_id, archive_item_code)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def download_archive_item_view(self, request: HttpRequest, object_id: int, archive_item_code: str) -> HttpResponse:
+        """下载归档检查项材料的 Admin view（多个文件自动合并为PDF）"""
+        from django.http import HttpResponse as DjangoHttpResponse
+
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+
+        try:
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            from apps.contracts.services.archive import ArchiveGenerationService
+
+            gen_service = ArchiveGenerationService()
+            result = gen_service.download_archive_item(contract, archive_item_code)
+
+            if result.get("error"):
+                from django.http import JsonResponse
+                return JsonResponse({"success": False, "error": result["error"]}, status=404)
+
+            import urllib.parse
+
+            response = DjangoHttpResponse(
+                result["content"],
+                content_type=result["content_type"],
+            )
+            encoded_filename = urllib.parse.quote(result["filename"].encode("utf-8"))
+            # 预览模式：浏览器内显示（inline），否则下载（attachment）
+            disposition = "inline" if request.GET.get("preview") == "1" else "attachment"
+            response["Content-Disposition"] = f"{disposition}; filename*=UTF-8''{encoded_filename}"
+            return response
+        except Exception as e:
+            logger.exception("下载归档材料失败: contract_id=%s, code=%s", object_id, archive_item_code)
+            from django.http import JsonResponse
             return JsonResponse({"success": False, "error": str(e)}, status=500)
 
     def detect_supervision_card_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
@@ -412,4 +526,126 @@ class ContractDisplayMixin:
             return JsonResponse({"success": True})
         except Exception as e:
             logger.exception("确认归档失败: contract_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def sync_case_materials_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """从案件材料同步到归档的 Admin view"""
+        from django.http import JsonResponse
+
+        if request.method != "POST":
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+        if not self.has_change_permission(request):
+            return JsonResponse({"success": False, "error": str(_("无权限"))}, status=403)
+
+        try:
+            import json
+
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            # 解析请求体，获取要同步的 archive_item_codes 和 case_ids（可选）
+            codes: list[str] | None = None
+            target_case_ids: list[int] | None = None
+            try:
+                body = json.loads(request.body) if request.body else {}
+                codes = body.get("archive_item_codes")
+                target_case_ids = body.get("case_ids")
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+            from apps.contracts.services.archive.wiring import build_archive_checklist_service
+
+            checklist_service = build_archive_checklist_service()
+            result = checklist_service.sync_case_materials_to_archive(contract, codes, target_case_ids)
+
+            synced_count = len(result["synced"])
+            error_count = len(result["errors"])
+
+            if error_count:
+                logger.warning(
+                    "案件材料同步部分失败: contract_id=%s, errors=%d",
+                    object_id,
+                    error_count,
+                )
+
+            return JsonResponse({
+                "success": synced_count > 0 or error_count == 0,
+                "synced_count": synced_count,
+                "skipped_count": len(result["skipped"]),
+                "error_count": error_count,
+                "details": result,
+            })
+        except Exception as e:
+            logger.exception("同步案件材料失败: contract_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def case_material_match_map_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """获取案件材料匹配映射的 Admin view"""
+        from django.http import JsonResponse
+
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+
+        try:
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            from apps.contracts.services.archive.wiring import build_archive_checklist_service
+
+            checklist_service = build_archive_checklist_service()
+            result = checklist_service.get_case_material_match_map(contract)
+
+            return JsonResponse({"success": True, "data": result})
+        except Exception as e:
+            logger.exception("获取案件材料匹配映射失败: contract_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def toggle_compact_archive_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """切换按实归档状态的 Admin view"""
+        from django.http import JsonResponse
+
+        if request.method != "POST":
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+
+        try:
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+            contract.compact_archive = not contract.compact_archive
+            contract.save(update_fields=["compact_archive"])
+            logger.info(
+                "切换按实归档状态: contract_id=%s, compact_archive=%s",
+                object_id,
+                contract.compact_archive,
+            )
+            return JsonResponse({"success": True, "compact_archive": contract.compact_archive})
+        except Exception as e:
+            logger.exception("切换按实归档状态失败: contract_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def scale_to_a4_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """按照A4裁切的 Admin view - 将非A4尺寸的PDF页面缩放为A4"""
+        from django.http import JsonResponse
+
+        if request.method != "POST":
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+        if not self.has_change_permission(request):
+            return JsonResponse({"success": False, "error": str(_("无权限"))}, status=403)
+
+        try:
+            admin_service = _get_contract_admin_service()
+            contract = admin_service.query_service.get_contract_detail(object_id)
+
+            from apps.contracts.services.archive import ArchiveGenerationService
+
+            gen_service = ArchiveGenerationService()
+            result = gen_service.scale_pages_to_a4(contract)
+
+            return JsonResponse(result)
+        except Exception as e:
+            logger.exception("A4裁切失败: contract_id=%s", object_id)
             return JsonResponse({"success": False, "error": str(e)}, status=500)

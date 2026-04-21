@@ -19,7 +19,7 @@
 
     {# ===== 归档检查清单 ===== #}
     {% if archive_checklist %}
-    <div class="archive-checklist">
+    <div class="archive-checklist" x-data="archiveChecklistApp({{ archive_checklist.compact_archive|yesno:'true,false' }})">
         <div class="ac-header">
             <div class="ac-title-row">
                 <h3 class="ac-title">{% trans "归档检查清单" %}</h3>
@@ -39,11 +39,25 @@
         </div>
 
         <div class="ac-toolbar">
-            <button type="button" class="btn btn-primary btn-sm" onclick="generateArchiveDocs({{ contract.pk }})">
-                {% trans "生成归档文书" %}
+            <button type="button" class="btn btn-primary btn-sm"
+                    onclick="generateArchiveDocs({{ contract.pk }})"
+                    {% if not folder_binding %}disabled
+                    title="{% trans '请先在「文档与提醒」中绑定文件夹' %}"{% endif %}>
+                {% trans "生成归档文件夹" %}
             </button>
             <button type="button" class="btn btn-secondary btn-sm" onclick="detectSupervisionCard({{ contract.pk }})">
                 {% trans "自动检测监督卡" %}
+            </button>
+            <button type="button" class="btn btn-info btn-sm" onclick="syncCaseMaterials({{ contract.pk }})">
+                {% trans "从案件材料同步" %}
+            </button>
+            <button type="button" class="btn btn-outline-info btn-sm" onclick="scaleToA4({{ contract.pk }})">
+                {% trans "按照A4裁切" %}
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm"
+                    :class="{ 'active': compactMode }"
+                    @click="toggleCompactMode()">
+                {% trans "按实归档" %}
             </button>
             {% if can_archive %}
             <button type="button" class="btn btn-warning btn-sm ac-btn-archive" onclick="confirmArchive({{ contract.pk }})">
@@ -54,7 +68,13 @@
 
         <div class="ac-list">
             {% for item in archive_checklist.items %}
-            <div class="ac-item {% if item.completed %}is-completed{% elif item.required %}is-missing{% endif %}" data-code="{{ item.code }}">
+            <div class="ac-item {% if item.template %}is-templated{% elif item.completed %}is-completed{% endif %}"
+                 data-code="{{ item.code }}"
+                 data-completed="{{ item.completed|yesno:'true,false' }}"
+                 data-template="{{ item.template|yesno:'true,false' }}"
+                 data-required="{{ item.required|yesno:'true,false' }}"
+                 x-show="!compactMode || {{ item.template|yesno:'true,false' }} || {{ item.completed|yesno:'true,false' }}"
+                 x-transition>
                 <span class="ac-item-code"></span>
                 <span class="ac-item-name">{{ item.name }}</span>
                 <span class="ac-item-actions">
@@ -63,15 +83,32 @@
                             onclick="previewArchiveTemplate({{ contract.pk }}, '{{ item.template }}', '{{ item.name }}')">
                         {% trans "预览" %}
                     </button>
+                    <button type="button" class="ac-btn-download" title="{% trans '下载材料' %}"
+                            onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
+                        {% trans "下载" %}
+                    </button>
+                    {% elif item.completed %}
+                    <button type="button" class="ac-btn-preview" title="{% trans '在浏览器中预览' %}"
+                            onclick="previewArchiveItem({{ contract.pk }}, '{{ item.code }}')">
+                        {% trans "预览" %}
+                    </button>
+                    <button type="button" class="ac-btn-download" title="{% trans '下载材料' %}"
+                            onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
+                        {% trans "下载" %}
+                    </button>
                     {% endif %}
                 </span>
                 <span class="ac-item-status">
-                    {% if item.completed %}
-                        <span class="ac-badge ac-badge-done">✓</span>
-                    {% elif item.template %}
+                    {% if item.template %}
                         <span class="ac-badge ac-badge-generate" title="{% trans '可自动生成' %}">⚡</span>
+                    {% elif item.completed %}
+                        <span class="ac-badge ac-badge-done">✓</span>
                     {% elif item.auto_detect == 'supervision_card' %}
                         <span class="ac-badge ac-badge-detect" title="{% trans '可自动检测' %}">🔍</span>
+                    {% elif item.has_case_material %}
+                        <span class="ac-badge ac-badge-sync" title="{% trans '可从案件材料同步' %}">📋</span>
+                    {% elif item.source == 'case' %}
+                        <span class="ac-badge ac-badge-sync-dim" title="{% trans '案件材料' %}">📋</span>
                     {% elif item.required %}
                         <span class="ac-badge ac-badge-required" title="{% trans '必需' %}">!</span>
                     {% else %}
@@ -338,9 +375,19 @@
     border-color: #bbf7d0;
 }
 
-.ac-item.is-missing {
-    background: #fef2f2;
-    border-color: #fecaca;
+.ac-item.is-completed:hover {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.ac-item.is-templated {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.ac-item.is-templated:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
 }
 
 .ac-item-code::before {
@@ -359,6 +406,16 @@
 
 .ac-item-actions {
     flex-shrink: 0;
+    display: inline-flex;
+    gap: 4px;
+    min-width: 100px;
+    justify-content: flex-end;
+}
+
+.ac-item-status {
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
 }
 
 .ac-btn-preview {
@@ -376,6 +433,36 @@
     border-color: #60a5fa;
 }
 
+.ac-btn-generate {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #86efac;
+    border-radius: 4px;
+    background: #f0fdf4;
+    color: #15803d;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.ac-btn-generate:hover {
+    background: #dcfce7;
+    border-color: #4ade80;
+}
+
+.ac-btn-download {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #c4b5fd;
+    border-radius: 4px;
+    background: #f5f3ff;
+    color: #6d28d9;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.ac-btn-download:hover {
+    background: #ede9fe;
+    border-color: #a78bfa;
+}
+
 .ac-badge {
     font-size: 12px;
     flex-shrink: 0;
@@ -384,8 +471,20 @@
 .ac-badge-done { color: #16a34a; }
 .ac-badge-generate { color: #2563eb; cursor: help; }
 .ac-badge-detect { color: #7c3aed; cursor: help; }
+.ac-badge-sync { color: #0891b2; cursor: help; }
+.ac-badge-sync-dim { color: #9ca3af; cursor: help; opacity: 0.5; }
 .ac-badge-required { color: #dc2626; cursor: help; }
 .ac-badge-optional { color: #9ca3af; cursor: help; }
+
+.btn-info { background: #0891b2; border-color: #0e7490; color: #fff; }
+.btn-info:hover { background: #0e7490; border-color: #155e75; }
+
+.btn-outline-secondary { background: #fff; border: 1px solid #d1d5db; color: #6b7280; }
+.btn-outline-secondary:hover { background: #f9fafb; border-color: #9ca3af; color: #374151; }
+.btn-outline-secondary.active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+
+.btn-outline-info { background: #fff; border: 1px solid #0891b2; color: #0891b2; }
+.btn-outline-info:hover { background: #ecfeff; border-color: #06b6d4; color: #0e7490; }
 
 {# ===== 扫描弹窗样式（保留） ===== #}
 .fm-scan-modal { max-width: 880px; }
@@ -418,6 +517,43 @@
 </style>
 
 <script>
+// 归档检查清单 Alpine.js 组件
+function archiveChecklistApp(initialCompact) {
+    return {
+        compactMode: initialCompact || false,
+
+        toggleCompactMode() {
+            var contractId = {{ contract.pk }};
+            var csrf = (window.FachuanCSRF && window.FachuanCSRF.getToken && window.FachuanCSRF.getToken()) || '';
+            fetch('/admin/contracts/contract/' + contractId + '/toggle-compact-archive/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('操作失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(function(e) { alert('请求失败: ' + e.message); });
+        },
+
+        getVisibleItems() {
+            var items = this.$el.querySelectorAll('.ac-item');
+            if (!this.compactMode) return items;
+            var visible = [];
+            items.forEach(function(el) {
+                var isTemplate = el.dataset.template === 'true';
+                var isCompleted = el.dataset.completed === 'true';
+                if (isTemplate || isCompleted) visible.push(el);
+            });
+            return visible;
+        }
+    };
+}
+
 (function () {
     function loadSortable(cb) {
         if (typeof Sortable !== 'undefined') { cb(); return; }
@@ -453,9 +589,9 @@
         });
     }
 
-    // 生成归档文书
+    // 生成归档文件夹
     window.generateArchiveDocs = function(contractId) {
-        if (!confirm('确认生成归档文书？已有的同编号文书将被覆盖。')) return;
+        if (!confirm('确认生成归档文件夹？将在合同绑定文件夹下创建归档文件夹，已有文件将被覆盖。')) return;
         fetch('/admin/contracts/contract/' + contractId + '/generate-archive-docs/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
@@ -463,13 +599,53 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
-                alert('生成完成: ' + (data.generated_count || 0) + ' 份文书');
+                var docs = data.generated_docs || [];
+                var msg = '归档文件夹生成完成！';
+                if (docs.length > 0) {
+                    msg += '\n已生成: ' + docs.join('、');
+                }
+                if (data.errors && data.errors.length > 0) {
+                    msg += '\n部分失败: ' + data.errors.join('; ');
+                }
+                if (data.archive_dir) {
+                    msg += '\n路径: ' + data.archive_dir;
+                }
+                alert(msg);
                 location.reload();
             } else {
                 alert('生成失败: ' + (data.error || '未知错误'));
             }
         })
         .catch(function(e) { alert('请求失败: ' + e.message); });
+    };
+
+    // 生成单个归档文书
+    window.generateSingleArchiveDoc = function(contractId, archiveItemCode, itemName) {
+        if (!confirm('确认生成「' + itemName + '」？已有同编号文书将被覆盖。')) return;
+        fetch('/admin/contracts/contract/' + contractId + '/generate-archive-doc/' + archiveItemCode + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                alert('「' + itemName + '」生成成功');
+                location.reload();
+            } else {
+                alert('生成失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(function(e) { alert('请求失败: ' + e.message); });
+    };
+
+    // 下载归档检查项材料（多文件自动合并为PDF）
+    window.downloadArchiveItem = function(contractId, archiveItemCode, itemName) {
+        window.location.href = '/admin/contracts/contract/' + contractId + '/download-archive-item/' + archiveItemCode + '/';
+    };
+
+    // 在浏览器新标签页中预览归档材料
+    window.previewArchiveItem = function(contractId, archiveItemCode) {
+        window.open('/admin/contracts/contract/' + contractId + '/download-archive-item/' + archiveItemCode + '/?preview=1', '_blank');
     };
 
     // 自动检测监督卡
@@ -491,6 +667,89 @@
         .catch(function(e) { alert('请求失败: ' + e.message); });
     };
 
+    // 从案件材料同步到归档
+    window.syncCaseMaterials = function(contractId) {
+        // 先查询匹配映射，展示给用户确认
+        fetch('/admin/contracts/contract/' + contractId + '/case-material-match-map/', {
+            headers: { 'X-CSRFToken': getCSRF() },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+            if (!result.success) {
+                alert('查询案件材料匹配失败: ' + (result.error || '未知错误'));
+                return;
+            }
+            var data = result.data;
+            var summary = data.summary || [];
+
+            // 筛选可同步项（未同步 + 有案件材料匹配）
+            var syncable = summary.filter(function(s) { return !s.already_synced && s.total_count > 0; });
+
+            if (syncable.length === 0) {
+                alert('没有可同步的案件材料。\n所有案件材料已同步，或案件材料类型无法自动匹配。');
+                return;
+            }
+
+            // 构建确认信息：按案件分组展示
+            var cases = data.cases || [];
+            var lines = [];
+            if (cases.length > 1) {
+                // 多案件：按案件分组展示
+                lines.push('合同关联 ' + cases.length + ' 个案件，同步规则：同一清单项只取首个案件的材料。\n');
+                cases.forEach(function(c) {
+                    var matchNames = c.matches
+                        .filter(function(m) { return !m.already_synced; })
+                        .map(function(m) { return '  · ' + m.archive_item_name + '（' + m.case_material_ids.length + '份）'; });
+                    if (matchNames.length > 0) {
+                        lines.push('【' + c.case_name + '】');
+                        lines = lines.concat(matchNames);
+                    }
+                });
+            } else {
+                // 单案件：简洁展示
+                syncable.forEach(function(s) {
+                    lines.push('· ' + s.archive_item_name + '（' + s.total_count + '份）');
+                });
+            }
+
+            var msg = '以下归档清单项可从案件材料同步：\n\n' + lines.join('\n') +
+                      '\n\n确认同步？已有归档材料的清单项将被跳过。';
+
+            if (!confirm(msg)) return;
+
+            fetch('/admin/contracts/contract/' + contractId + '/sync-case-materials/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+                body: JSON.stringify({
+                    archive_item_codes: syncable.map(function(s) { return s.archive_item_code; })
+                }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var msg = '同步完成！成功 ' + (data.synced_count || 0) + ' 份，跳过 ' + (data.skipped_count || 0) + ' 项';
+                    if (data.error_count > 0) msg += '，失败 ' + data.error_count + ' 项';
+                    // 附加案件来源信息
+                    var details = data.details || {};
+                    var synced = details.synced || [];
+                    if (synced.length > 0) {
+                        var caseNames = [];
+                        synced.forEach(function(s) {
+                            if (s.case_name && caseNames.indexOf(s.case_name) === -1) caseNames.push(s.case_name);
+                        });
+                        if (caseNames.length > 0) msg += '\n来源案件：' + caseNames.join('、');
+                    }
+                    alert(msg);
+                    location.reload();
+                } else {
+                    alert('同步失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(function(e) { alert('请求失败: ' + e.message); });
+        })
+        .catch(function(e) { alert('查询失败: ' + e.message); });
+    };
+
     // 确认归档
     window.confirmArchive = function(contractId) {
         if (!confirm('确认归档？必需项全部完成后才可归档，归档后合同状态将变为"已归档"。')) return;
@@ -510,6 +769,28 @@
         .catch(function(e) { alert('请求失败: ' + e.message); });
     };
 
+    // 按照A4裁切
+    window.scaleToA4 = function(contractId) {
+        if (!confirm('确认按照A4裁切？所有非A4尺寸的PDF页面将被缩放为A4大小，此操作不可撤销。')) return;
+        fetch('/admin/contracts/contract/' + contractId + '/scale-to-a4/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var msg = 'A4裁切完成！';
+                if (data.scaled_count > 0) msg += '\n已缩放: ' + data.scaled_count + ' 个PDF文件';
+                if (data.skipped_count > 0) msg += '\n已是A4: ' + data.skipped_count + ' 个PDF文件';
+                if (data.errors && data.errors.length > 0) msg += '\n失败: ' + data.errors.join('; ');
+                alert(msg);
+            } else {
+                alert('A4裁切失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(function(e) { alert('请求失败: ' + e.message); });
+    };
+
     // 预览归档文书替换词
     window.previewArchiveTemplate = function(contractId, templateSubtype, templateName) {
         var app = document.querySelector('.contract-detail-page');
@@ -519,7 +800,7 @@
         }
         // 通过自定义事件通知 Alpine.js 组件
         app.dispatchEvent(new CustomEvent('archive-preview-open', {
-            detail: { contractId: contractId, templateSubtype: templateSubtype, templateName: templateName },
+            detail: { contractId: contractId, templateSubtype: templateSubtype, templateName: templateName, editMode: false },
             bubbles: true
         }));
     };

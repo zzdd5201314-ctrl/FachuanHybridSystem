@@ -1,6 +1,6 @@
 """办案服务质量监督卡自动检测与剥离服务
 
-从合同PDF最后2页中通过关键词匹配检测监督卡页面，
+从合同PDF最后2页中通过 OCR 识别 + 关键词匹配检测监督卡页面，
 匹配成功则提取该页为独立PDF并自动创建 FinalizedMaterial 记录。
 """
 
@@ -96,7 +96,7 @@ class SupervisionCardExtractor:
 
     def _check_pdf_for_supervision_card(self, pdf_path: Path) -> dict[str, Any]:
         """
-        检查PDF最后2页是否包含监督卡关键词。
+        检查PDF最后2页是否包含监督卡关键词（使用OCR识别）。
 
         Returns:
             {"found": bool, "page_number": int | None}
@@ -109,8 +109,8 @@ class SupervisionCardExtractor:
             if total_pages == 0:
                 return {"found": False, "page_number": None}
 
-            # 检查最后2页
-            pages_to_check = []
+            # 只检查最后2页
+            pages_to_check: list[int] = []
             if total_pages >= 2:
                 pages_to_check = [total_pages - 2, total_pages - 1]
             else:
@@ -118,15 +118,44 @@ class SupervisionCardExtractor:
 
             for page_idx in pages_to_check:
                 page = doc[page_idx]
-                text = page.get_text()
-
-                for keyword in _SUPERVISION_CARD_KEYWORDS:
-                    if keyword in text:
-                        return {"found": True, "page_number": page_idx + 1}  # 1-based
+                ocr_text = self._ocr_page(page)
+                if ocr_text:
+                    for keyword in _SUPERVISION_CARD_KEYWORDS:
+                        if keyword in ocr_text:
+                            return {"found": True, "page_number": page_idx + 1}  # 1-based
 
             return {"found": False, "page_number": None}
         finally:
             doc.close()
+
+    def _ocr_page(self, page: Any) -> str:
+        """
+        对 PDF 页面执行 OCR 并返回识别文本。
+
+        Args:
+            page: fitz.Page 对象
+
+        Returns:
+            OCR 识别的文本内容，失败返回空字符串
+        """
+        try:
+            import numpy as np
+            from rapidocr import RapidOCR
+
+            # 将页面渲染为图片（150 DPI 足够 OCR）
+            pix = page.get_pixmap(dpi=150)
+            img_array = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+
+            ocr = RapidOCR()
+            result = ocr(img_array)
+
+            if result and result.txts:
+                return " ".join(result.txts)
+
+            return ""
+        except Exception as e:
+            logger.warning("OCR 检测失败: %s", e)
+            return ""
 
     def _extract_page(self, pdf_path: Path, page_number: int) -> bytes | None:
         """

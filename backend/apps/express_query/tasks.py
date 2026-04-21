@@ -116,6 +116,15 @@ def _execute_browser_query(task: ExpressQueryTask) -> None:
         output_pdf=output_abs_path,
     )
 
+    # 在协程内部完成查询后主动关闭 Playwright 连接，避免 asyncio.run() 销毁循环后
+    # Playwright 的 BaseSubprocessTransport.__del__ 触发 "Event loop is closed" 错误
+    async def _run_and_cleanup() -> str:
+        try:
+            result = await coro
+            return result
+        finally:
+            await ExpressBrowserQueryService.disconnect_playwright()
+
     # Django-Q2 worker 已有事件循环，不能直接用 asyncio.run()
     try:
         asyncio.get_running_loop()
@@ -123,11 +132,11 @@ def _execute_browser_query(task: ExpressQueryTask) -> None:
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(asyncio.run, coro)
+            future = pool.submit(asyncio.run, _run_and_cleanup())
             final_url = future.result(timeout=600)
     except RuntimeError:
         # 没有运行中的循环 → 直接用 asyncio.run()
-        final_url = asyncio.run(coro)
+        final_url = asyncio.run(_run_and_cleanup())
 
     task.status = ExpressQueryTaskStatus.SUCCESS
     task.query_url = final_url
