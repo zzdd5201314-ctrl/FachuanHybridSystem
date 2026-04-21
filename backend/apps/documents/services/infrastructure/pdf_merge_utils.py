@@ -61,19 +61,102 @@ def convert_image_to_pdf(image_path: str) -> str:
         ) from e
 
 
+def _find_libreoffice() -> str | None:
+    """查找本机 LibreOffice 可执行文件路径"""
+    import platform
+    import shutil
+
+    # 1. PATH 中查找
+    path = shutil.which("soffice") or shutil.which("libreoffice")
+    if path:
+        return path
+
+    # 2. macOS 标准安装路径
+    if platform.system() == "Darwin":
+        mac_paths = [
+            "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+            "/Applications/OpenOffice.app/Contents/MacOS/soffice",
+        ]
+        for p in mac_paths:
+            if Path(p).exists():
+                return p
+
+    # 3. Linux 标准安装路径
+    if platform.system() == "Linux":
+        linux_paths = [
+            "/usr/bin/libreoffice",
+            "/usr/bin/soffice",
+            "/usr/local/bin/libreoffice",
+            "/snap/bin/libreoffice",
+        ]
+        for p in linux_paths:
+            if Path(p).exists():
+                return p
+
+    return None
+
+
+def _convert_via_libreoffice(docx_path: str) -> str | None:
+    """使用 LibreOffice headless 模式转换 docx → pdf（最高质量）"""
+    import subprocess
+
+    soffice = _find_libreoffice()
+    if not soffice:
+        return None
+
+    # LibreOffice 输出到临时目录，文件名与源文件相同但后缀为 .pdf
+    output_dir = tempfile.mkdtemp()
+    try:
+        cmd = [
+            soffice,
+            "--headless",
+            "--convert-to", "pdf",
+            "--outdir", output_dir,
+            str(docx_path),
+        ]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode != 0:
+            logger.warning("LibreOffice 转换失败: %s", result.stderr)
+            return None
+
+        # 找到输出文件
+        src_stem = Path(docx_path).stem
+        pdf_path = Path(output_dir) / f"{src_stem}.pdf"
+        if not pdf_path.exists():
+            logger.warning("LibreOffice 未生成 PDF: %s", output_dir)
+            return None
+
+        # 移动到标准临时文件（避免目录残留）
+        fd, final_path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        import shutil as shutil_mod
+        shutil_mod.move(str(pdf_path), final_path)
+        return final_path
+
+    except subprocess.TimeoutExpired:
+        logger.warning("LibreOffice 转换超时: %s", docx_path)
+        return None
+    except Exception as e:
+        logger.warning("LibreOffice 转换异常: %s", e)
+        return None
+    finally:
+        import shutil as shutil_mod
+        shutil_mod.rmtree(output_dir, ignore_errors=True)
+
+
 def convert_docx_to_pdf(docx_path: str) -> str:
     try:
-        try:
-            from docx2pdf import convert
+        # 1. 优先使用本机 LibreOffice（最高质量，完美保留原始排版）
+        lo_result = _convert_via_libreoffice(docx_path)
+        if lo_result:
+            return lo_result
 
-            fd, pdf_path = tempfile.mkstemp(suffix=".pdf")
-            os.close(fd)
-            convert(docx_path, pdf_path)
-            return pdf_path
-        except ImportError:
-            pass
-
-        # 优先使用 mammoth + weasyprint（高质量中文支持）
+        # 2. 回退：mammoth + weasyprint（中等质量，中文支持良好）
         try:
             import mammoth
             import weasyprint
@@ -102,7 +185,7 @@ def convert_docx_to_pdf(docx_path: str) -> str:
         except ImportError:
             pass
 
-        # 最终回退：reportlab（中文支持差，仅作为兜底）
+        # 3. 最终回退：reportlab（中文支持差，仅作为兜底）
         from docx import Document
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet
