@@ -116,9 +116,14 @@ class ArchivePlaceholderService(BasePlaceholderService):
             result["合同对方当事人名称"] = self._get_opposing_party_names(contract)
             result["律所OA案件编号"] = self._get_oa_case_number(contract)
 
-        # 从 case 获取案件相关字段
+        # 主办律师姓名：优先从 case 获取，回退到 contract.assignments
         if case:
             result["主办律师姓名"] = self._get_lead_lawyer_name(case)
+        elif contract:
+            result["主办律师姓名"] = self._get_lead_lawyer_name_from_contract(contract)
+
+        # 从 case 获取案件相关字段
+        if case:
             result["案件案号"] = self._get_case_number(case)
             result["管辖法院"] = self._get_court_name(case)
 
@@ -192,6 +197,31 @@ class ArchivePlaceholderService(BasePlaceholderService):
     def _get_oa_case_number(contract: Any) -> str:
         """获取律所OA案件编号"""
         return str(getattr(contract, "law_firm_oa_case_number", "") or "")
+
+    @staticmethod
+    def _get_lead_lawyer_name_from_contract(contract: Any) -> str:
+        """从合同指派记录获取主办律师姓名(is_primary=True 的第一个)"""
+        try:
+            assignment = contract.assignments.select_related("lawyer").filter(is_primary=True).first()
+        except Exception:
+            assignment = None
+
+        if not assignment:
+            # 兜底: 取第一个指派
+            try:
+                assignment = contract.assignments.select_related("lawyer").first()
+            except Exception:
+                logger.warning("获取合同主办律师失败", extra={"contract_id": getattr(contract, "id", None)})
+                return ""
+
+        if not assignment:
+            return ""
+
+        lawyer = getattr(assignment, "lawyer", None)
+        if not lawyer:
+            return ""
+
+        return str(getattr(lawyer, "real_name", None) or getattr(lawyer, "username", "") or "")
 
     @staticmethod
     def _get_lead_lawyer_name(case: Any) -> str:
