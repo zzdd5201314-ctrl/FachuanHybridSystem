@@ -15,6 +15,41 @@ from apps.documents.services.placeholders.registry import PlaceholderRegistry
 logger = logging.getLogger(__name__)
 
 
+class _ArchiveMaterialsRichText:
+    """结案归档材料文本，支持 docxtpl 硬换行渲染和预览文本显示。
+
+    docxtpl RichText 的 str() 返回 XML，render 时直接内联到模板 XML 中。
+    因此我们直接拼接 XML 字符串，在行间插入 <w:br/> 实现硬换行。
+    plain_text 属性供预览服务使用。
+    """
+
+    def __init__(self) -> None:
+        self._xml_parts: list[str] = []
+        self._text_parts: list[str] = []
+
+    def add_break(self) -> None:
+        """添加硬换行 (w:br)"""
+        self._xml_parts.append('<w:r><w:br/></w:r>')
+        self._text_parts.append("\n")
+
+    def add(self, text: str) -> None:
+        """添加文本行"""
+        from xml.sax.saxutils import escape
+
+        escaped = escape(text)
+        self._xml_parts.append(f'<w:r><w:t xml:space="preserve">{escaped}</w:t></w:r>')
+        self._text_parts.append(text)
+
+    @property
+    def plain_text(self) -> str:
+        """纯文本供预览使用"""
+        return "".join(self._text_parts)
+
+    def __str__(self) -> str:
+        """返回 XML 供 docxtpl 渲染内联"""
+        return "".join(self._xml_parts)
+
+
 @PlaceholderRegistry.register
 class ArchivePlaceholderService(BasePlaceholderService):
     """归档文书占位符服务"""
@@ -36,6 +71,7 @@ class ArchivePlaceholderService(BasePlaceholderService):
         "案件审理结果",
         "归档日期",
         "生成日期",
+        "结案归档材料",
     ]
     placeholder_metadata: ClassVar[dict[str, dict[str, Any]]] = {
         "主办律师姓名": {
@@ -98,6 +134,11 @@ class ArchivePlaceholderService(BasePlaceholderService):
             "description": "文档生成日期(中文格式)",
             "example_value": "2026年04月19日",
         },
+        "结案归档材料": {
+            "display_name": "结案归档材料",
+            "description": "已完成的归档检查项材料目录，按序号排列，硬换行分隔",
+            "example_value": "1.委托代理合同、风险告知书\n2.收费凭证\n3.律师办案工作日记",
+        },
     }
 
     def generate(self, context_data: dict[str, Any]) -> dict[str, Any]:
@@ -145,6 +186,10 @@ class ArchivePlaceholderService(BasePlaceholderService):
             result["管辖法院"] = self._get_court_name(case)
             result["案件当前阶段"] = self._get_case_stage(case)
             result["案件审理结果"] = self._get_trial_result(case)
+
+        # 结案归档材料：实时检测已完成的检查项，生成编号目录
+        if contract:
+            result["结案归档材料"] = self._get_archive_materials_list(contract)
 
         return result
 
@@ -350,3 +395,58 @@ class ArchivePlaceholderService(BasePlaceholderService):
                 seen.add(name)
                 names.append(name)
         return "、".join(names)
+
+    @staticmethod
+    def _get_archive_materials_list(contract: Any) -> str:
+        """
+        生成结案归档材料目录。
+
+        实时检测归档检查清单中已完成的项，从"委托合同"项开始，
+        按检查清单序号排列，跳过案卷封面/结案归档登记表/案卷目录，
+        生成编号列表（硬换行分隔）。
+        """
+        from apps.contracts.services.archive.checklist_service import ArchiveChecklistService
+
+        checklist_service = ArchiveChecklistService()
+        checklist = checklist_service.get_checklist_with_status(contract)
+
+        items = checklist.get("items", [])
+
+        # 需要跳过的检查项（案卷封面/结案归档登记表/案卷目录 本身就是归档文书，不是材料目录）
+        skip_codes = {"nl_1", "nl_2", "nl_3", "lt_1", "lt_2", "lt_3", "cr_1", "cr_2", "cr_3"}
+        # 也跳过模板前缀为 1/2/3 的code
+        skip_templates = {"case_cover", "closing_archive_register", "inner_catalog"}
+
+        lines: list[str] = []
+        seq = 1
+
+        for item in items:
+            code = item.get("code", "")
+            template = item.get("template")
+            name = item.get("name", "")
+            completed = item.get("completed", False)
+
+            # 跳过封面/登记表/目录
+            if code in skip_codes or template in skip_templates:
+                continue
+
+            # 只包含已完成的项
+            if not completed:
+                continue
+
+            lines.append(f"{seq}.{name}")
+            seq += 1
+
+        if not lines:
+            return ""
+
+        # 硬换行（docx 中的 shift+enter）
+        # 使用 docxtpl.RichText 的 add_break() 方法实现硬换行
+        from docxtpl import RichText
+
+        rt = _ArchiveMaterialsRichText()
+        for i, line in enumerate(lines):
+            if i > 0:
+                rt.add_break()  # 硬换行 (shift+enter)
+            rt.add(line)
+        return rt

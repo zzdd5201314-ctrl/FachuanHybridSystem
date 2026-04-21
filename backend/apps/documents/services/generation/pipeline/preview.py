@@ -29,7 +29,9 @@ class DocxPreviewService:
         for var in ordered_vars:
             val = context.get(var)
             if val:
-                rows.append({"key": var, "value": str(val).replace("\a", "\n"), "status": "ok"})
+                # 优先使用 plain_text 属性（如 _ArchiveMaterialsRichText），否则用 str()
+                display_val = getattr(val, "plain_text", None) or str(val).replace("\a", "\n")
+                rows.append({"key": var, "value": display_val, "status": "ok"})
             else:
                 rows.append({"key": var, "value": "", "status": "empty"})
         return rows
