@@ -56,7 +56,7 @@ class ArchiveGenerationService:
         if not contract:
             return {"success": False, "error": "合同不存在"}
 
-        template_path = self.get_template_path(template_subtype)
+        template_path = self.get_template_path(template_subtype, contract)
         if not template_path:
             return {"success": False, "error": f"模板文件不存在: {template_subtype}"}
 
@@ -75,16 +75,26 @@ class ArchiveGenerationService:
         rows = DocxPreviewService().preview(str(template_path), context)
         return {"success": True, "data": rows}
 
-    def get_template_path(self, template_subtype: str) -> Path | None:
+    def get_template_path(self, template_subtype: str, contract: Contract | None = None) -> Path | None:
         """
         获取归档模板文件的完整路径。
 
+        优先从 DocumentTemplate 数据库查找匹配合同 case_type 的归档模板，
+        找不到再回退到硬编码的公有目录模板。
+
         Args:
             template_subtype: DocumentArchiveSubType 值，如 "case_cover"
+            contract: 合同实例（可选，用于按 case_type 匹配模板）
 
         Returns:
             模板文件路径，不存在返回 None
         """
+        # 1. 优先从数据库查找匹配的归档模板
+        db_path = self._get_template_path_from_db(template_subtype, contract)
+        if db_path:
+            return db_path
+
+        # 2. 回退到硬编码路径
         filename = _ARCHIVE_TEMPLATE_FILES.get(template_subtype)
         if not filename:
             return None
@@ -100,6 +110,29 @@ class ArchiveGenerationService:
             return template_path
 
         logger.warning("归档模板文件不存在: %s", template_path)
+        return None
+
+    @staticmethod
+    def _get_template_path_from_db(template_subtype: str, contract: Contract | None) -> Path | None:
+        """从 DocumentTemplate 数据库查找匹配的归档模板路径"""
+        from apps.documents.models import DocumentTemplate, DocumentTemplateType
+
+        templates = DocumentTemplate.objects.filter(
+            template_type=DocumentTemplateType.ARCHIVE,
+            archive_sub_type=template_subtype,
+            is_active=True,
+        )
+
+        case_type = getattr(contract, "case_type", None) if contract else None
+
+        for template in templates:
+            case_types = template.case_types or []
+            # 空列表表示匹配所有；有值时需要匹配 case_type
+            if not case_types or "all" in case_types or (case_type and case_type in case_types):
+                file_location = template.get_file_location()
+                if file_location and Path(file_location).exists():
+                    return Path(file_location)
+
         return None
 
     def generate_archive_documents(
@@ -372,7 +405,7 @@ class ArchiveGenerationService:
         if not template_subtype:
             return {"template_subtype": None, "error": "非模板生成项"}
 
-        template_path = self.get_template_path(template_subtype)
+        template_path = self.get_template_path(template_subtype, contract)
         if not template_path:
             return {"template_subtype": template_subtype, "error": f"模板文件不存在: {template_subtype}"}
 

@@ -576,17 +576,38 @@
                 return;
             }
             var data = result.data;
-            var matches = data.matches || [];
-            var syncable = matches.filter(function(m) { return m.case_material_ids.length > 0 && !m.already_synced; });
+            var summary = data.summary || [];
+
+            // 筛选可同步项（未同步 + 有案件材料匹配）
+            var syncable = summary.filter(function(s) { return !s.already_synced && s.total_count > 0; });
 
             if (syncable.length === 0) {
                 alert('没有可同步的案件材料。\n所有案件材料已同步，或案件材料类型无法自动匹配。');
                 return;
             }
 
-            var lines = syncable.map(function(m) {
-                return '· ' + m.archive_item_name + '（' + m.case_material_ids.length + '份）';
-            });
+            // 构建确认信息：按案件分组展示
+            var cases = data.cases || [];
+            var lines = [];
+            if (cases.length > 1) {
+                // 多案件：按案件分组展示
+                lines.push('合同关联 ' + cases.length + ' 个案件，同步规则：同一清单项只取首个案件的材料。\n');
+                cases.forEach(function(c) {
+                    var matchNames = c.matches
+                        .filter(function(m) { return !m.already_synced; })
+                        .map(function(m) { return '  · ' + m.archive_item_name + '（' + m.case_material_ids.length + '份）'; });
+                    if (matchNames.length > 0) {
+                        lines.push('【' + c.case_name + '】');
+                        lines = lines.concat(matchNames);
+                    }
+                });
+            } else {
+                // 单案件：简洁展示
+                syncable.forEach(function(s) {
+                    lines.push('· ' + s.archive_item_name + '（' + s.total_count + '份）');
+                });
+            }
+
             var msg = '以下归档清单项可从案件材料同步：\n\n' + lines.join('\n') +
                       '\n\n确认同步？已有归档材料的清单项将被跳过。';
 
@@ -596,14 +617,25 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
                 body: JSON.stringify({
-                    archive_item_codes: syncable.map(function(m) { return m.archive_item_code; })
+                    archive_item_codes: syncable.map(function(s) { return s.archive_item_code; })
                 }),
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
-                    alert('同步完成！成功 ' + (data.synced_count || 0) + ' 份，跳过 ' + (data.skipped_count || 0) + ' 项' +
-                          (data.error_count > 0 ? '，失败 ' + data.error_count + ' 项' : ''));
+                    var msg = '同步完成！成功 ' + (data.synced_count || 0) + ' 份，跳过 ' + (data.skipped_count || 0) + ' 项';
+                    if (data.error_count > 0) msg += '，失败 ' + data.error_count + ' 项';
+                    // 附加案件来源信息
+                    var details = data.details || {};
+                    var synced = details.synced || [];
+                    if (synced.length > 0) {
+                        var caseNames = [];
+                        synced.forEach(function(s) {
+                            if (s.case_name && caseNames.indexOf(s.case_name) === -1) caseNames.push(s.case_name);
+                        });
+                        if (caseNames.length > 0) msg += '\n来源案件：' + caseNames.join('、');
+                    }
+                    alert(msg);
                     location.reload();
                 } else {
                     alert('同步失败: ' + (data.error || '未知错误'));
