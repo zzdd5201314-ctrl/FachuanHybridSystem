@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -86,7 +87,7 @@ class ExpressBrowserQueryService:
         pw = await async_playwright().start()
 
         # Case 2: try CDP connect to existing Chrome
-        browser = await ExpressBrowserQueryService._try_cdp_connect(pw)
+        browser = await ExpressBrowserQueryService._try_cdp_connect(pw, retries=3, delay=1)
         if browser is not None:
             ctx_list = list(browser.contexts)
             _browser_context = (
@@ -100,6 +101,8 @@ class ExpressBrowserQueryService:
             return _browser_context
 
         # Case 3: auto-launch Chrome then connect
+        # 先清理可能占用端口的旧 Chrome 进程
+        ExpressBrowserQueryService._kill_orphan_chrome()
         ExpressBrowserQueryService._launch_chrome()
         await asyncio.sleep(2)
 
@@ -135,6 +138,47 @@ class ExpressBrowserQueryService:
                 if attempt < retries - 1:
                     await asyncio.sleep(delay)
         return None
+
+    @staticmethod
+    def _kill_orphan_chrome() -> None:
+        """Kill orphan Chrome processes that may occupy the CDP port."""
+        import signal
+
+        global _chrome_process
+
+        # 先尝试终止自己启动的旧进程
+        if _chrome_process is not None:
+            try:
+                _chrome_process.terminate()
+                _chrome_process.wait(timeout=3)
+            except Exception:
+                try:
+                    _chrome_process.kill()
+                except Exception:
+                    pass
+            _chrome_process = None
+
+        # 查找占用 CDP 端口的孤儿进程并清理
+        try:
+            result = subprocess.run(
+                ["lsof", "-ti", f":{_CDP_PORT}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.stdout.strip():
+                for pid_str in result.stdout.strip().split("\n"):
+                    try:
+                        pid = int(pid_str.strip())
+                        os.kill(pid, signal.SIGTERM)
+                        logger.info("Killed orphan Chrome process on port %d: PID=%d", _CDP_PORT, pid)
+                    except (ValueError, ProcessLookupError, PermissionError):
+                        pass
+                import time
+
+                time.sleep(1)
+        except Exception as exc:
+            logger.info("Failed to check port %d: %s", _CDP_PORT, exc)
 
     @staticmethod
     def _launch_chrome() -> None:
