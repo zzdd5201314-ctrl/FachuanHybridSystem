@@ -18,38 +18,49 @@ logger = logging.getLogger(__name__)
 class _ArchiveMaterialsRichText:
     """结案归档材料文本，支持 docxtpl 硬换行渲染和预览文本显示。
 
-    继承 docxtpl.RichText 使 docxtpl 在渲染时正确识别并内联 XML，
-    而不是将 XML 作为纯文本嵌入 <w:t> 标签。
+    使用 docxtpl.Listing 实现硬换行（\\n → w:br），
+    模板中使用 {{变量}} 即可，无需 {{r 变量}} 语法。
     plain_text 属性供预览服务使用。
     """
 
     def __init__(self) -> None:
-        from docxtpl import RichText
-
-        self._rt = RichText()
-        self._text_parts: list[str] = []
+        self._lines: list[str] = []
 
     def add_break(self) -> None:
-        """添加硬换行 (w:br)"""
-        self._rt.xml += '<w:r><w:br/></w:r>'
-        self._text_parts.append("\n")
+        """添加硬换行"""
+        self._lines.append("\n")
 
     def add(self, text: str) -> None:
         """添加文本行"""
-        from xml.sax.saxutils import escape
-
-        escaped = escape(text)
-        self._rt.xml += f'<w:r><w:t xml:space="preserve">{escaped}</w:t></w:r>'
-        self._text_parts.append(text)
+        self._lines.append(text)
 
     @property
     def plain_text(self) -> str:
         """纯文本供预览使用"""
-        return "".join(self._text_parts)
+        return "".join(self._lines)
+
+    def to_listing(self) -> Any:
+        """转换为 docxtpl.Listing 实例用于渲染"""
+        from docxtpl import Listing
+
+        return Listing(self.plain_text)
 
     def __str__(self) -> str:
-        """返回 XML 供 docxtpl 渲染内联（docxtpl 识别 RichText 实例）"""
-        return self._rt.xml
+        """返回纯文本"""
+        return self.plain_text
+
+
+def unwrap_archive_rich_text(context: dict[str, Any]) -> dict[str, Any]:
+    """将 context 中的 _ArchiveMaterialsRichText 替换为 docxtpl.Listing 实例。
+
+    docxtpl 的 resolve_listing 会在渲染后处理 Listing 中的 \\n（硬换行），
+    将其转换为 <w:br/> 元素，无需模板中使用 {{r }} 语法。
+    """
+    result = dict(context)
+    for key, value in result.items():
+        if isinstance(value, _ArchiveMaterialsRichText):
+            result[key] = value.to_listing()
+    return result
 
 
 @PlaceholderRegistry.register
