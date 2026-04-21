@@ -70,8 +70,15 @@ class DocxPreviewService:
             block_tag = m.group(2)  # {% xxx %} 中的内容
 
             if simple_var is not None:
-                # {{ item.序号 }} → 取首段 item; {{ 合同名称 }} → 合同名称
-                var_name = simple_var.strip().split(".")[0].strip()
+                stripped = simple_var.strip()
+                # {{r xxx}} → docxtpl 的 RichText 内联标签，提取 xxx
+                # {{p xxx}} → docxtpl 的 RichTextParagraph 标签，提取 xxx
+                rich_match = re.match(r"^[rp]\s+(.+)$", stripped)
+                if rich_match:
+                    var_name = rich_match.group(1).strip().split(".")[0].strip()
+                else:
+                    # {{ item.序号 }} → 取首段 item; {{ 合同名称 }} → 合同名称
+                    var_name = stripped.split(".")[0].strip()
                 # 跳过 for 循环迭代变量（如 item）
                 if var_name and var_name not in seen and var_name not in loop_iter_vars:
                     seen.add(var_name)

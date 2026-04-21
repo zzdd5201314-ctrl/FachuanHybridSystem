@@ -57,7 +57,7 @@
 
         <div class="ac-list">
             {% for item in archive_checklist.items %}
-            <div class="ac-item {% if item.completed %}is-completed{% elif item.required %}is-missing{% endif %}" data-code="{{ item.code }}">
+            <div class="ac-item {% if item.template %}is-templated{% elif item.completed %}is-completed{% endif %}" data-code="{{ item.code }}">
                 <span class="ac-item-code"></span>
                 <span class="ac-item-name">{{ item.name }}</span>
                 <span class="ac-item-actions">
@@ -66,8 +66,15 @@
                             onclick="previewArchiveTemplate({{ contract.pk }}, '{{ item.template }}', '{{ item.name }}')">
                         {% trans "预览" %}
                     </button>
-                    {% endif %}
-                    {% if item.completed or item.template %}
+                    <button type="button" class="ac-btn-download" title="{% trans '下载材料' %}"
+                            onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
+                        {% trans "下载" %}
+                    </button>
+                    {% elif item.completed %}
+                    <button type="button" class="ac-btn-preview" title="{% trans '在浏览器中预览' %}"
+                            onclick="previewArchiveItem({{ contract.pk }}, '{{ item.code }}')">
+                        {% trans "预览" %}
+                    </button>
                     <button type="button" class="ac-btn-download" title="{% trans '下载材料' %}"
                             onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
                         {% trans "下载" %}
@@ -75,10 +82,10 @@
                     {% endif %}
                 </span>
                 <span class="ac-item-status">
-                    {% if item.completed %}
-                        <span class="ac-badge ac-badge-done">✓</span>
-                    {% elif item.template %}
+                    {% if item.template %}
                         <span class="ac-badge ac-badge-generate" title="{% trans '可自动生成' %}">⚡</span>
+                    {% elif item.completed %}
+                        <span class="ac-badge ac-badge-done">✓</span>
                     {% elif item.auto_detect == 'supervision_card' %}
                         <span class="ac-badge ac-badge-detect" title="{% trans '可自动检测' %}">🔍</span>
                     {% elif item.has_case_material %}
@@ -351,9 +358,19 @@
     border-color: #bbf7d0;
 }
 
-.ac-item.is-missing {
-    background: #fef2f2;
-    border-color: #fecaca;
+.ac-item.is-completed:hover {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.ac-item.is-templated {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.ac-item.is-templated:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
 }
 
 .ac-item-code::before {
@@ -372,6 +389,16 @@
 
 .ac-item-actions {
     flex-shrink: 0;
+    display: inline-flex;
+    gap: 4px;
+    min-width: 100px;
+    justify-content: flex-end;
+}
+
+.ac-item-status {
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
 }
 
 .ac-btn-preview {
@@ -542,6 +569,11 @@
     // 下载归档检查项材料（多文件自动合并为PDF）
     window.downloadArchiveItem = function(contractId, archiveItemCode, itemName) {
         window.location.href = '/admin/contracts/contract/' + contractId + '/download-archive-item/' + archiveItemCode + '/';
+    };
+
+    // 在浏览器新标签页中预览归档材料
+    window.previewArchiveItem = function(contractId, archiveItemCode) {
+        window.open('/admin/contracts/contract/' + contractId + '/download-archive-item/' + archiveItemCode + '/?preview=1', '_blank');
     };
 
     // 自动检测监督卡

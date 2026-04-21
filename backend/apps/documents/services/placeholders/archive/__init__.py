@@ -18,18 +18,20 @@ logger = logging.getLogger(__name__)
 class _ArchiveMaterialsRichText:
     """结案归档材料文本，支持 docxtpl 硬换行渲染和预览文本显示。
 
-    docxtpl RichText 的 str() 返回 XML，render 时直接内联到模板 XML 中。
-    因此我们直接拼接 XML 字符串，在行间插入 <w:br/> 实现硬换行。
+    继承 docxtpl.RichText 使 docxtpl 在渲染时正确识别并内联 XML，
+    而不是将 XML 作为纯文本嵌入 <w:t> 标签。
     plain_text 属性供预览服务使用。
     """
 
     def __init__(self) -> None:
-        self._xml_parts: list[str] = []
+        from docxtpl import RichText
+
+        self._rt = RichText()
         self._text_parts: list[str] = []
 
     def add_break(self) -> None:
         """添加硬换行 (w:br)"""
-        self._xml_parts.append('<w:r><w:br/></w:r>')
+        self._rt.xml += '<w:r><w:br/></w:r>'
         self._text_parts.append("\n")
 
     def add(self, text: str) -> None:
@@ -37,7 +39,7 @@ class _ArchiveMaterialsRichText:
         from xml.sax.saxutils import escape
 
         escaped = escape(text)
-        self._xml_parts.append(f'<w:r><w:t xml:space="preserve">{escaped}</w:t></w:r>')
+        self._rt.xml += f'<w:r><w:t xml:space="preserve">{escaped}</w:t></w:r>'
         self._text_parts.append(text)
 
     @property
@@ -46,8 +48,8 @@ class _ArchiveMaterialsRichText:
         return "".join(self._text_parts)
 
     def __str__(self) -> str:
-        """返回 XML 供 docxtpl 渲染内联"""
-        return "".join(self._xml_parts)
+        """返回 XML 供 docxtpl 渲染内联（docxtpl 识别 RichText 实例）"""
+        return self._rt.xml
 
 
 @PlaceholderRegistry.register

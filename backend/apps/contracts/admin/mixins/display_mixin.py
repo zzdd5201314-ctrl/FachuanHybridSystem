@@ -412,7 +412,9 @@ class ContractDisplayMixin:
                 content_type=result["content_type"],
             )
             encoded_filename = urllib.parse.quote(result["filename"].encode("utf-8"))
-            response["Content-Disposition"] = f"attachment; filename*=UTF-8''{encoded_filename}"
+            # 预览模式：浏览器内显示（inline），否则下载（attachment）
+            disposition = "inline" if request.GET.get("preview") == "1" else "attachment"
+            response["Content-Disposition"] = f"{disposition}; filename*=UTF-8''{encoded_filename}"
             return response
         except Exception as e:
             logger.exception("下载归档材料失败: contract_id=%s, code=%s", object_id, archive_item_code)
