@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar
 
 from django.contrib import admin
 from django.db.models import QuerySet
@@ -156,7 +156,7 @@ class CourtSMSAdminBase(admin.ModelAdmin[CourtSMS]):
     @admin.display(description=_("处理状态"))
     def status_display(self, obj: CourtSMS) -> SafeString:
         """状态显示(带颜色)"""
-        status_colors = {
+        status_colors: dict[str, str] = {
             CourtSMSStatus.PENDING: "orange",
             CourtSMSStatus.PARSING: "blue",
             CourtSMSStatus.DOWNLOADING: "blue",
@@ -177,7 +177,7 @@ class CourtSMSAdminBase(admin.ModelAdmin[CourtSMS]):
         if not obj.sms_type:
             return "-"
 
-        type_icons = {
+        type_icons: dict[str, str] = {
             CourtSMSType.DOCUMENT_DELIVERY: "📄",
             CourtSMSType.INFO_NOTIFICATION: "📢",
             CourtSMSType.FILING_NOTIFICATION: "📋",
@@ -189,7 +189,7 @@ class CourtSMSAdminBase(admin.ModelAdmin[CourtSMS]):
     def case_display(self, obj: CourtSMS) -> SafeString | str:
         """案件显示"""
         if obj.case:
-            url = reverse("admin:cases_case_change", args=[cast(int, obj.case.id)])
+            url = reverse("admin:cases_case_change", args=[obj.case.id])
             return format_html(
                 '<a href="{}" target="_blank">{}</a>',
                 url,
@@ -246,11 +246,11 @@ class CourtSMSAdminBase(admin.ModelAdmin[CourtSMS]):
     def scraper_task_link(self, obj: CourtSMS) -> SafeString | str:
         """爬虫任务链接"""
         if obj.scraper_task:
-            url = reverse("admin:automation_scrapertask_change", args=[cast(int, obj.scraper_task.id)])
+            url = reverse("admin:automation_scrapertask_change", args=[obj.scraper_task.id])
             return format_html(
                 '<a href="{}" target="_blank">任务 #{} - {}</a>',
                 url,
-                cast(int, obj.scraper_task.id),
+                obj.scraper_task.id,
                 obj.scraper_task.get_status_display(),
             )
         return "-"
@@ -259,8 +259,8 @@ class CourtSMSAdminBase(admin.ModelAdmin[CourtSMS]):
     def case_log_link(self, obj: CourtSMS) -> SafeString | str:
         """案件日志链接"""
         if obj.case_log:
-            url = reverse("admin:cases_caselog_change", args=[cast(int, obj.case_log.id)])
-            return format_html('<a href="{}" target="_blank">日志 #{}</a>', url, cast(int, obj.case_log.id))
+            url = reverse("admin:cases_caselog_change", args=[obj.case_log.id])
+            return format_html('<a href="{}" target="_blank">日志 #{}</a>', url, obj.case_log.id)
         return "-"
 
     @admin.display(description=_("关联文书"))
