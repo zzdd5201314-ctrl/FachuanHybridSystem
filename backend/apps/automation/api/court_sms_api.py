@@ -40,7 +40,7 @@ def submit_sms(request: Any, payload: CourtSMSSubmitIn) -> CourtSMSSubmitOut:
     """
     service = _get_court_sms_service()
 
-    sms = service.submit_sms(content=payload.content, received_at=payload.received_at, sender=payload.sender)
+    sms = service.submit_sms(content=payload.content, received_at=payload.received_at)
 
     return CourtSMSSubmitOut(success=True, data={"id": sms.id, "status": sms.status, "created_at": sms.created_at})
 
@@ -50,7 +50,6 @@ def submit_sms_form(
     request: Any,
     content: str = Form(...),
     received_at: datetime | None = Form(None),
-    sender: str | None = Form(None),
 ) -> CourtSMSSubmitOut:
     """
     提交法院短信（表单格式）
@@ -59,7 +58,7 @@ def submit_sms_form(
     """
     service = _get_court_sms_service()
 
-    sms = service.submit_sms(content=content, received_at=received_at, sender=sender)
+    sms = service.submit_sms(content=content, received_at=received_at)
 
     return CourtSMSSubmitOut(success=True, data={"id": sms.id, "status": sms.status, "created_at": sms.created_at})
 

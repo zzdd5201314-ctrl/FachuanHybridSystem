@@ -33,7 +33,6 @@ class CourtSMSSubmitIn(BaseModel):
     received_at: datetime | None = Field(
         None, description="收到时间,默认为当前时间", json_schema_extra={"example": "2025-12-14T10:30:00Z"}
     )
-    sender: str | None = Field(None, description="发送方号码", json_schema_extra={"example": "10690..."})
 
     @field_validator("content")
     @classmethod
@@ -62,7 +61,6 @@ class CourtSMSDetailOut(BaseModel):
     id: int = Field(..., description="短信记录ID")
     content: str = Field(..., description="短信内容")
     received_at: datetime = Field(..., description="收到时间")
-    sender: str | None = Field(None, description="发送方号码")
 
     # 解析结果
     sms_type: str | None = Field(None, description="短信类型")
@@ -96,7 +94,6 @@ class CourtSMSDetailOut(BaseModel):
             id=cast(int, obj.id),
             content=obj.content,
             received_at=obj.received_at,
-            sender=getattr(obj, "sender", None),
             sms_type=obj.sms_type,
             download_links=obj.download_links,
             case_numbers=obj.case_numbers,
@@ -104,7 +101,7 @@ class CourtSMSDetailOut(BaseModel):
             status=obj.status,
             error_message=obj.error_message,
             retry_count=obj.retry_count,
-            case={},
+            case={"id": obj.case.id, "name": obj.case.name} if obj.case else None,
             documents=[
                 {
                     "id": ref.court_document_id,
