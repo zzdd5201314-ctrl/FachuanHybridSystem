@@ -3,7 +3,7 @@
 
 {% block extrahead %}
 {{ block.super }}
-<link rel="stylesheet" type="text/css" href="{% static 'cases/css/case_materials_manage.css' %}?v=20260326d">
+<link rel="stylesheet" type="text/css" href="{% static 'cases/css/case_materials_manage.css' %}?v=20260422a">
 {% endblock %}
 
 {% block content_title %}{% endblock %}
@@ -45,7 +45,7 @@
             needSelectSubfolder: '{% trans "请选择要扫描的子文件夹" %}',
             noSubfolderOptions: '{% trans "当前目录下没有可选子文件夹，将扫描全部内容" %}',
             recognitionDisabled: '{% trans "已关闭 OCR 与智能识别，仅按文件名/路径关键词预分类" %}',
-            importFailed: '{% trans "导入失败，请稍后重试" %}'
+            importFailed: '{% trans "导入失败，请稍后重试" %}',
         }
      })"
      x-init="init()">

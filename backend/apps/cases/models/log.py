@@ -100,6 +100,15 @@ class CaseLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("创建日期"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("修改日期"))
 
+    source_payment = models.OneToOneField(
+        "contracts.ContractPayment",
+        on_delete=models.CASCADE,
+        related_name="case_log",
+        null=True,
+        blank=True,
+        verbose_name=_("来源律师费收款记录"),
+    )
+
     if TYPE_CHECKING:
         attachments: RelatedManager[CaseLogAttachment]
         versions: RelatedManager[CaseLogVersion]
@@ -199,6 +208,14 @@ class CaseLog(models.Model):
 
 
 class CaseLogAttachment(models.Model):
+    source_invoice = models.OneToOneField(
+        "contracts.Invoice",
+        on_delete=models.CASCADE,
+        related_name="case_log_attachment",
+        null=True,
+        blank=True,
+        verbose_name=_("来源发票"),
+    )
     id: int
     log = models.ForeignKey(CaseLog, on_delete=models.CASCADE, related_name="attachments", verbose_name=_("日志"))
     file = models.FileField(
@@ -216,6 +233,31 @@ class CaseLogAttachment(models.Model):
         verbose_name = _("日志附件")
         verbose_name_plural = _("日志附件")
 
+
+    @property
+    def is_invoice_reference(self) -> bool:
+        return bool(self.source_invoice_id)
+
+    @property
+    def resolved_file_reference(self) -> str:
+        if self.source_invoice_id and getattr(self, "source_invoice", None) is not None:
+            return str(getattr(self.source_invoice, "file_path", "") or "")
+        return str(getattr(self.file, "name", "") or "")
+
+    @property
+    def display_name(self) -> str:
+        if self.source_invoice_id and getattr(self, "source_invoice", None) is not None:
+            original_filename = str(getattr(self.source_invoice, "original_filename", "") or "").strip()
+            if original_filename:
+                return original_filename
+            source_path = str(getattr(self.source_invoice, "file_path", "") or "").strip()
+            if source_path:
+                return Path(source_path).name
+
+        file_name = str(getattr(self.file, "name", "") or "").strip()
+        if file_name:
+            return Path(file_name).name
+        return f"附件 {self.pk}"
 
 class CaseLogVersion(models.Model):
     id: int

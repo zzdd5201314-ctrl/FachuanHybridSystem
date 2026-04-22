@@ -36,7 +36,7 @@ class CaseLogQueryService:
             CaseLog.objects.all()
             .order_by("-is_pinned", "-logged_at", "-created_at")
             .select_related("actor", "case", "case__contract")
-            .prefetch_related("attachments")
+            .prefetch_related("attachments__source_invoice")
         )
 
         if case_id:
@@ -82,7 +82,7 @@ class CaseLogQueryService:
         try:
             return (
                 CaseLog.objects.select_related("actor", "case", "case__contract")
-                .prefetch_related("attachments")
+                .prefetch_related("attachments__source_invoice")
                 .get(id=log_id)
             )
         except CaseLog.DoesNotExist:

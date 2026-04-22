@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from django import forms
 from django.contrib import admin
-from django.http import HttpRequest, JsonResponse
+from django.http import FileResponse, Http404, HttpRequest, JsonResponse
+from django.urls import reverse
 from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -27,6 +28,7 @@ from apps.contracts.models import (
 )
 from apps.core.admin.mixins import AdminImportExportMixin
 from apps.core.models.enums import CaseStage
+from apps.core.services import storage_service as storage
 
 if TYPE_CHECKING:
     BaseModelAdmin = admin.ModelAdmin
@@ -57,6 +59,13 @@ class FinalizedMaterialAdminForm(forms.ModelForm[FinalizedMaterial]):
         model = FinalizedMaterial
         fields = ("file", "category")
 
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()
+        if self.instance.pk and getattr(self.instance, "source_invoice_id", None):
+            if "file" in self.changed_data or "category" in self.changed_data:
+                raise forms.ValidationError(_("该归档材料来源于律师费收款发票，请在律师费收款记录中维护。"))
+        return cleaned_data
+
     def save(self, commit: bool = True) -> FinalizedMaterial:
         instance = super().save(commit=False)
         uploaded_file = self.cleaned_data.get("file")
@@ -85,13 +94,16 @@ class FinalizedMaterialInline(BaseTabularInline):
         from django.utils.html import format_html
 
         if obj.file_path and obj.original_filename:
-            url = f"/media/{obj.file_path}"
+            url = reverse("admin:contracts_contract_material_file", args=[obj.pk])
             return format_html('<a href="{}" target="_blank">{}</a>', url, obj.original_filename)
         return obj.original_filename or "-"
 
     def delete_model(self, request: HttpRequest, obj: FinalizedMaterial) -> None:
         from apps.contracts.admin.wiring_admin import get_material_service
 
+        if getattr(obj, "source_invoice_id", None):
+            obj.delete()
+            return
         get_material_service().delete_material_file(obj.file_path)
         obj.delete()
 
@@ -277,6 +289,11 @@ class ContractAdmin(
                 name="contracts_contract_reorder_materials",
             ),
             urlpath(
+                "material-file/<int:material_id>/",
+                self.admin_site.admin_view(self.material_file_view),
+                name="contracts_contract_material_file",
+            ),
+            urlpath(
                 "oa-sync/",
                 self.admin_site.admin_view(self.oa_sync_view),
                 name="contracts_contract_oa_sync",
@@ -298,6 +315,24 @@ class ContractAdmin(
             ),
         ]
         return custom + urls  # type: ignore[no-any-return]
+
+    def material_file_view(self, request: HttpRequest, material_id: int) -> FileResponse:
+        if not self.has_view_permission(request):
+            raise Http404
+
+        material = FinalizedMaterial.objects.filter(pk=material_id).first()
+        if material is None:
+            raise Http404(_("归档材料不存在"))
+
+        file_path = storage.resolve_stored_file_path(material.file_path)
+        if not file_path.exists() or not file_path.is_file():
+            raise Http404(_("文件不存在"))
+
+        return FileResponse(
+            file_path.open("rb"),
+            as_attachment=False,
+            filename=material.original_filename or file_path.name,
+        )
 
     def reorder_materials_view(self, request: HttpRequest, contract_id: int) -> Any:
         if request.method != "POST":

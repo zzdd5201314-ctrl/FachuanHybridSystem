@@ -163,6 +163,8 @@ class CaseMaterialArchiveService:
         folder_options = archive_config.get("folders") or []
         archived_ids: list[int] = []
         for attachment in attachments:
+            if getattr(attachment, "source_invoice_id", None):
+                continue
             archived_path = self.sync_attachment_archive(case_id=case_id, attachment=attachment, archive_relative_path=None, folder_options=folder_options)
             if archived_path:
                 archived_ids.append(int(attachment.id))
@@ -189,6 +191,8 @@ class CaseMaterialArchiveService:
         bound_count = 0
         unbound_count = 0
         for attachment in attachments:
+            if getattr(attachment, "source_invoice_id", None):
+                continue
             processed_count += 1
             material = getattr(attachment, "bound_material", None)
             if material is not None:
@@ -214,6 +218,9 @@ class CaseMaterialArchiveService:
         type_name: str = "",
         side: str | None = None,
     ) -> str | None:
+        if getattr(attachment, "source_invoice_id", None):
+            return None
+
         binding = CaseFolderBinding.objects.filter(case_id=case_id).first()
         if not binding:
             return None
@@ -266,6 +273,9 @@ class CaseMaterialArchiveService:
         return str(saved_path)
 
     def cleanup_attachment_archive(self, *, attachment: CaseLogAttachment, save: bool = False) -> None:
+        if getattr(attachment, "source_invoice_id", None):
+            return
+
         archived_path = str(getattr(attachment, "archived_file_path", "") or "").strip()
         if archived_path:
             try:

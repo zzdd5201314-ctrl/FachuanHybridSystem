@@ -30,7 +30,7 @@ class MaterialService:
         删除归档材料文件。失败时记录日志但不抛异常。
         """
         try:
-            result: bool = storage.delete_media_file(file_path)
+            result: bool = storage.delete_stored_file(file_path)
             return result
         except Exception:
             logger.error("删除归档材料文件失败: %s", file_path, exc_info=True)

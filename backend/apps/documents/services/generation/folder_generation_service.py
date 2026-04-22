@@ -11,14 +11,13 @@ from __future__ import annotations
 import logging
 import zipfile
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.exceptions import NotFoundError, ValidationException
-from apps.core.models.enums import CaseType
 
 if TYPE_CHECKING:
     from apps.core.interfaces import IContractService
@@ -94,8 +93,10 @@ class FolderGenerationService:
         """
         格式化根目录文件夹名称
 
-        格式:{日期}-[{合同类型显示名}]{合同名称}
-        示例:2026.01.02-[民商事]奥创公司案件
+        格式:{合同名称}-{日期}
+        示例:奥创公司案件-2026.01.02
+
+        日期优先使用 start_date，其次使用 specified_date，最后回退到当天日期。
 
         Args:
             contract: 合同数据(Contract 实例或 ContractDataWrapper)
@@ -110,10 +111,25 @@ class FolderGenerationService:
         case_type = getattr(contract, "case_type", None)
         case_type_display = dict(CaseType.choices).get(case_type, case_type or "未知类型")
         # 获取合同名称
+        raw_folder_date = (
+            getattr(contract, "start_date", None)
+            or getattr(contract, "specified_date", None)
+            or date.today()
+        )
+        if isinstance(raw_folder_date, datetime):
+            folder_date = raw_folder_date.date()
+        elif isinstance(raw_folder_date, date):
+            folder_date = raw_folder_date
+        elif isinstance(raw_folder_date, str):
+            normalized_date = raw_folder_date.strip().replace("/", "-").replace(".", "-")
+            try:
+                folder_date = date.fromisoformat(normalized_date)
+            except ValueError:
+                folder_date = date.today()
+        else:
+            folder_date = date.today()
         contract_name = getattr(contract, "name", None) or "未命名合同"
-
-        # 组合格式化名称
-        return f"{today}-[{case_type_display}]{contract_name}"
+        return f"{folder_date.strftime('%Y.%m.%d')}-[{case_type_display}]{contract_name}"
 
     def generate_folder_structure(self, template: FolderTemplate, root_name: str) -> dict[str, Any]:
         """
