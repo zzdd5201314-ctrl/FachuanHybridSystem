@@ -95,27 +95,6 @@
                         (<span x-text="getMaterials('{{ item.code }}').length"></span>)
                     </span>
                     {% endif %}
-                    <span class="ac-item-actions" @click.stop>
-                        {% if item.template %}
-                        <button type="button" class="ac-btn-preview" title="{% trans '预览替换词' %}"
-                                onclick="previewArchiveTemplate({{ contract.pk }}, '{{ item.template }}', '{{ item.name }}')">
-                            {% trans "预览" %}
-                        </button>
-                        <button type="button" class="ac-btn-download" title="{% trans '下载材料' %}"
-                                onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
-                            {% trans "下载" %}
-                        </button>
-                        {% elif item.completed %}
-                        <button type="button" class="ac-btn-preview" title="{% trans '在浏览器中预览' %}"
-                                onclick="previewArchiveItem({{ contract.pk }}, '{{ item.code }}')">
-                            {% trans "预览" %}
-                        </button>
-                        <button type="button" class="ac-btn-download" title="{% trans '下载材料' %}"
-                                onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
-                            {% trans "下载" %}
-                        </button>
-                        {% endif %}
-                    </span>
                     <span class="ac-item-status">
                         {% if item.template %}
                             <span class="ac-badge ac-badge-generate" title="{% trans '可自动生成' %}">⚡</span>
@@ -135,18 +114,38 @@
                             <span class="ac-badge ac-badge-optional" title="{% trans '可选' %}">-</span>
                         {% endif %}
                     </span>
-                    <span class="ac-expand-icon" :class="{ 'is-expanded': isExpanded('{{ item.code }}') }"
-                          x-show="getMaterials('{{ item.code }}').length > 0">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 4.5 6 7.5 9 4.5"/>
-                        </svg>
+                    <span class="ac-item-actions" @click.stop>
+                        {% if item.template %}
+                        <button type="button" class="ac-btn-icon" title="{% trans '预览替换词' %}"
+                                onclick="previewArchiveTemplate({{ contract.pk }}, '{{ item.template }}', '{{ item.name }}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                        <button type="button" class="ac-btn-icon" title="{% trans '下载材料' %}"
+                                onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
+                        {% else %}
+                        <button type="button" class="ac-btn-icon ac-btn-icon--upload" title="{% trans '上传文件' %}"
+                                onclick="uploadArchiveItem({{ contract.pk }}, '{{ item.code }}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </button>
+                        {% if item.completed %}
+                        <button type="button" class="ac-btn-icon" title="{% trans '在浏览器中预览' %}"
+                                onclick="previewArchiveItem({{ contract.pk }}, '{{ item.code }}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                        <button type="button" class="ac-btn-icon" title="{% trans '下载材料' %}"
+                                onclick="downloadArchiveItem({{ contract.pk }}, '{{ item.code }}', '{{ item.name }}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
+                        {% endif %}
+                        {% endif %}
                     </span>
                 </div>
 
                 {# ===== 子项列表（可展开） ===== #}
-                <div class="ac-subitems" x-show="isExpanded('{{ item.code }}') && getMaterials('{{ item.code }}').length > 0"
-                     x-transition:enter="ac-subitems-enter" x-transition:enter-start="ac-subitems-enter-start"
-                     x-transition:leave="ac-subitems-leave">
+                {% if item.materials %}
+                <div class="ac-subitems" :class="{ 'ac-collapsed': !isExpanded('{{ item.code }}') }">
                     <div class="ac-subitems-list"
                          data-archive-code="{{ item.code }}"
                          @dragover.prevent="onDragOver($event, '{{ item.code }}')"
@@ -161,15 +160,16 @@
                             <span class="ac-subitem-name">{{ mat.original_filename }}</span>
                             <span class="ac-subitem-label ac-subitem-label--{{ mat.category }}">{{ mat.source_label }}</span>
                             <span class="ac-subitem-actions">
-                                <button type="button" class="ac-btn-sub-preview" title="{% trans '预览' %}"
+                                <button type="button" class="ac-btn-icon" title="{% trans '预览' %}"
                                         onclick="previewArchiveMaterial({{ contract.pk }}, {{ mat.id }})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-                                <button type="button" class="ac-btn-sub-move" title="{% trans '移动到…' %}"
-                                        @click="showMoveMenu($event, {{ mat.id }}, '{{ item.code }}')">↗</button>
+                                <button type="button" class="ac-btn-icon ac-btn-icon--danger" title="{% trans '删除' %}"
+                                        onclick="deleteArchiveMaterial({{ contract.pk }}, {{ mat.id }}, '{{ mat.original_filename }}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
                             </span>
                         </div>
                         {% endfor %}
                     </div>
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -196,6 +196,8 @@
 
 <style>
 {# ===== 归档检查清单样式 ===== #}
+html { scrollbar-gutter: stable; }
+
 .archive-checklist {
     background: #fff;
     border: 1px solid #e5e7eb;
@@ -379,6 +381,7 @@
 .ac-item-name {
     flex: 1;
     min-width: 0;
+    max-width: calc(100% - 140px);
     color: #1f2937;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -393,70 +396,36 @@
 .ac-item-actions {
     flex-shrink: 0;
     display: inline-flex;
-    gap: 4px;
-    min-width: 100px;
+    gap: 2px;
+    width: 72px;
     justify-content: flex-end;
 }
 
 .ac-item-status {
     flex-shrink: 0;
+    display: inline-flex;
+    justify-content: center;
     width: 22px;
-    text-align: center;
+    margin-left: auto;
 }
 
-.ac-expand-icon {
+.ac-btn-icon {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 3px;
+    transition: background 0.12s, color 0.12s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    width: 22px;
+    height: 22px;
     flex-shrink: 0;
-    color: #9ca3af;
-    transition: transform 0.2s;
 }
-.ac-expand-icon.is-expanded {
-    transform: rotate(180deg);
-}
-
-.ac-btn-preview {
-    font-size: 11px;
-    padding: 2px 8px;
-    border: 1px solid #93c5fd;
-    border-radius: 4px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.ac-btn-preview:hover {
-    background: #dbeafe;
-    border-color: #60a5fa;
-}
-
-.ac-btn-generate {
-    font-size: 11px;
-    padding: 2px 8px;
-    border: 1px solid #86efac;
-    border-radius: 4px;
-    background: #f0fdf4;
-    color: #15803d;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.ac-btn-generate:hover {
-    background: #dcfce7;
-    border-color: #4ade80;
-}
-
-.ac-btn-download {
-    font-size: 11px;
-    padding: 2px 8px;
-    border: 1px solid #c4b5fd;
-    border-radius: 4px;
-    background: #f5f3ff;
-    color: #6d28d9;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.ac-btn-download:hover {
-    background: #ede9fe;
-    border-color: #a78bfa;
-}
+.ac-btn-icon:hover { background: #dbeafe; color: #2563eb; }
+.ac-btn-icon--upload:hover { background: #d1fae5; color: #047857; }
 
 .ac-badge {
     font-size: 12px;
@@ -486,18 +455,20 @@
 
 {# ===== 子项样式 ===== #}
 .ac-subitems {
-    border-top: 1px solid #e5e7eb;
     background: #fff;
-    overflow: hidden;
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.25s ease;
 }
-
-.ac-subitems-enter { transition: max-height 0.2s ease, opacity 0.2s ease; }
-.ac-subitems-enter-start { max-height: 0; opacity: 0; }
-.ac-subitems-leave { transition: max-height 0.15s ease, opacity 0.1s ease; }
-
-.ac-subitems-list {
-    padding: 4px 0;
-    min-height: 32px;
+.ac-subitems:not(.ac-collapsed) {
+    border-top: 1px solid #e5e7eb;
+}
+.ac-subitems.ac-collapsed {
+    grid-template-rows: 0fr;
+}
+.ac-subitems > .ac-subitems-list {
+    overflow: hidden;
+    min-height: 0;
 }
 
 .ac-subitem {
@@ -509,6 +480,9 @@
     color: #374151;
     transition: background 0.12s;
     cursor: grab;
+}
+.ac-subitem:first-child { padding-top: 8px; }
+.ac-subitem:last-child { padding-bottom: 8px; }
 }
 .ac-subitem:hover { background: #f0f4ff; }
 .ac-subitem:active { cursor: grabbing; }
@@ -556,38 +530,18 @@
 .ac-subitem-label--supervision_card { background: #ede9fe; color: #5b21b6; }
 .ac-subitem-label--authorization_material { background: #ccfbf1; color: #115e59; }
 .ac-subitem-label--case_material { background: #e0f2fe; color: #075985; }
+.ac-subitem-label--archive_upload { background: #f0fdf4; color: #166534; }
 .ac-subitem-label--folder_scan { background: #f0fdf4; color: #166534; }
 
 .ac-subitem-actions {
     display: inline-flex;
     gap: 2px;
     flex-shrink: 0;
+    width: 48px;
+    justify-content: flex-end;
 }
 
-.ac-btn-sub-preview {
-    border: none;
-    background: none;
-    cursor: pointer;
-    padding: 2px;
-    border-radius: 3px;
-    transition: background 0.12s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #6b7280;
-}
-.ac-btn-sub-preview:hover { background: #dbeafe; color: #2563eb; }
-
-.ac-btn-sub-move {
-    border: none;
-    background: none;
-    cursor: pointer;
-    padding: 2px;
-    font-size: 13px;
-    border-radius: 3px;
-    transition: background 0.12s;
-}
-.ac-btn-sub-move:hover { background: #fef3c7; }
+.ac-btn-icon--danger:hover { background: #fef2f2; color: #dc2626; }
 
 {# ===== 移动菜单 ===== #}
 .ac-move-menu {
@@ -1128,6 +1082,52 @@ function archiveChecklistApp(initialCompact, checklistItems) {
             }
         })
         .catch(function(e) { alert('请求失败: ' + e.message); });
+    };
+
+    // 上传文件到归档检查清单项
+    window.uploadArchiveItem = function(contractId, archiveItemCode) {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.pdf,.docx,.doc,.jpg,.jpeg,.png,.xlsx,.xls';
+        input.onchange = function() {
+            var file = input.files[0];
+            if (!file) return;
+            var formData = new FormData();
+            formData.append('file', file);
+            fetch('/admin/contracts/contract/' + contractId + '/upload-archive-item/' + archiveItemCode + '/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCSRF() },
+                body: formData,
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('上传失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(function(e) { alert('上传失败: ' + e.message); });
+        };
+        input.click();
+    };
+
+    // 删除归档材料子项
+    window.deleteArchiveMaterial = function(contractId, materialId, filename) {
+        if (!confirm('确认删除「' + filename + '」？此操作不可撤销。')) return;
+        fetch('/admin/contracts/contract/' + contractId + '/delete-archive-material/' + materialId + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('删除失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(function(e) { alert('删除失败: ' + e.message); });
     };
 
     // 预览归档文书替换词
