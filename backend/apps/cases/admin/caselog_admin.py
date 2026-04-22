@@ -8,7 +8,7 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.forms import ModelForm
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import URLPattern, path, reverse
@@ -245,10 +245,7 @@ def _format_date(value: Any) -> str:
 
 
 def _get_attachment_name(attachment: CaseLogAttachment) -> str:
-    path = getattr(attachment.file, "name", "") or ""
-    if "/" in path:
-        return path.rsplit("/", 1)[-1]
-    return path or f"附件 {attachment.pk}"
+    return attachment.display_name
 
 
 def _build_case_log_archive_hint(case_obj: Case) -> dict[str, Any]:
@@ -314,7 +311,7 @@ def _build_existing_attachment_rows(log: CaseLog) -> list[dict[str, Any]]:
             {
                 "id": attachment.pk,
                 "name": _get_attachment_name(attachment),
-                "url": getattr(attachment.file, "url", ""),
+                "url": reverse("admin:cases_caselog_attachment_file", args=[attachment.pk]),
                 "archive_relative_path": str(getattr(attachment, "archive_relative_path", "") or ""),
                 "archived_file_path": str(getattr(attachment, "archived_file_path", "") or ""),
             }
@@ -484,6 +481,11 @@ class CaseLogAdmin(BaseModelAdmin):
                 self.admin_site.admin_view(self.case_log_create_view),
                 name="cases_caselog_create",
             ),
+            path(
+                "attachments/<int:attachment_id>/file/",
+                self.admin_site.admin_view(self.attachment_file_view),
+                name="cases_caselog_attachment_file",
+            ),
         ]
         return custom_urls + super().get_urls()
 
@@ -651,7 +653,7 @@ class CaseLogAdmin(BaseModelAdmin):
         logs = (
             CaseLog.objects.filter(case_id=case_obj.pk)
             .select_related("actor")
-            .prefetch_related("attachments")
+            .prefetch_related("attachments__source_invoice")
         )
         if search_query:
             logs = logs.filter(Q(content__icontains=search_query) | Q(note__icontains=search_query))
@@ -682,7 +684,7 @@ class CaseLogAdmin(BaseModelAdmin):
                 {
                     "id": attachment.pk,
                     "name": _get_attachment_name(attachment),
-                    "url": getattr(attachment.file, "url", ""),
+                    "url": reverse("admin:cases_caselog_attachment_file", args=[attachment.pk]),
                 }
                 for attachment in log.attachments.all()
             ]
@@ -748,6 +750,17 @@ class CaseLogAdmin(BaseModelAdmin):
         )
         messages.success(request, "日志已删除。")
         return HttpResponseRedirect(reverse("admin:cases_caselog_ledger", args=[case_obj.pk]))
+
+    def attachment_file_view(self, request: HttpRequest, attachment_id: int) -> FileResponse:
+        if not self.has_view_permission(request):
+            raise Http404
+
+        file_path, download_name = CaseLogService().attachment_service.get_attachment_file(
+            attachment_id=attachment_id,
+            user=request.user,
+            perm_open_access=True,
+        )
+        return FileResponse(file_path.open("rb"), as_attachment=False, filename=download_name)
 
     def case_log_create_view(self, request: HttpRequest, case_id: int) -> HttpResponse:
         case_obj = self._get_case_or_404(case_id)
@@ -940,7 +953,7 @@ class CaseLogAdmin(BaseModelAdmin):
 
     def _get_case_log_or_404(self, *, case_id: int | None, log_id: int) -> CaseLog:
         try:
-            queryset = CaseLog.objects.select_related("actor").prefetch_related("attachments")
+            queryset = CaseLog.objects.select_related("actor").prefetch_related("attachments__source_invoice")
             if case_id is not None:
                 queryset = queryset.filter(case_id=case_id)
             return queryset.get(pk=log_id)

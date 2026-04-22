@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from .contract import Contract
 
 if TYPE_CHECKING:
-    pass
+    from .invoice import Invoice
 
 
 class MaterialCategory(models.TextChoices):
@@ -29,6 +29,14 @@ class FinalizedMaterial(models.Model):
         on_delete=models.CASCADE,
         related_name="finalized_materials",
         verbose_name=_("合同"),
+    )
+    source_invoice = models.OneToOneField(
+        "contracts.Invoice",
+        on_delete=models.CASCADE,
+        related_name="finalized_material",
+        null=True,
+        blank=True,
+        verbose_name=_("来源发票"),
     )
     file_path: models.CharField = models.CharField(max_length=500, verbose_name=_("文件路径"))
     original_filename: models.CharField = models.CharField(max_length=255, verbose_name=_("原始文件名"))
@@ -52,3 +60,15 @@ class FinalizedMaterial(models.Model):
 
     def __str__(self) -> str:
         return f"{self.original_filename} ({self.get_category_display()})"  # type: ignore[attr-defined]
+
+    def delete(self, *args: object, **kwargs: object) -> tuple[int, dict[str, int]]:
+        if self.source_invoice_id:
+            from apps.contracts.services.contract.integrations.invoice_upload_service import InvoiceUploadService
+
+            InvoiceUploadService().delete_invoice(int(self.source_invoice_id))
+            return 1, {
+                "contracts.Invoice": 1,
+                "contracts.FinalizedMaterial": 1,
+            }
+
+        return super().delete(*args, **kwargs)

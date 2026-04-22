@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from django.core.files.uploadedfile import UploadedFile
@@ -11,6 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.cases.models import CaseLogAttachment
 from apps.cases.utils import validate_case_log_attachment
 from apps.core.exceptions import NotFoundError, ValidationException
+from apps.core.services import storage_service as storage
 
 from .case_log_query_service import CaseLogQueryService
 
@@ -81,8 +83,33 @@ class CaseLogAttachmentService:
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
     ) -> dict[str, bool]:
+        attachment = self.get_attachment(
+            attachment_id=attachment_id,
+            user=user,
+            org_access=org_access,
+            perm_open_access=perm_open_access,
+        )
+
+        if attachment.source_invoice_id:
+            raise ValidationException(_("该附件来源于律师费收款发票，请在律师费收款记录中维护。"))
+
+        if not attachment.source_invoice_id:
+            self.archive_service.cleanup_attachment_archive(attachment=attachment, save=False)
+            attachment.file.delete(save=False)
+
+        attachment.delete()
+        return {"success": True}
+
+    def get_attachment(
+        self,
+        *,
+        attachment_id: int,
+        user: Any | None = None,
+        org_access: dict[str, Any] | None = None,
+        perm_open_access: bool = False,
+    ) -> CaseLogAttachment:
         try:
-            attachment = CaseLogAttachment.objects.select_related("log__case").get(id=attachment_id)
+            attachment = CaseLogAttachment.objects.select_related("log__case", "source_invoice").get(id=attachment_id)
         except CaseLogAttachment.DoesNotExist:
             raise NotFoundError(_("附件 %(attachment_id)s 不存在") % {"attachment_id": attachment_id}) from None
 
@@ -93,15 +120,35 @@ class CaseLogAttachmentService:
                 org_access=org_access,
                 perm_open_access=perm_open_access,
                 case=attachment.log.case,
-                message=_("无权限删除此附件"),
+                message=_("无权限访问此附件"),
             )
 
-        self.archive_service.cleanup_attachment_archive(attachment=attachment, save=False)
-        if attachment.file:
-            attachment.file.delete(save=False)
+        return attachment
 
-        attachment.delete()
-        return {"success": True}
+    def get_attachment_file(
+        self,
+        *,
+        attachment_id: int,
+        user: Any | None = None,
+        org_access: dict[str, Any] | None = None,
+        perm_open_access: bool = False,
+    ) -> tuple[Path, str]:
+        attachment = self.get_attachment(
+            attachment_id=attachment_id,
+            user=user,
+            org_access=org_access,
+            perm_open_access=perm_open_access,
+        )
+
+        file_reference = attachment.resolved_file_reference
+        if not file_reference:
+            raise NotFoundError(_("附件文件不存在"))
+
+        file_path = storage.resolve_stored_file_path(file_reference)
+        if not file_path.exists() or not file_path.is_file():
+            raise NotFoundError(_("附件文件不存在"))
+
+        return file_path, attachment.display_name
 
     def _validate_attachment(self, file: UploadedFile) -> None:
         name = getattr(file, "name", "")

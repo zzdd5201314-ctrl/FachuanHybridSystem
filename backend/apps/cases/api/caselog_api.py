@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from django.http import FileResponse
 from django.http import HttpRequest
 from ninja import Router
 
@@ -152,3 +153,18 @@ def delete_log_attachment(request: HttpRequest, attachment_id: int) -> Any:
         org_access=ctx.org_access,
         perm_open_access=ctx.perm_open_access,
     )
+
+
+@router.get("/log-attachments/{attachment_id}/download", response={200: None})
+def download_log_attachment(request: HttpRequest, attachment_id: int) -> FileResponse:
+    """下载日志附件。"""
+    service = _get_caselog_service()
+    ctx = extract_request_context(request)
+
+    file_path, download_name = service.attachment_service.get_attachment_file(
+        attachment_id=attachment_id,
+        user=ctx.user,
+        org_access=ctx.org_access,
+        perm_open_access=ctx.perm_open_access,
+    )
+    return FileResponse(file_path.open("rb"), as_attachment=False, filename=download_name)

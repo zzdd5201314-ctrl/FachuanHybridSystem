@@ -45,7 +45,7 @@
                 <div class="fm-item" data-id="{{ material.pk }}">
                     <span class="fm-handle" title="{% trans '拖拽排序' %}">⠿</span>
                     <span class="fm-icon">📄</span>
-                    <a class="fm-name" href="{{ media_url }}{{ material.file_path }}" target="_blank">{{ material.original_filename }}</a>
+                    <a class="fm-name" href="{% url 'admin:contracts_contract_material_file' material.pk %}" target="_blank">{{ material.original_filename }}</a>
                     <span class="fm-date">{{ material.uploaded_at|date:"Y-m-d" }}</span>
                 </div>
                 {% endfor %}

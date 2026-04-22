@@ -54,10 +54,14 @@ class CaseLogAttachmentOut(ModelSchema, SchemaMixin):
 
     @staticmethod
     def resolve_file_path(obj: CaseLogAttachment) -> str | None:
+        if getattr(obj, "source_invoice_id", None):
+            return obj.display_name
         return SchemaMixin._get_file_path(obj.file)
 
     @staticmethod
     def resolve_media_url(obj: CaseLogAttachment) -> str | None:
+        if getattr(obj, "source_invoice_id", None):
+            return f"/api/v1/cases/log-attachments/{obj.id}/download"
         return SchemaMixin._get_file_url(obj.file)
 
     @staticmethod
