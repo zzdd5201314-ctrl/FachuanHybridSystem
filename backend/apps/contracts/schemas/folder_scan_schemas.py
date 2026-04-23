@@ -45,6 +45,20 @@ class ContractFolderScanCandidateOut(Schema):
     confidence: float = 0.0
     reason: str = ""
     selected: bool = True
+    archive_item_code: str = ""
+    archive_item_name: str = ""
+    is_docx: bool = False
+    skip_reason: str = ""
+
+
+class ArchiveItemOptionOut(Schema):
+    code: str
+    name: str
+
+
+class WorkLogSuggestionOut(Schema):
+    date: str
+    content: str
 
 
 class ContractFolderScanStatusOut(Schema):
@@ -55,16 +69,22 @@ class ContractFolderScanStatusOut(Schema):
     summary: ContractFolderScanSummaryOut
     candidates: list[ContractFolderScanCandidateOut]
     error_message: str = ""
+    archive_category: str = ""
+    archive_item_options: list[ArchiveItemOptionOut] = []
+    work_log_suggestions: list[WorkLogSuggestionOut] = []
 
 
 class ContractFolderScanConfirmItemIn(Schema):
     source_path: str
     selected: bool = True
     category: str
+    archive_item_code: str = ""
+    is_docx: bool = False
 
 
 class ContractFolderScanConfirmIn(Schema):
     items: list[ContractFolderScanConfirmItemIn]
+    work_log_suggestions: list[WorkLogSuggestionOut] = []
 
 
 class ContractFolderScanConfirmOut(Schema):
@@ -80,6 +100,8 @@ __all__ = [
     "ContractFolderScanSubfolderListOut",
     "ContractFolderScanSummaryOut",
     "ContractFolderScanCandidateOut",
+    "ArchiveItemOptionOut",
+    "WorkLogSuggestionOut",
     "ContractFolderScanStatusOut",
     "ContractFolderScanConfirmItemIn",
     "ContractFolderScanConfirmIn",

@@ -81,4 +81,5 @@ def confirm_contract_scan(
         contract_id=contract_id,
         session_id=session_id,
         items=[item.model_dump() for item in payload.items],
+        work_log_suggestions=[item.model_dump() for item in payload.work_log_suggestions],
     )
