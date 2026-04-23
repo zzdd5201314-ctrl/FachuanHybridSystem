@@ -246,7 +246,7 @@ class BrowserServiceAdapter(IBrowserService):
         """
         return self.service.get_browser()
 
-    def close_browser(self) -> None:
+    def close_browser(self) -> None:  # type: ignore[override]
         """
         关闭浏览器（同步版本）
         """
