@@ -93,9 +93,10 @@ class DocumentAttachmentService:
     def _paths_from_court_documents(self, sms: "CourtSMS") -> list[str]:
         """从 CourtDocument 记录获取路径"""
         paths: list[str] = []
-        if not hasattr(sms.scraper_task, "documents"):
+        scraper_task = getattr(sms, "scraper_task", None)
+        if not scraper_task or not hasattr(scraper_task, "documents"):
             return paths
-        for doc in sms.scraper_task.documents.filter(download_status="success"):
+        for doc in scraper_task.documents.filter(download_status="success"):
             if doc.local_file_path and Path(doc.local_file_path).exists():
                 paths.append(doc.local_file_path)
                 logger.debug(f"从 CourtDocument 获取路径: {doc.local_file_path}")
@@ -174,9 +175,10 @@ class DocumentAttachmentService:
 
     def _collect_from_court_documents(self, sms: "CourtSMS", target: list[str], seen: set[str]) -> None:
         """从 CourtDocument 记录收集路径"""
-        if not hasattr(sms.scraper_task, "documents"):
+        scraper_task = getattr(sms, "scraper_task", None)
+        if not scraper_task or not hasattr(scraper_task, "documents"):
             return
-        for doc in sms.scraper_task.documents.filter(download_status="success"):
+        for doc in scraper_task.documents.filter(download_status="success"):
             if doc.local_file_path and Path(doc.local_file_path).exists():
                 abs_path = str(Path(doc.local_file_path).resolve())
                 if abs_path not in seen:
