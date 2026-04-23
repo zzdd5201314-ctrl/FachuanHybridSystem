@@ -145,8 +145,8 @@
 </div>
 
 <style>
-    /* docx 徽章 */
-    .fm-docx-badge {
+    /* 所有样式限定在 .fm-scan-modal 内，避免影响全局 */
+    .fm-scan-modal .fm-docx-badge {
         display: inline-block;
         font-size: 11px;
         background: #e8f4fd;
@@ -157,8 +157,7 @@
         vertical-align: middle;
     }
 
-    /* 归档清单项下拉 */
-    .fm-archive-select {
+    .fm-scan-modal .fm-archive-select {
         width: 100%;
         font-size: 13px;
         padding: 2px 4px;
@@ -166,42 +165,41 @@
         border-radius: 3px;
     }
 
-    .fm-archive-na {
+    .fm-scan-modal .fm-archive-na {
         color: #bbb;
     }
 
-    /* 工作日志区域 */
-    .fm-worklog-section {
+    .fm-scan-modal .fm-worklog-section {
         margin-top: 16px;
         border-top: 1px solid #eee;
         padding-top: 12px;
     }
 
-    .fm-worklog-header {
+    .fm-scan-modal .fm-worklog-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin-bottom: 8px;
     }
 
-    .fm-worklog-title {
+    .fm-scan-modal .fm-worklog-title {
         font-weight: 600;
         font-size: 14px;
     }
 
-    .fm-worklog-list {
+    .fm-scan-modal .fm-worklog-list {
         max-height: 240px;
         overflow-y: auto;
     }
 
-    .fm-worklog-row {
+    .fm-scan-modal .fm-worklog-row {
         display: flex;
         align-items: center;
         gap: 8px;
         margin-bottom: 4px;
     }
 
-    .fm-worklog-date {
+    .fm-scan-modal .fm-worklog-date {
         width: 140px;
         padding: 4px 6px;
         font-size: 13px;
@@ -209,7 +207,7 @@
         border-radius: 3px;
     }
 
-    .fm-worklog-content {
+    .fm-scan-modal .fm-worklog-content {
         flex: 1;
         padding: 4px 6px;
         font-size: 13px;
@@ -217,7 +215,7 @@
         border-radius: 3px;
     }
 
-    .fm-worklog-remove {
+    .fm-scan-modal .fm-worklog-remove {
         background: none;
         border: none;
         color: #ff4d4f;
@@ -227,7 +225,7 @@
         line-height: 1;
     }
 
-    .btn-sm {
+    .fm-scan-modal .fm-worklog-header .btn-sm {
         font-size: 12px;
         padding: 2px 8px;
     }
