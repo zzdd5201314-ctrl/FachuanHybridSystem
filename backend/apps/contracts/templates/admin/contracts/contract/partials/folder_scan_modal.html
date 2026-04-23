@@ -100,22 +100,16 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <!-- 案件材料才显示归档清单项 -->
+                                    <!-- 案件材料才显示归档清单项下拉 -->
                                     <template x-if="isCaseMaterial(candidate)">
-                                        <div>
-                                            <!-- 已匹配的显示名称 -->
-                                            <span x-show="candidate.archive_item_code" class="fm-archive-matched"
-                                                  x-text="candidate.archive_item_name"></span>
-                                            <!-- 未匹配的显示下拉选择 -->
-                                            <select x-show="hasUnmatchedArchiveItem(candidate)"
-                                                    @change="selectArchiveItem(candidate, $event.target.value)"
-                                                    class="fm-archive-select">
-                                                <option value="">{% trans "选择归档清单项" %}</option>
-                                                <template x-for="opt in archiveItemOptions" :key="opt.code">
-                                                    <option :value="opt.code" x-text="opt.name"></option>
-                                                </template>
-                                            </select>
-                                        </div>
+                                        <select @change="selectArchiveItem(candidate, $event.target.value)"
+                                                class="fm-archive-select"
+                                                :data-current="candidate.archive_item_code || ''">
+                                            <option value="" :selected="!candidate.archive_item_code">{% trans "选择归档清单项" %}</option>
+                                            <template x-for="opt in archiveItemOptions" :key="opt.code">
+                                                <option :value="opt.code" :selected="candidate.archive_item_code === opt.code" x-text="opt.name"></option>
+                                            </template>
+                                        </select>
                                     </template>
                                     <span x-show="!isCaseMaterial(candidate)" class="fm-archive-na">—</span>
                                 </td>
@@ -161,12 +155,6 @@
         border-radius: 3px;
         margin-left: 6px;
         vertical-align: middle;
-    }
-
-    /* 归档清单项已匹配 */
-    .fm-archive-matched {
-        font-size: 13px;
-        color: #52c41a;
     }
 
     /* 归档清单项下拉 */
