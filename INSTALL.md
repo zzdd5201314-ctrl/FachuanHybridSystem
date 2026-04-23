@@ -95,9 +95,14 @@ choco install postgresql --yes
 按 `backend/.env` 里的 `DB_NAME/DB_USER/DB_PASSWORD` 保持一致（默认示例：`fachuan_dev/postgres/postgres`）：
 
 ```bash
-# 如使用默认 postgres 超级用户，可直接执行
-psql -h 127.0.0.1 -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD 'postgres';"
-psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE fachuan_dev OWNER postgres;"
+# 先通过本地 socket（peer 认证，无需密码）设置密码
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+
+# 再创建数据库
+sudo -u postgres psql -c "CREATE DATABASE fachuan_dev OWNER postgres;"
+
+# 密码设好后，后续也可通过 TCP 连接（需输入密码）
+# psql -h 127.0.0.1 -U postgres -d postgres -c "..."
 ```
 
 如果数据库已存在，第二条 `CREATE DATABASE` 报错可忽略。
