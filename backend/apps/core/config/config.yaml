@@ -39,10 +39,10 @@ django:
 
   # 允许的主机列表
   # 生产环境必须配置实际的域名或 IP
+  # 环境变量 DJANGO_ALLOWED_HOSTS 可直接覆盖此列表（逗号分隔）
   allowed_hosts:
     - localhost
     - 127.0.0.1
-    - ${DJANGO_ALLOWED_HOSTS}
 
 # ============================================================
 # 数据库配置
