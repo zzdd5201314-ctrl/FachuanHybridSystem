@@ -565,6 +565,19 @@ def get_complete_default_data() -> dict[str, Any]:
                 "is_active": True,
             },
             {
+                "name": "财产保全申请书",
+                "template_type": "case",
+                "contract_sub_type": None,
+                "case_sub_type": "property_preservation_materials",
+                "file_path": "2-案件材料/1-起诉材料/2-财产保全材料/财产保全申请书.docx",
+                "contract_types": [],
+                "case_types": ["civil"],
+                "case_stages": ["all"],
+                "legal_statuses": ["plaintiff", "applicant"],
+                "legal_status_match_mode": "any",
+                "is_active": True,
+            },
+            {
                 "name": "案卷封面",
                 "template_type": "archive",
                 "contract_sub_type": None,
@@ -774,6 +787,11 @@ def get_complete_default_data() -> dict[str, Any]:
                 "document_template_name": "禅城法院送达地址确认书",
                 "folder_template_name": "民事一审起诉",
                 "folder_node_id": "folder_1767234153997_gsdc2w6bm",
+            },
+            {
+                "document_template_name": "财产保全申请书",
+                "folder_template_name": "民事一审起诉",
+                "folder_node_id": "folder_1767234707146_8q1ifw47t",
             },
         ],
     }
