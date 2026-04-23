@@ -24,6 +24,12 @@ from apps.contracts.models import (
     FinalizedMaterial,
     MaterialCategory,
 )
+from apps.contracts.services.archive.category_mapping import get_archive_category
+from apps.contracts.services.contract.integrations.archive_classifier import (
+    classify_archive_material,
+    collect_archive_item_options,
+    collect_work_log_suggestions,
+)
 from apps.core.dependencies.core import build_task_submission_service
 from apps.core.exceptions import NotFoundError, ValidationException
 from apps.core.services.bound_folder_scan_service import BoundFolderScanService
@@ -159,6 +165,9 @@ class ContractFolderScanService:
             },
             "candidates": candidates,
             "error_message": session.error_message or "",
+            "archive_category": payload.get("archive_category") or "",
+            "archive_item_options": payload.get("archive_item_options") or [],
+            "work_log_suggestions": payload.get("work_log_suggestions") or [],
         }
 
     @transaction.atomic
@@ -168,6 +177,7 @@ class ContractFolderScanService:
         contract_id: int,
         session_id: UUID,
         items: list[dict[str, Any]],
+        work_log_suggestions: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         session = self.get_session(contract_id=contract_id, session_id=session_id)
         if session.status not in {ContractFolderScanStatus.COMPLETED, ContractFolderScanStatus.IMPORTED}:
@@ -194,35 +204,65 @@ class ContractFolderScanService:
                 MaterialCategory.ARCHIVE_DOCUMENT,
                 MaterialCategory.SUPERVISION_CARD,
                 MaterialCategory.AUTHORIZATION_MATERIAL,
+                MaterialCategory.CASE_MATERIAL,
             }:
                 category = MaterialCategory.ARCHIVE_DOCUMENT
+
+            is_docx = bool(item.get("is_docx", False))
+            archive_item_code = str(item.get("archive_item_code") or "").strip()
 
             file_path = Path(source_path)
             if not file_path.exists() or not file_path.is_file():
                 raise ValidationException(message=_("源文件不存在"), errors={"source_path": source_path})
 
-            upload = SimpleUploadedFile(
-                name=file_path.name,
-                content=file_path.read_bytes(),
-                content_type="application/pdf",
-            )
-            rel_path, original_name = self._material_service.save_material_file(upload, contract_id)
-            display_name = original_name
-            if category == MaterialCategory.CONTRACT_ORIGINAL and self._has_quality_card_on_last_page(file_path):
-                display_name = self._QUALITY_CARD_TITLE
+            # docx → PDF 转换
+            actual_file_path = file_path
+            temp_pdf_path: Path | None = None
+            if is_docx:
+                temp_pdf_path = self._convert_docx_to_temp_pdf(file_path)
+                if temp_pdf_path is None:
+                    logger.warning("docx_convert_failed_skip", extra={"source_path": source_path})
+                    continue
+                actual_file_path = temp_pdf_path
 
-            FinalizedMaterial.objects.create(
-                contract_id=contract_id,
-                file_path=rel_path,
-                original_filename=display_name,
-                category=category,
-            )
-            imported_count += 1
+            try:
+                upload = SimpleUploadedFile(
+                    name=actual_file_path.name,
+                    content=actual_file_path.read_bytes(),
+                    content_type="application/pdf",
+                )
+                rel_path, original_name = self._material_service.save_material_file(upload, contract_id)
+                display_name = original_name
+                # 如果原始文件是 docx，显示名保留原 docx 文件名
+                if is_docx:
+                    display_name = file_path.name
 
+                if category == MaterialCategory.CONTRACT_ORIGINAL and not is_docx and self._has_quality_card_on_last_page(file_path):
+                    display_name = self._QUALITY_CARD_TITLE
+
+                material_kwargs: dict[str, Any] = {
+                    "contract_id": contract_id,
+                    "file_path": rel_path,
+                    "original_filename": display_name,
+                    "category": category,
+                }
+                if archive_item_code:
+                    material_kwargs["archive_item_code"] = archive_item_code
+
+                FinalizedMaterial.objects.create(**material_kwargs)
+                imported_count += 1
+            finally:
+                # 清理临时 PDF 文件
+                if temp_pdf_path and temp_pdf_path.exists():
+                    temp_pdf_path.unlink(missing_ok=True)
+
+        # 保存确认的工作日志建议
+        confirmed_logs = work_log_suggestions or []
         payload["import_result"] = {
             "imported_count": imported_count,
             "imported_at": timezone.now().isoformat(),
         }
+        payload["confirmed_work_log_suggestions"] = confirmed_logs
 
         ContractFolderScanSession.objects.filter(id=session.id).update(
             status=ContractFolderScanStatus.IMPORTED,
@@ -273,6 +313,29 @@ class ContractFolderScanService:
                 progress_callback=_progress,
             )
             result["scan_scope"] = scan_scope
+
+            # ── 后处理：归档清单项匹配 + docx 收集 + 工作日志建议 ──
+            contract = session.contract
+            archive_category = get_archive_category(getattr(contract, "case_type", ""))
+
+            candidates = result.get("candidates") or []
+            candidates = self._post_process_candidates(
+                candidates=candidates,
+                archive_category=archive_category,
+                scan_folder=scan_scope["scan_folder"],
+            )
+            result["candidates"] = candidates
+
+            # 工作日志建议
+            work_log_suggestions = collect_work_log_suggestions(
+                scan_scope["scan_folder"], archive_category
+            )
+            result["work_log_suggestions"] = work_log_suggestions
+
+            # 归档清单项选项
+            archive_item_options = collect_archive_item_options(archive_category)
+            result["archive_item_options"] = archive_item_options
+            result["archive_category"] = archive_category
 
             ContractFolderScanSession.objects.filter(id=session.id).update(
                 status=ContractFolderScanStatus.COMPLETED,
@@ -354,6 +417,137 @@ class ContractFolderScanService:
         except ValueError:
             return False
 
+    def _post_process_candidates(
+        self,
+        *,
+        candidates: list[dict[str, Any]],
+        archive_category: str,
+        scan_folder: str,
+    ) -> list[dict[str, Any]]:
+        """扫描后处理：归档清单项匹配 + docx 文件收集 + 跳过项过滤。"""
+        processed: list[dict[str, Any]] = []
+
+        for candidate in candidates:
+            suggested_category = str(candidate.get("suggested_category") or "")
+
+            if suggested_category == "archive_document":
+                # 对被分类为"归档文书"的文件，尝试匹配归档清单项
+                result = classify_archive_material(
+                    filename=str(candidate.get("filename") or ""),
+                    source_path=str(candidate.get("source_path") or ""),
+                    archive_category=archive_category,
+                )
+
+                if result["category"] == "skip":
+                    # 跳过规则命中，不导入
+                    candidate["selected"] = False
+                    candidate["skip_reason"] = result.get("reason", "跳过")
+                    processed.append(candidate)
+                    continue
+
+                if result["archive_item_code"]:
+                    candidate["suggested_category"] = "case_material"
+                    candidate["archive_item_code"] = result["archive_item_code"]
+                    candidate["archive_item_name"] = result["archive_item_name"]
+                    candidate["confidence"] = result["confidence"]
+                    candidate["reason"] = result["reason"]
+                else:
+                    # 未匹配，保留但标记
+                    candidate["suggested_category"] = "case_material"
+                    candidate["archive_item_code"] = ""
+                    candidate["archive_item_name"] = "未匹配"
+                    candidate["reason"] = result["reason"]
+
+            processed.append(candidate)
+
+        # 仅非诉项目收集 docx 文件（修订版/批注版 → 转 PDF）
+        if archive_category == "non_litigation":
+            docx_candidates = self._collect_docx_files(scan_folder, archive_category)
+            processed.extend(docx_candidates)
+
+        return processed
+
+    def _collect_docx_files(
+        self,
+        scan_folder: str,
+        archive_category: str,
+    ) -> list[dict[str, Any]]:
+        """单独收集 docx/doc 文件，仅非诉项目且仅含修订版/批注版关键词。
+
+        诉讼/刑事项目不收集 docx，只有非诉常法才需要 docx→PDF 流程。
+        """
+        if archive_category != "non_litigation":
+            return []
+
+        root = Path(scan_folder).expanduser().resolve()
+        if not root.exists() or not root.is_dir():
+            return []
+
+        # 仅收集文件名含"修订版"/"批注版"/"律师修订"关键词的 docx
+        _DOCX_REVISION_KEYWORDS = ("修订版", "批注版", "律师修订")
+
+        docx_files = [
+            p for p in root.rglob("*")
+            if p.is_file() and p.suffix.lower() in (".docx", ".doc")
+            and any(kw in _normalize_docx_name(p.name) for kw in _DOCX_REVISION_KEYWORDS)
+        ]
+        docx_files.sort(key=lambda x: x.as_posix())
+
+        # 用与 PDF 相同的去重逻辑
+        deduped = self._scan_service._deduplicate_files(docx_files)
+
+        candidates: list[dict[str, Any]] = []
+        for item in deduped:
+            file_path = item["path"]
+            stat = file_path.stat()
+
+            archive_item_code = ""
+            archive_item_name = "未匹配"
+            reason = "常法docx（修订版/批注版）→ 转 PDF"
+            normalized_name = _normalize_docx_name(file_path.name)
+
+            if "律师函" in normalized_name:
+                archive_item_code = "nl_8"
+                archive_item_name = "法律意见书、律师函等"
+                reason = "常法docx（律师函）→ nl_8"
+            else:
+                archive_item_code = "nl_9"
+                archive_item_name = "案件其它关联材料"
+                reason = "常法docx（修订版/批注版）→ nl_9"
+
+            candidates.append({
+                "source_path": file_path.as_posix(),
+                "filename": file_path.name,
+                "file_size": int(stat.st_size),
+                "modified_at": "",
+                "base_name": item["base_name"],
+                "version_token": item["version_token"],
+                "extract_method": "none",
+                "text_excerpt": "",
+                "suggested_category": "case_material",
+                "confidence": 0.85,
+                "reason": reason,
+                "selected": True,
+                "is_docx": True,
+                "archive_item_code": archive_item_code,
+                "archive_item_name": archive_item_name,
+            })
+
+        return candidates
+
+    def _convert_docx_to_temp_pdf(self, file_path: Path) -> Path | None:
+        """将 docx 文件转换为临时 PDF 文件。返回临时 PDF 路径，失败返回 None。"""
+        try:
+            from apps.documents.services.infrastructure.pdf_merge_utils import convert_docx_to_pdf
+
+            pdf_path_str = convert_docx_to_pdf(file_path.as_posix())
+            if pdf_path_str:
+                return Path(pdf_path_str)
+            return None
+        except (OSError, RuntimeError):
+            logger.exception("docx_to_pdf_conversion_failed", extra={"path": file_path.as_posix()})
+            return None
+
     def _has_quality_card_on_last_page(self, file_path: Path) -> bool:
         keyword = self._normalize_for_match(self._QUALITY_CARD_KEYWORD)
         if not keyword:
@@ -373,7 +567,7 @@ class ContractFolderScanService:
                     return ""
                 page = doc.load_page(doc.page_count - 1)
                 return str(page.get_text() or "")
-        except Exception:
+        except (OSError, RuntimeError):
             logger.exception("contract_quality_card_check_direct_failed", extra={"path": file_path.as_posix()})
             return ""
 
@@ -395,7 +589,7 @@ class ContractFolderScanService:
                 finally:
                     if temp_path.exists():
                         temp_path.unlink(missing_ok=True)
-        except Exception:
+        except (OSError, RuntimeError):
             logger.exception("contract_quality_card_check_ocr_failed", extra={"path": file_path.as_posix()})
             return ""
 
@@ -406,3 +600,8 @@ class ContractFolderScanService:
 def run_contract_folder_scan_task(session_id: str) -> None:
     """Django-Q 任务入口。"""
     ContractFolderScanService().run_scan_task(session_id=session_id)
+
+
+def _normalize_docx_name(filename: str) -> str:
+    """标准化文件名用于关键词匹配。"""
+    return re.sub(r"\s+", "", str(filename or "").strip().lower())

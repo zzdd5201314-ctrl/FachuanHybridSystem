@@ -40,6 +40,11 @@
         scanSubfolder: '',
         subfoldersLoaded: false,
 
+        // 归档相关
+        archiveCategory: '',
+        archiveItemOptions: [],
+        workLogSuggestions: [],
+
         get selectedCount() {
           return (this.scanCandidates || []).filter((item) => item.selected).length;
         },
@@ -63,9 +68,13 @@
           return Array.isArray(this.scanSubfolderOptions) && this.scanSubfolderOptions.length > 0;
         },
 
+        get visibleCandidates() {
+          return (this.scanCandidates || []).filter((item) => !item.skip_reason);
+        },
+
         openModal() {
           if (!this.hasFolderBinding) {
-            this.scanError = this.texts.needBindFolder || '请先在“文档与提醒”中绑定文件夹';
+            this.scanError = this.texts.needBindFolder || '请先在"文档与提醒"中绑定文件夹';
             window.dispatchEvent(
               new CustomEvent('contract-folder-scan-needs-binding', { detail: { contractId: this.contractId } })
             );
@@ -169,6 +178,9 @@
           this.scanProgress = 0;
           this.scanCurrentFile = '';
           this.scanCandidates = [];
+          this.archiveCategory = '';
+          this.archiveItemOptions = [];
+          this.workLogSuggestions = [];
           this.clearPoll();
 
           fetch(`/api/v1/contracts/${this.contractId}/folder-scan`, {
@@ -223,6 +235,16 @@
               this.scanCandidates = this.normalizeCandidates((data && data.candidates) || []);
               this.scanError = (data && data.error_message) || '';
 
+              // 归档相关数据
+              this.archiveCategory = (data && data.archive_category) || '';
+              this.archiveItemOptions = Array.isArray(data && data.archive_item_options) ? data.archive_item_options : [];
+              this.workLogSuggestions = Array.isArray(data && data.work_log_suggestions)
+                ? data.work_log_suggestions.map((item) => ({
+                    date: item.date || '',
+                    content: item.content || '',
+                  }))
+                : [];
+
               this.isScanning = ['pending', 'running', 'classifying'].includes(this.scanStatus);
               if (keepPolling && this.isScanning) {
                 this.clearPoll();
@@ -245,6 +267,7 @@
           var validCategories = [
             'contract_original', 'supplementary_agreement', 'invoice',
             'supervision_card', 'archive_document', 'authorization_material',
+            'case_material',
           ];
           return (candidates || []).map((candidate) => {
             var category = validCategories.includes(candidate.suggested_category)
@@ -256,17 +279,67 @@
               selected: candidate.selected !== false,
               category: category,
               reason: candidate.reason || '',
+              archive_item_code: candidate.archive_item_code || '',
+              archive_item_name: candidate.archive_item_name || '',
+              is_docx: candidate.is_docx || false,
+              skip_reason: candidate.skip_reason || '',
             };
           });
         },
 
+        categoryLabel(category) {
+          var labels = {
+            'contract_original': '合同正本',
+            'supplementary_agreement': '补充协议',
+            'invoice': '发票',
+            'supervision_card': '监督卡',
+            'authorization_material': '授权委托材料',
+            'archive_document': '归档文书',
+            'case_material': '案件材料',
+          };
+          return labels[category] || category;
+        },
+
+        isCaseMaterial(candidate) {
+          return candidate.category === 'case_material';
+        },
+
+        hasUnmatchedArchiveItem(candidate) {
+          return candidate.category === 'case_material' && !candidate.archive_item_code;
+        },
+
+        selectArchiveItem(candidate, code) {
+          var option = this.archiveItemOptions.find(function (opt) { return opt.code === code; });
+          if (option) {
+            candidate.archive_item_code = option.code;
+            candidate.archive_item_name = option.name;
+          }
+        },
+
+        addWorkLogEntry() {
+          this.workLogSuggestions.push({ date: '', content: '' });
+        },
+
+        removeWorkLogEntry(index) {
+          this.workLogSuggestions.splice(index, 1);
+        },
+
         confirmImport() {
           if (this.isConfirming || !this.scanSessionId) return;
-          const items = (this.scanCandidates || []).map((candidate) => ({
-            source_path: candidate.source_path,
-            selected: candidate.selected,
-            category: candidate.category || 'archive_document',
-          }));
+          const items = (this.scanCandidates || [])
+            .filter((candidate) => !candidate.skip_reason)
+            .map((candidate) => ({
+              source_path: candidate.source_path,
+              selected: candidate.selected,
+              category: candidate.category || 'archive_document',
+              archive_item_code: candidate.archive_item_code || '',
+              is_docx: candidate.is_docx || false,
+            }));
+
+          // 过滤掉空的工作日志条目
+          const validWorkLogs = (this.workLogSuggestions || []).filter(
+            (entry) => entry.date && entry.content
+          );
 
           this.isConfirming = true;
           fetch(`/api/v1/contracts/${this.contractId}/folder-scan/${this.scanSessionId}/confirm`, {
@@ -275,7 +348,10 @@
               'Content-Type': 'application/json',
               'X-CSRFToken': getCsrfToken(),
             },
-            body: JSON.stringify({ items }),
+            body: JSON.stringify({
+              items: items,
+              work_log_suggestions: validWorkLogs,
+            }),
           })
             .then(async (resp) => {
               const data = await resp.json().catch(() => ({}));
