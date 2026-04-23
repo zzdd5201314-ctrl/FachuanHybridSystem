@@ -136,7 +136,7 @@ class DocumentAttachmentService:
                     renamed = result.get("renamed_files", [])
                     if renamed:
                         self._collect_unique_paths(renamed, seen_paths, document_paths)
-                        logger.info(f"从 renamed_files 获取到文书路径")
+                        logger.info("从 renamed_files 获取到文书路径")
 
                 # 方式2：从 CourtDocument 记录获取（仅当 renamed_files 为空时）
                 if not document_paths:
