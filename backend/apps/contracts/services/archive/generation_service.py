@@ -865,6 +865,9 @@ class ArchiveGenerationService:
         """
         将归档检查清单中非1-3号的已上传材料合并为"4-案卷材料（{合同名称}）_{日期}.pdf"。
 
+        材料来源：直接复用 ArchiveChecklistService.get_checklist_with_status 的结果，
+        确保用户在"归档检查清单"看到的子项与最终"4-案卷材料"完全一致。
+
         合并顺序与检查清单顺序一致，从第1页开始添加页码。
 
         Returns:
@@ -872,88 +875,41 @@ class ArchiveGenerationService:
         """
         import fitz  # PyMuPDF
 
-        archive_category = get_archive_category(contract.case_type)
-        checklist_items = ARCHIVE_CHECKLIST.get(archive_category, [])
+        from apps.contracts.services.archive.checklist_service import ArchiveChecklistService
+        from apps.contracts.services.archive.constants import ARCHIVE_SKIP_CODES, ARCHIVE_SKIP_TEMPLATES
+
+        # 复用 checklist_service 的完整映射逻辑（含 category fallback）
+        checklist_service = ArchiveChecklistService()
+        checklist = checklist_service.get_checklist_with_status(contract)
+        checklist_items = checklist.get("items", [])
 
         # 按 checklist 顺序收集需要合并的材料
         materials_to_merge: list[FinalizedMaterial] = []
+        seen_ids: set[int] = set()
 
         for item in checklist_items:
-            code = item["code"]
+            code = item.get("code", "")
             template = item.get("template")
 
             # 跳过1-3号模板项
             if code in ARCHIVE_SKIP_CODES or template in ARCHIVE_SKIP_TEMPLATES:
                 continue
 
-            # 查找该清单项关联的 FinalizedMaterial
-            item_materials = list(
-                FinalizedMaterial.objects.filter(
-                    contract=contract,
-                    archive_item_code=code,
-                ).order_by("order", "-uploaded_at")
-            )
+            # 直接使用 checklist_service 计算好的 material_ids
+            material_ids = item.get("material_ids", [])
+            if not material_ids:
+                continue
 
-            # 特殊处理：委托合同项 — 追加无 archive_item_code 的合同正本/补充协议
-            if item.get("source") == "contract" and "委托" in item.get("name", ""):
-                existing_ids = {m.id for m in item_materials}
-                extra = list(
-                    FinalizedMaterial.objects.filter(
-                        contract=contract,
-                        category__in=(MaterialCategory.CONTRACT_ORIGINAL, MaterialCategory.SUPPLEMENTARY_AGREEMENT),
-                        archive_item_code="",
-                    ).order_by("order", "-uploaded_at")
-                )
-                for m in extra:
-                    if m.id not in existing_ids:
-                        item_materials.append(m)
-
-            # 特殊处理：授权委托项 — 追加无 archive_item_code 的授权委托材料
-            if "授权" in item.get("name", ""):
-                existing_ids = {m.id for m in item_materials}
-                extra = list(
-                    FinalizedMaterial.objects.filter(
-                        contract=contract,
-                        category=MaterialCategory.AUTHORIZATION_MATERIAL,
-                        archive_item_code="",
-                    ).order_by("order", "-uploaded_at")
-                )
-                for m in extra:
-                    if m.id not in existing_ids:
-                        item_materials.append(m)
-
-            # 特殊处理：监督卡项 — 追加无 archive_item_code 的监督卡材料
-            if item.get("auto_detect") == "supervision_card":
-                existing_ids = {m.id for m in item_materials}
-                extra = list(
-                    FinalizedMaterial.objects.filter(
-                        contract=contract,
-                        category=MaterialCategory.SUPERVISION_CARD,
-                        archive_item_code="",
-                    ).order_by("order", "-uploaded_at")
-                )
-                for m in extra:
-                    if m.id not in existing_ids:
-                        item_materials.append(m)
-
-            # 特殊处理：收费凭证项 — 追加无 archive_item_code 的发票材料
-            if "收费" in item.get("name", ""):
-                existing_ids = {m.id for m in item_materials}
-                extra = list(
-                    FinalizedMaterial.objects.filter(
-                        contract=contract,
-                        category=MaterialCategory.INVOICE,
-                        archive_item_code="",
-                    ).order_by("order", "-uploaded_at")
-                )
-                for m in extra:
-                    if m.id not in existing_ids:
-                        item_materials.append(m)
-
-            if item_materials:
-                # 对 order=0 的材料应用关键词排序
-                item_materials = self._apply_subitem_sort(item_materials, code)
-                materials_to_merge.extend(item_materials)
+            # 批量查询并保持 material_ids 的顺序
+            id_to_material: dict[int, FinalizedMaterial] = {
+                m.id: m
+                for m in FinalizedMaterial.objects.filter(id__in=material_ids)
+            }
+            for mid in material_ids:
+                m = id_to_material.get(mid)
+                if m and m.id not in seen_ids:
+                    seen_ids.add(m.id)
+                    materials_to_merge.append(m)
 
         if not materials_to_merge:
             return {"written": False, "skipped": True, "page_count": 0, "error": None}
