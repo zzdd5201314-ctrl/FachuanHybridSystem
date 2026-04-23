@@ -8,7 +8,7 @@
 .case-log-admin-layout {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 260px;
   align-items: start;
 }
 
@@ -100,10 +100,17 @@
   flex-wrap: wrap;
 }
 
+.case-log-admin-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .case-log-admin-table {
   width: 100%;
+  min-width: 1120px;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
   border-top: 1px solid #e5e7eb;
 }
 
@@ -115,6 +122,9 @@
   vertical-align: top;
   font-size: 12px;
   line-height: 1.55;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .case-log-admin-table th:last-child,
@@ -143,6 +153,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .primary-link {
@@ -150,6 +162,8 @@
   font-weight: 600;
   text-decoration: none;
   line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .primary-link:hover {
@@ -206,7 +220,7 @@
 }
 
 .table-card {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .table-search-strip {
@@ -830,6 +844,45 @@
   border-radius: 10px;
 }
 
+.case-log-admin-table .col-id {
+  width: 80px;
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+.case-log-admin-table .col-case-name {
+  width: 220px;
+  min-width: 220px;
+}
+
+.case-log-admin-table .col-stage {
+  width: 120px;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.case-log-admin-table .col-case-number {
+  width: 260px;
+  min-width: 260px;
+}
+
+.case-log-admin-table .col-lawyer {
+  width: 180px;
+  min-width: 180px;
+}
+
+.case-log-admin-table .col-status {
+  width: 120px;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.case-log-admin-table .col-date {
+  width: 120px;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
 .case-log-admin-table.ledger-table th:nth-child(1) {
   width: 70px;
 }
@@ -854,7 +907,7 @@
   width: 130px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1600px) {
   .case-log-admin-layout {
     grid-template-columns: 1fr;
   }
