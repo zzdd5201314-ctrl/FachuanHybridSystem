@@ -38,6 +38,18 @@ class BoundFolderScanService:
     _PATTERN_BRACKET = re.compile(r"^(?P<base>.*?)[\s._-]*[（(](?P<num>\d+)[）)]$")
     _PATTERN_COPY = re.compile(r"^(?P<base>.*?)[\s._-]*(?P<label>副本|复制)$")
 
+    # 合同域扫描时，除 PDF 外也扫描的文件扩展名
+    _CONTRACT_EXTRA_EXTENSIONS: frozenset[str] = frozenset({".docx", ".doc"})
+
+    # 合同域扫描时，识别为案件子文件夹的关键词
+    _CASE_SUBFOLDER_KEYWORDS: tuple[str, ...] = (
+        "一审", "二审", "执行", "再审", "会见辩护",
+        "立案材料", "递交给法院", "提交给法院", "法院反馈",
+    )
+
+    # 常法项目办案子文件夹关键词
+    _NON_LITIGATION_WORK_KEYWORDS: tuple[str, ...] = ("办案",)
+
     def __init__(
         self,
         *,
