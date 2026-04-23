@@ -131,17 +131,18 @@ class DocumentAttachmentService:
             if sms.scraper_task:
                 result = sms.scraper_task.result
 
-                # 方式1：优先使用 renamed_files
+                # 方式1：优先使用 renamed_files（合并到 document_paths，不丢失 sms_reference）
                 if result and isinstance(result, dict):
-                    renamed = self._collect_unique_paths(result.get("renamed_files", []), seen_paths)
+                    renamed = result.get("renamed_files", [])
                     if renamed:
-                        logger.info(f"从 renamed_files 获取到 {len(renamed)} 个文书路径")
-                        return renamed
+                        self._collect_unique_paths(renamed, seen_paths, document_paths)
+                        logger.info(f"从 renamed_files 获取到文书路径")
 
-                # 方式2：从 CourtDocument 记录获取
-                self._collect_from_court_documents(sms, document_paths, seen_paths)
+                # 方式2：从 CourtDocument 记录获取（仅当 renamed_files 为空时）
+                if not document_paths:
+                    self._collect_from_court_documents(sms, document_paths, seen_paths)
 
-                # 方式3：从原始 files 列表获取
+                # 方式3：从原始 files 列表获取（仅当以上均为空时）
                 if not document_paths and result and isinstance(result, dict):
                     self._collect_unique_paths(result.get("files", []), seen_paths, document_paths)
 
