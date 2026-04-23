@@ -43,6 +43,7 @@ import { generatePath, PATHS } from '@/routes/paths'
 import { useCase } from '../hooks/use-case'
 import { useCaseLogs } from '../hooks/use-case-logs'
 import { useLogMutations } from '../hooks/use-log-mutations'
+import { getVisibleCaseLogs, type CaseLogAttachmentFilter } from '../log-list'
 import {
   CASE_STAGE_LABELS,
   CASE_STATUS_LABELS,
@@ -50,8 +51,6 @@ import {
   type CaseStage,
   type CaseStatus,
 } from '../types'
-
-type AttachmentFilter = 'all' | 'with' | 'without'
 
 interface CaseLogBoardProps {
   caseId: string
@@ -73,29 +72,6 @@ function formatDateTime(value?: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
-}
-
-function sortLogs(logs: CaseLog[]): CaseLog[] {
-  return [...logs].sort((left, right) => {
-    const leftTime = new Date(left.logged_at || left.created_at).getTime()
-    const rightTime = new Date(right.logged_at || right.created_at).getTime()
-    return leftTime - rightTime
-  })
-}
-
-function matchesLogFilters(log: CaseLog, stageFilter: string, attachmentFilter: AttachmentFilter, keyword: string) {
-  if (stageFilter && log.stage !== stageFilter) return false
-
-  const hasAttachments = (log.attachments ?? []).length > 0
-  if (attachmentFilter === 'with' && !hasAttachments) return false
-  if (attachmentFilter === 'without' && hasAttachments) return false
-
-  if (keyword) {
-    const haystack = [log.content, log.note ?? ''].join('\n').toLowerCase()
-    if (!haystack.includes(keyword.toLowerCase())) return false
-  }
-
-  return true
 }
 
 function EmptyBoard({ createUrl, hasFilters }: { createUrl: string; hasFilters: boolean }) {
@@ -163,17 +139,13 @@ export function CaseLogBoard({ caseId }: CaseLogBoardProps) {
   const mutations = useLogMutations(caseId)
 
   const [stageFilter, setStageFilter] = useState<string>('all')
-  const [attachmentFilter, setAttachmentFilter] = useState<AttachmentFilter>('all')
+  const [attachmentFilter, setAttachmentFilter] = useState<CaseLogAttachmentFilter>('all')
   const [keyword, setKeyword] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<CaseLog | null>(null)
 
-  const sortedLogs = useMemo(() => sortLogs(logs), [logs])
   const filteredLogs = useMemo(
-    () =>
-      sortedLogs.filter((log) =>
-        matchesLogFilters(log, stageFilter === 'all' ? '' : stageFilter, attachmentFilter, keyword.trim()),
-      ),
-    [attachmentFilter, keyword, sortedLogs, stageFilter],
+    () => getVisibleCaseLogs(logs, { stageFilter, attachmentFilter, keyword }),
+    [attachmentFilter, keyword, logs, stageFilter],
   )
 
   if (caseLoading) {
@@ -253,11 +225,11 @@ export function CaseLogBoard({ caseId }: CaseLogBoardProps) {
                   </Button>
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  当前显示 <span className="text-foreground font-medium">{filteredLogs.length}</span> / {sortedLogs.length} 条日志
+                  当前显示 <span className="text-foreground font-medium">{filteredLogs.length}</span> / {logs.length} 条日志
                 </p>
               </div>
 
-              {logsLoading && sortedLogs.length === 0 ? (
+              {logsLoading && logs.length === 0 ? (
                 <div className="flex min-h-[240px] items-center justify-center">
                   <Loader2 className="text-muted-foreground size-8 animate-spin" />
                 </div>
@@ -382,7 +354,7 @@ export function CaseLogBoard({ caseId }: CaseLogBoardProps) {
               <label className="text-sm font-medium">附件状态</label>
               <Select
                 value={attachmentFilter}
-                onValueChange={(value) => setAttachmentFilter(value as AttachmentFilter)}
+                onValueChange={(value) => setAttachmentFilter(value as CaseLogAttachmentFilter)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="全部日志" />

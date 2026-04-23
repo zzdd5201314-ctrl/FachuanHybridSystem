@@ -37,54 +37,56 @@
                     </form>
                 </div>
 
-                <table class="case-log-admin-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 80px;">ID</th>
-                            <th>案件名称</th>
-                            <th style="width: 140px;">当前阶段</th>
-                            <th style="width: 260px;">案号</th>
-                            <th style="width: 180px;">经办律师</th>
-                            <th style="width: 120px;">案件状态</th>
-                            <th style="width: 120px;">日期</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if case_rows %}
-                            {% for row in case_rows %}
-                            <tr class="clickable-row" onclick="window.location='{{ row.ledger_url }}'">
-                                <td>{{ row.id }}</td>
-                                <td>
-                                    <div class="case-name-cell">
-                                        <a href="{{ row.ledger_url }}" class="primary-link" onclick="event.stopPropagation();">
-                                            {{ row.name }}
-                                        </a>
-                                        {% if row.is_archived %}
-                                        <span class="status-pill archived">已归档</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                                <td>{{ row.current_stage_label }}</td>
-                                <td>{{ row.case_numbers_text }}</td>
-                                <td>{{ row.lawyer_text }}</td>
-                                <td>
-                                    <span class="status-pill {{ row.status_key|default:'default' }}">{{ row.status_label }}</span>
-                                </td>
-                                <td class="mono-cell">{{ row.start_date_text }}</td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
+                <div class="case-log-admin-table-wrap">
+                    <table class="case-log-admin-table">
+                        <thead>
                             <tr>
-                                <td colspan="7">
-                                    <div class="empty-state">
-                                        <strong>暂无案件</strong>
-                                        <span>这里仅显示案件列表。点击案件名称后，再进入该案件的全部日志台账。</span>
-                                    </div>
-                                </td>
+                                <th class="col-id">ID</th>
+                                <th class="col-case-name">案件名称</th>
+                                <th class="col-stage">当前阶段</th>
+                                <th class="col-case-number">案号</th>
+                                <th class="col-lawyer">经办律师</th>
+                                <th class="col-status">案件状态</th>
+                                <th class="col-date">日期</th>
                             </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {% if case_rows %}
+                                {% for row in case_rows %}
+                                <tr class="clickable-row" onclick="window.location='{{ row.ledger_url }}'">
+                                    <td class="col-id mono-cell">{{ row.id }}</td>
+                                    <td class="col-case-name">
+                                        <div class="case-name-cell">
+                                            <a href="{{ row.ledger_url }}" class="primary-link" onclick="event.stopPropagation();">
+                                                {{ row.name }}
+                                            </a>
+                                            {% if row.is_archived %}
+                                            <span class="status-pill archived">已归档</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="col-stage">{{ row.current_stage_label }}</td>
+                                    <td class="col-case-number">{{ row.case_numbers_text }}</td>
+                                    <td class="col-lawyer">{{ row.lawyer_text }}</td>
+                                    <td class="col-status">
+                                        <span class="status-pill {{ row.status_key|default:'default' }}">{{ row.status_label }}</span>
+                                    </td>
+                                    <td class="col-date mono-cell">{{ row.start_date_text }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7">
+                                        <div class="empty-state">
+                                            <strong>暂无案件</strong>
+                                            <span>这里仅显示案件列表。点击案件名称后，再进入该案件的全部日志台账。</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {% if page_obj.paginator.num_pages > 1 %}
