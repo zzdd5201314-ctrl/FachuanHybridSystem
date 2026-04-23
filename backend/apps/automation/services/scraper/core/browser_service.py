@@ -3,6 +3,7 @@
 """
 
 import logging
+import os
 import subprocess
 import sys
 from typing import Any, Optional, cast
@@ -24,19 +25,25 @@ def _ensure_browser_installed() -> None:
     （如 chromium_headless_shell-1208），但旧镜像中只有旧版路径。
     此函数在启动浏览器前调用，避免因浏览器二进制缺失导致任务失败。
     """
-    try:
-        from playwright._impl._driver import compute_driver_executable
+    from pathlib import Path
 
-        driver = compute_driver_executable()
-        if not driver.exists():
-            logger.warning("Playwright driver 不存在: %s，尝试安装浏览器...", driver)
-            subprocess.run(
-                _PLAYWRIGHT_INSTALL_CMD,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            logger.info("Playwright chromium 安装完成")
+    try:
+        # playwright 内部通过 PLAYWRIGHT_BROWSERS_PATH 环境变量或默认缓存目录定位浏览器
+        browsers_path = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", str(Path.home() / ".cache" / "ms-playwright")))
+        if browsers_path.exists():
+            # 检查是否有 chromium 相关目录
+            chromium_dirs = list(browsers_path.glob("chromium*"))
+            if chromium_dirs:
+                return  # 浏览器已安装
+
+        logger.warning("未检测到 Playwright chromium 浏览器，尝试安装...")
+        subprocess.run(
+            _PLAYWRIGHT_INSTALL_CMD,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        logger.info("Playwright chromium 安装完成")
     except Exception as e:
         logger.warning("浏览器安装检测异常: %s，尝试直接安装...", e)
         try:
@@ -104,7 +111,7 @@ class BrowserService:
 
             self._playwright = sync_playwright().start()
 
-            launch_options = {
+            launch_options: dict[str, Any] = {
                 "headless": headless,
                 "args": [
                     "--disable-blink-features=AutomationControlled",  # 反爬虫检测
