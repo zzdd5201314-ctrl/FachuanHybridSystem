@@ -18,7 +18,7 @@ from django.template.response import TemplateResponse
 from django.urls import URLPattern, URLResolver, include, path, reverse
 from django.utils.translation import gettext_lazy as _
 
-from apps.organization.views import register
+from apps.organization.views import AuthLoginView, register
 
 from .api import api_v1
 
@@ -26,6 +26,16 @@ from .api import api_v1
 admin.site.site_header = _(getattr(settings, "ADMIN_SITE_HEADER", "法穿AI案件管理系统"))
 admin.site.site_title = _(getattr(settings, "ADMIN_SITE_TITLE", "法穿AI案件管理系统"))
 admin.site.index_title = _(getattr(settings, "ADMIN_INDEX_TITLE", "欢迎来到法穿AI案件管理系统"))
+
+# 覆盖 admin login 视图，注入注册上下文
+_admin_login_view = AuthLoginView.as_view()
+
+
+def _admin_login(request: HttpRequest, **kwargs: object) -> HttpResponse:
+    return _admin_login_view(request, **kwargs)
+
+
+admin.site.login = _admin_login
 
 # 侧边栏 app 顺序（按以下顺序显示）
 _APP_ORDER = [
