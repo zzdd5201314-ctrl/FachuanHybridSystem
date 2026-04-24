@@ -7,14 +7,16 @@ Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.utils.translation import gettext_lazy as _
-from playwright.sync_api import Browser, BrowserContext, Page, Playwright, sync_playwright
 
 from apps.automation.services.scraper.config.browser_config import BrowserConfig
 
 from .exceptions import BrowserCreationError
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Browser, BrowserContext, Page, Playwright
 
 logger = logging.getLogger("apps.automation")
 
@@ -37,7 +39,7 @@ class BrowserManager:
         cls,
         config: BrowserConfig | None = None,
         use_anti_detection: bool = True,
-    ) -> Iterator[tuple[Page, BrowserContext]]:
+    ) -> Iterator[tuple["Page", "BrowserContext"]]:
         """
         创建浏览器上下文
 
@@ -75,6 +77,8 @@ class BrowserManager:
 
         try:
             # 启动 Playwright
+            from playwright.sync_api import sync_playwright
+
             logger.debug("启动 Playwright...")
             playwright = sync_playwright().start()
 
@@ -159,7 +163,7 @@ class BrowserManager:
         return merged
 
     @classmethod
-    def _inject_stealth_script(cls, page: Page) -> None:
+    def _inject_stealth_script(cls, page: "Page") -> None:
         """
         注入反检测脚本
 
@@ -174,10 +178,10 @@ class BrowserManager:
     @classmethod
     def _cleanup(
         cls,
-        page: Page | None,
-        context: BrowserContext | None,
-        browser: Browser | None,
-        playwright: Playwright | None,
+        page: "Page | None",
+        context: "BrowserContext | None",
+        browser: "Browser | None",
+        playwright: "Playwright | None",
     ) -> None:
         """
         清理浏览器资源
