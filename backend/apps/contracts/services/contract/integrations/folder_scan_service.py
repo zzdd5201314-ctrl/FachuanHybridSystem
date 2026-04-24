@@ -438,6 +438,15 @@ class ContractFolderScanService:
         except ValueError:
             return False
 
+    @staticmethod
+    def _relative_path_str(*, source_path: str, scan_root: Path) -> str:
+        """计算文件相对扫描根目录的路径，失败返回空字符串。"""
+        try:
+            file_path = Path(source_path).expanduser().resolve()
+            return file_path.relative_to(scan_root).as_posix()
+        except (ValueError, RuntimeError):
+            return ""
+
     def _post_process_candidates(
         self,
         *,
@@ -447,6 +456,7 @@ class ContractFolderScanService:
     ) -> list[dict[str, Any]]:
         """扫描后处理：归档清单项匹配 + docx 文件收集 + 跳过项过滤。"""
         processed: list[dict[str, Any]] = []
+        scan_root = Path(scan_folder).expanduser().resolve()
 
         for candidate in candidates:
             suggested_category = str(candidate.get("suggested_category") or "")
@@ -511,6 +521,15 @@ class ContractFolderScanService:
                 else:
                     candidate["archive_item_code"] = ""
                     candidate["archive_item_name"] = "未匹配"
+
+            # 案件材料的 reason 统一替换为相对路径，方便用户定位文件
+            if candidate.get("suggested_category") == "case_material":
+                rel_path = self._relative_path_str(
+                    source_path=str(candidate.get("source_path") or ""),
+                    scan_root=scan_root,
+                )
+                if rel_path:
+                    candidate["reason"] = rel_path
 
             processed.append(candidate)
 
