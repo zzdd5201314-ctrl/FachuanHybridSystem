@@ -1,11 +1,13 @@
 <!DOCTYPE html>
+{% load i18n %}
 <html lang="zh-hans">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 | 法穿AI案件管理系统</title>
+    <title>{% trans "登录" %} | {% trans "法穿AI案件管理系统" %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         :root {
             --bg-deep: #0a0e1a;
@@ -24,6 +26,7 @@
             --text-tertiary: rgba(240,240,245,0.35);
             --success: #00b894;
             --error: #ff6b6b;
+            --warning: #fdcb6e;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -167,7 +170,7 @@
             width: 520px;
             min-width: 520px;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             padding: 40px;
             background: var(--bg-panel);
@@ -179,12 +182,8 @@
         .form-wrapper {
             width: 100%;
             max-width: 400px;
-            animation: fadeSlideIn 0.4s ease-out;
-        }
-
-        @keyframes fadeSlideIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
+            margin-top: auto;
+            margin-bottom: auto;
         }
 
         /* 表单头部 */
@@ -202,6 +201,33 @@
         .form-header p {
             font-size: 14px;
             color: var(--text-secondary);
+        }
+
+        /* 首次用户提示 */
+        .first-user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,184,148,0.1);
+            border: 1px solid rgba(0,184,148,0.2);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: var(--success);
+            margin-top: 12px;
+        }
+
+        .approval-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(253,203,110,0.1);
+            border: 1px solid rgba(253,203,110,0.2);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: var(--warning);
+            margin-top: 12px;
         }
 
         /* 表单组 */
@@ -272,6 +298,13 @@
             color: var(--accent);
         }
 
+        /* 中文提示 */
+        .chinese-hint {
+            font-size: 11px;
+            color: var(--accent-light);
+            margin-top: 6px;
+        }
+
         /* 密码可见切换 */
         .password-toggle {
             position: absolute;
@@ -290,10 +323,51 @@
             color: var(--text-secondary);
         }
 
+        /* 密码强度指示器 */
+        .password-strength {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+        }
+
+        .strength-bar {
+            flex: 1;
+            height: 3px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.08);
+            transition: background 0.3s;
+        }
+
+        .strength-bar.active.weak { background: var(--error); }
+        .strength-bar.active.medium { background: var(--warning); }
+        .strength-bar.active.strong { background: var(--success); }
+
+        .strength-text {
+            font-size: 11px;
+            margin-top: 4px;
+            color: var(--text-tertiary);
+        }
+
+        .strength-text.weak { color: var(--error); }
+        .strength-text.medium { color: var(--warning); }
+        .strength-text.strong { color: var(--success); }
+
         /* 错误状态 */
         .form-input.error {
             border-color: var(--error);
             box-shadow: 0 0 0 3px rgba(255,107,107,0.15);
+        }
+
+        /* 错误列表 */
+        .error-list {
+            list-style: none;
+            margin-top: 6px;
+        }
+
+        .error-list li {
+            color: var(--error);
+            font-size: 12px;
+            padding: 2px 0;
         }
 
         /* 错误横幅 */
@@ -380,6 +454,78 @@
             transform: translateY(0);
         }
 
+        /* 快速体验区 */
+        .quick-experience {
+            margin-top: 24px;
+            padding: 18px;
+            background: rgba(212,168,85,0.05);
+            border: 1px solid rgba(212,168,85,0.12);
+            border-radius: 12px;
+        }
+
+        .quick-experience h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gold);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .quick-experience p {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .admin-credentials {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .cred-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            padding: 6px 10px;
+        }
+
+        .cred-row span { opacity: 0.7; }
+
+        .cred-row code {
+            font-family: 'SF Mono', Monaco, monospace;
+            color: var(--gold-light);
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-gold {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, var(--gold) 0%, #c4973d 100%);
+            border: none;
+            border-radius: 10px;
+            color: #1a1a2e;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(212,168,85,0.3);
+        }
+
         /* 底部链接 */
         .form-footer {
             text-align: center;
@@ -402,28 +548,32 @@
             color: var(--gold);
         }
 
+        /* ====== 过渡动画 ====== */
+        .form-section {
+            position: absolute;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .form-panel-inner {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+        }
+
         /* ====== 响应式 ====== */
         @media (max-width: 1024px) {
-            .brand-panel {
-                display: none;
-            }
-            .form-panel {
-                width: 100%;
-                min-width: unset;
-            }
+            .brand-panel { display: none; }
+            .form-panel { width: 100%; min-width: unset; }
         }
 
         @media (max-width: 480px) {
-            .form-panel {
-                padding: 24px;
-            }
-            .form-header h2 {
-                font-size: 22px;
-            }
+            .form-panel { padding: 24px; }
+            .form-header h2 { font-size: 22px; }
         }
     </style>
 </head>
-<body>
+<body x-data="authPanel()" x-init="init()">
     <div class="auth-layout">
         <!-- 左侧品牌区 -->
         <div class="brand-panel">
@@ -451,72 +601,219 @@
 
         <!-- 右侧表单区 -->
         <div class="form-panel">
-            <div class="form-wrapper">
-                <div class="form-header">
-                    <h2>欢迎回来</h2>
-                    <p>登录法穿AI案件管理系统</p>
-                </div>
+            <div class="form-panel-inner">
 
-                {% if form.errors %}
-                <div class="error-banner">
-                    <span>⚠️</span>
-                    <span>用户名或密码错误，请重试</span>
-                </div>
-                {% endif %}
+                <!-- ====== 登录表单 ====== -->
+                <div x-show="mode === 'login'"
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0 translate-x-8"
+                     x-transition:enter-end="opacity-100 translate-x-0"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-x-0"
+                     x-transition:leave-end="opacity-0 -translate-x-8"
+                     x-cloak>
 
-                <form method="post" action="{{ app_path }}">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ next }}">
-
-                    <div class="form-group">
-                        <label class="form-label" for="id_username">
-                            用户名 / 真实姓名 <span class="required">*</span>
-                        </label>
-                        <div class="input-wrapper">
-                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
-                            </svg>
-                            <input type="text" name="username" id="id_username" class="form-input" placeholder="请输入中文姓名" autofocus required autocomplete="username">
-                        </div>
+                    <div class="form-header">
+                        <h2>{% trans "欢迎回来" %}</h2>
+                        <p>{% trans "登录法穿AI案件管理系统" %}</p>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label" for="id_password">
-                            密码 <span class="required">*</span>
-                        </label>
-                        <div class="input-wrapper">
-                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                            </svg>
-                            <input type="password" name="password" id="id_password" class="form-input" placeholder="请输入密码" required autocomplete="current-password">
-                            <button type="button" class="password-toggle" onclick="togglePwd('id_password', this)">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                    <circle cx="12" cy="12" r="3"/>
+                    {% if form.errors %}
+                    <div class="error-banner">
+                        <span>⚠️</span>
+                        <span>{% trans "用户名或密码错误，请重试" %}</span>
+                    </div>
+                    {% endif %}
+
+                    <form method="post" action="{{ app_path }}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ next }}">
+
+                        <div class="form-group">
+                            <label class="form-label" for="id_username">
+                                {% trans "用户名 / 真实姓名" %} <span class="required">*</span>
+                            </label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
                                 </svg>
-                            </button>
+                                <input type="text" name="username" id="id_username" class="form-input" placeholder="{% trans '请输入中文姓名' %}" autofocus required autocomplete="username">
+                            </div>
                         </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="id_password">
+                                {% trans "密码" %} <span class="required">*</span>
+                            </label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                                <input type="password" name="password" id="id_password" class="form-input" placeholder="{% trans '请输入密码' %}" required autocomplete="current-password">
+                                <button type="button" class="password-toggle" onclick="togglePwd('id_password', this)">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="remember"> {% trans "记住我" %}
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn-primary">{% trans "登录" %}</button>
+                    </form>
+
+                    <div class="form-footer">
+                        {% trans "还没有账号？" %}<a href="#" @click.prevent="switchTo('register')">{% trans "立即注册" %}</a>
                     </div>
-
-                    <div class="form-row">
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="remember"> 记住我
-                        </label>
-                    </div>
-
-                    <button type="submit" class="btn-primary">登录</button>
-                </form>
-
-                <div class="form-footer">
-                    还没有账号？<a href="{% url 'admin_register' %}">立即注册</a>
                 </div>
+
+                <!-- ====== 注册表单 ====== -->
+                <div x-show="mode === 'register'"
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0 translate-x-8"
+                     x-transition:enter-end="opacity-100 translate-x-0"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-x-0"
+                     x-transition:leave-end="opacity-0 -translate-x-8"
+                     x-cloak>
+
+                    <div class="form-header">
+                        <h2>{% trans "创建账号" %}</h2>
+                        <p>{% trans "加入法穿AI案件管理系统" %}</p>
+                        {% if is_first_user %}
+                        <div class="first-user-badge">🎉 {% trans "您将成为第一个用户，自动获得管理员权限" %}</div>
+                        {% else %}
+                        <div class="approval-badge">⏳ {% trans "注册后需等待管理员开通权限" %}</div>
+                        {% endif %}
+                    </div>
+
+                    {% if show_auto_register %}
+                    <div class="quick-experience">
+                        <h4>🚀 {% trans "快速体验" %}</h4>
+                        <p>{% trans "首次使用？一键创建默认超级管理员，立即可用。" %}</p>
+                        <div class="admin-credentials">
+                            <div class="cred-row"><span>{% trans "账号" %}</span><code>法穿</code></div>
+                            <div class="cred-row"><span>{% trans "密码" %}</span><code>1234qwer</code></div>
+                        </div>
+                        <form method="post" action="{% url 'admin_register' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="auto_register">
+                            <button type="submit" class="btn-gold">{% trans "自动注册默认管理员" %}</button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {% if reg_form and reg_form.non_field_errors %}
+                    <div class="error-banner">
+                        <span>⚠️</span>
+                        <span>{% for error in reg_form.non_field_errors %}{{ error }}{% endfor %}</span>
+                    </div>
+                    {% endif %}
+
+                    <form method="post" action="{% url 'admin_register' %}">
+                        {% csrf_token %}
+
+                        {% if reg_form %}
+                        {% for field in reg_form %}
+                        <div class="form-group">
+                            <label class="form-label" for="{{ field.id_for_label }}">
+                                {{ field.label }}{% if field.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {% if field.name == 'username' %}
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                <input type="text" name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="form-input" placeholder="{% trans '请输入中文姓名' %}" style="padding-left:36px;" value="{{ field.value|default:'' }}" {% if field.field.required %}required{% endif %}>
+                            </div>
+                            <p class="chinese-hint">⚠️ {% trans "只能输入中文" %}</p>
+                            {% elif field.name == 'password1' %}
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                                <input type="password" name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="form-input" placeholder="{% trans '至少8位，含字母和数字' %}" style="padding-left:36px;padding-right:38px;" oninput="checkStrength(this.value)" {% if field.field.required %}required{% endif %}>
+                                <button type="button" class="password-toggle" onclick="togglePwd('{{ field.id_for_label }}', this)">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="password-strength" id="pwd-strength">
+                                <div class="strength-bar" id="str-1"></div>
+                                <div class="strength-bar" id="str-2"></div>
+                                <div class="strength-bar" id="str-3"></div>
+                                <div class="strength-bar" id="str-4"></div>
+                            </div>
+                            <div class="strength-text" id="str-text"></div>
+                            {% elif field.name == 'password2' %}
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                </svg>
+                                <input type="password" name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="form-input" placeholder="{% trans '请再次输入密码' %}" style="padding-left:36px;" {% if field.field.required %}required{% endif %}>
+                            </div>
+                            {% else %}
+                            <div class="input-wrapper">
+                                <input type="text" name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="form-input" value="{{ field.value|default:'' }}" {% if field.field.required %}required{% endif %}>
+                            </div>
+                            {% endif %}
+                            {% if field.errors %}
+                            <ul class="error-list">
+                                {% for error in field.errors %}
+                                <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+
+                        <button type="submit" class="btn-primary">{% trans "注册" %}</button>
+                    </form>
+
+                    <div class="form-footer">
+                        {% trans "已有账号？" %}<a href="#" @click.prevent="switchTo('login')">{% trans "返回登录" %}</a>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 
     <script>
+        function authPanel() {
+            return {
+                mode: 'login',
+
+                init() {
+                    // 如果 URL hash 指向注册，或模板指定了注册模式
+                    {% if show_register %}
+                    this.mode = 'register';
+                    {% endif %}
+                    if (window.location.hash === '#register') {
+                        this.mode = 'register';
+                    }
+                },
+
+                switchTo(target) {
+                    this.mode = target;
+                    window.location.hash = target;
+                }
+            };
+        }
+
         function togglePwd(inputId, btn) {
             const input = document.getElementById(inputId);
             if (input.type === 'password') {
@@ -526,6 +823,34 @@
                 input.type = 'password';
                 btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
             }
+        }
+
+        function checkStrength(pwd) {
+            let score = 0;
+            if (pwd.length >= 8) score++;
+            if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+            if (/\d/.test(pwd)) score++;
+            if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+
+            const bars = [
+                document.getElementById('str-1'),
+                document.getElementById('str-2'),
+                document.getElementById('str-3'),
+                document.getElementById('str-4')
+            ];
+            const text = document.getElementById('str-text');
+            const levels = ['', 'weak', 'medium', 'medium', 'strong'];
+            const labels = ['', '{% trans "弱" %}', '{% trans "一般" %}', '{% trans "较强" %}', '{% trans "强" %}'];
+
+            bars.forEach((bar, i) => {
+                bar.className = 'strength-bar';
+                if (i < score) {
+                    bar.classList.add('active', levels[score]);
+                }
+            });
+
+            text.className = 'strength-text ' + levels[score];
+            text.textContent = pwd ? '{% trans "密码强度：" %}' + labels[score] : '';
         }
     </script>
 </body>

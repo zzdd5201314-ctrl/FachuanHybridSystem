@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth import login
+from django.contrib.auth.views import LoginView
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as _
@@ -11,6 +12,20 @@ from apps.organization.services.auth_service import AUTO_REGISTER_BOOTSTRAP_USER
 from .forms import LawyerRegistrationForm
 
 _auth_service = AuthService()
+
+
+class AuthLoginView(LoginView):
+    """自定义登录视图，向模板注入注册所需的上下文。"""
+
+    template_name = "admin/login.html"
+
+    def get_context_data(self, **kwargs: object) -> dict:
+        ctx = super().get_context_data(**kwargs)
+        ctx["is_first_user"] = _auth_service.is_first_user()
+        ctx["show_auto_register"] = _auth_service.should_show_auto_register()
+        ctx["reg_form"] = kwargs.get("reg_form", LawyerRegistrationForm())
+        ctx["show_register"] = False
+        return ctx
 
 
 def register(request: HttpRequest) -> HttpResponse:
@@ -29,7 +44,7 @@ def register(request: HttpRequest) -> HttpResponse:
             login(request, user)
             messages.success(
                 request,
-                _("已自动创建超级管理员账户“%(name)s”，并为您完成登录。")
+                _("已自动创建超级管理员账户\u201c%(name)s\u201d，并为您完成登录。")
                 % {"name": user.real_name or AUTO_REGISTER_BOOTSTRAP_USERNAME},
             )
             return redirect("admin:index")
@@ -64,11 +79,13 @@ def register(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "admin/register.html",
+        "admin/login.html",
         {
             "form": form,
+            "reg_form": form,
             "title": _("用户注册"),
             "is_first_user": is_first_user,
             "show_auto_register": show_auto_register,
+            "show_register": True,
         },
     )
