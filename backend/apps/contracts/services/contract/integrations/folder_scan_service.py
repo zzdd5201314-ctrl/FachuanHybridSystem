@@ -202,7 +202,9 @@ class ContractFolderScanService:
         work_log_suggestions: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         session = self.get_session(contract_id=contract_id, session_id=session_id)
-        if session.status not in {ContractFolderScanStatus.COMPLETED, ContractFolderScanStatus.IMPORTED}:
+        if session.status == ContractFolderScanStatus.IMPORTED:
+            raise ValidationException(message=_("该扫描已导入，请重新扫描"), errors={"status": session.status})
+        if session.status != ContractFolderScanStatus.COMPLETED:
             raise ValidationException(message=_("扫描尚未完成"), errors={"status": session.status})
 
         payload = dict(session.result_payload or {})
@@ -210,6 +212,7 @@ class ContractFolderScanService:
         candidate_map = {str(item.get("source_path") or ""): item for item in candidates}
 
         imported_count = 0
+        skipped_dupes = 0
         for item in items:
             if not bool(item.get("selected", True)):
                 continue
@@ -270,6 +273,19 @@ class ContractFolderScanService:
                 if archive_item_code:
                     material_kwargs["archive_item_code"] = archive_item_code
 
+                # 去重：同一合同下相同文件名+分类的材料不重复创建
+                if FinalizedMaterial.objects.filter(
+                    contract_id=contract_id,
+                    original_filename=display_name,
+                    category=category,
+                ).exists():
+                    skipped_dupes += 1
+                    logger.info(
+                        "material_duplicate_skipped",
+                        extra={"contract_id": contract_id, "filename": display_name, "category": category},
+                    )
+                    continue
+
                 FinalizedMaterial.objects.create(**material_kwargs)
                 imported_count += 1
             finally:
@@ -281,6 +297,7 @@ class ContractFolderScanService:
         confirmed_logs = work_log_suggestions or []
         payload["import_result"] = {
             "imported_count": imported_count,
+            "skipped_dupes": skipped_dupes,
             "imported_at": timezone.now().isoformat(),
         }
         payload["confirmed_work_log_suggestions"] = confirmed_logs
@@ -390,7 +407,7 @@ class ContractFolderScanService:
         confirmed_logs: list[dict[str, str]],
         actor_id: int | None = None,
     ) -> int:
-        """将确认的工作日志建议写入 CaseLog 模型。"""
+        """将确认的工作日志建议写入 CaseLog 模型，自动跳过已有相同内容的日志。"""
         if not confirmed_logs:
             return 0
 
@@ -404,10 +421,21 @@ class ContractFolderScanService:
 
         # 取合同的第一个案件写入日志
         case_id = int(cases_dto[0].id)
+
+        # 获取案件已有日志内容集合，用于去重
+        from apps.cases.models import CaseLog
+
+        existing_contents: set[str] = set(
+            CaseLog.objects.filter(case_id=case_id).values_list("content", flat=True)
+        )
+
         imported = 0
         for suggestion in confirmed_logs:
             content = str(suggestion.get("content") or "").strip()
             if not content:
+                continue
+            if content in existing_contents:
+                logger.info("work_log_duplicate_skipped", extra={"case_id": case_id, "content": content})
                 continue
             try:
                 case_service.create_case_log_internal(
@@ -415,6 +443,7 @@ class ContractFolderScanService:
                     content=content,
                     user_id=actor_id,
                 )
+                existing_contents.add(content)
                 imported += 1
             except Exception:
                 logger.exception(
