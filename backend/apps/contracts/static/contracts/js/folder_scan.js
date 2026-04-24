@@ -34,7 +34,7 @@
         scanError: '',
         pollTimer: null,
 
-        scanScopeMode: 'all',
+        scanScopeMode: 'subfolder',
         scanRootPath: '',
         scanSubfolderOptions: [],
         scanSubfolder: '',
@@ -167,7 +167,10 @@
               this.scanSubfolder = '';
             }
             if (!this.scanSubfolderOptions.length) {
-              this.scanScopeMode = 'all';
+              this.scanScopeMode = 'subfolder';
+              if (!this.hasSubfolderOptions) {
+                this.scanScopeMode = 'all';
+              }
             }
             this.subfoldersLoaded = true;
           } catch (err) {
