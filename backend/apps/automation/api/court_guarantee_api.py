@@ -14,7 +14,7 @@ from typing import Any
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_q.tasks import async_task
+from apps.core.tasking import submit_task
 from ninja import Router, Schema
 
 logger = logging.getLogger("apps.automation")
@@ -312,7 +312,7 @@ def retry_case_quote(request: HttpRequest, quote_id: int, payload: CaseQuoteOper
         ]
     )
 
-    async_task(
+    submit_task(
         "apps.automation.tasks.execute_preservation_quote_task",
         quote.id,
         task_name=f"询价任务重试 #{quote.id}",
@@ -1274,7 +1274,7 @@ def _run_guarantee(
 
         try:
             login_service = CourtZxfwService(page=page, context=context)
-            login_service._try_http_login = lambda *args, **kwargs: None
+            login_service._try_http_login = lambda *args, **kwargs: None  # type: ignore[method-assign]
             login_result = login_service.login(account=account, password=password)
             if not login_result.get("success"):
                 message = str(login_result.get("message") or "一张网登录失败")

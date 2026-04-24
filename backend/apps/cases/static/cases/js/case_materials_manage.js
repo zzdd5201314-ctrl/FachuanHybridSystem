@@ -21,21 +21,14 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  function normalizeCandidate(candidate, prefill) {
+  function normalizeCandidate(candidate, prefill, defaultCategory, supervisingAuthorities) {
     const material = candidate.material || null;
     const draft = prefill || {};
     const draftPartyIds = Array.isArray(draft.party_ids) ? draft.party_ids.map(String) : [];
     const draftAuthorityId = draft.supervising_authority_id ? String(draft.supervising_authority_id) : '';
-    const currentArchiveRelativePath = material
-      ? (material.archive_relative_path || '')
-      : (candidate.attachment_archive_relative_path || '');
-    const archivedFilePath = material
-      ? (material.archived_file_path || '')
-      : (candidate.attachment_archived_file_path || '');
-    const archivedAt = material
-      ? (material.archived_at || '')
-      : (candidate.attachment_archived_at || '');
-    const hasArchivedCopy = Boolean(archivedFilePath);
+    const dc = ['party', 'non_party'].includes(defaultCategory) ? defaultCategory : '';
+    const materialCategory = material ? (material.category || '') : '';
+    const singleAuthorityId = (supervisingAuthorities || []).length === 1 ? String(supervisingAuthorities[0].id) : '';
     const row = {
       attachmentId: candidate.attachment_id,
       fileName: candidate.file_name,
@@ -44,21 +37,18 @@
       uploadedAtDisplay: formatTime(candidate.uploaded_at),
       isBound: Boolean(material),
       materialId: material ? material.id : null,
-      category: material ? material.category : (draft.category || ''),
-      lastCategory: material ? material.category : (draft.category || ''),
-      side: material ? (material.side || '') : (draft.side || ''),
+      category: materialCategory || (draft.category || dc || ''),
+      lastCategory: materialCategory || (draft.category || dc || ''),
+      side: material ? (material.side || '') : (draft.side || (dc === 'party' ? 'our' : '')),
       partyIds: material ? (material.party_ids || []).map(String) : draftPartyIds,
       supervisingAuthorityId: material ? (material.supervising_authority_id || '') : draftAuthorityId,
       typeSelect: material && material.type_id ? String(material.type_id) : '',
       customTypeName: material && !material.type_id ? (material.type_name || '') : (draft.type_name_hint || ''),
-      archiveSelection: material ? (material.archive_relative_path || '') : '__auto__',
-      currentArchiveRelativePath,
-      archiveSuggestedRelativePath: candidate.archive_suggested_relative_path || '',
-      archiveSuggestedReason: candidate.archive_suggested_reason || '',
-      archivedFilePath,
-      archivedAt,
-      archivedAtDisplay: archivedAt ? formatTime(archivedAt) : '',
     };
+    // 非当事人材料且只有一个主管机关时，自动选择
+    if (row.category === 'non_party' && !row.supervisingAuthorityId && singleAuthorityId) {
+      row.supervisingAuthorityId = singleAuthorityId;
+    }
     if (!row.typeSelect && row.customTypeName) row.typeSelect = '__custom__';
     return row;
   }
@@ -97,9 +87,7 @@
         ourParties: config.ourParties || [],
         opponentParties: config.opponentParties || [],
         supervisingAuthorities: config.supervisingAuthorities || [],
-        archiveConfig: { enabled: false, writable: false, rootPath: '', message: '', folders: [] },
-        isLoadingArchiveConfig: false,
-        isRearchiving: false,
+        defaultCategory: ['party', 'non_party'].includes(config.defaultCategory) ? config.defaultCategory : '',
 
         rows: [],
         isLoading: false,
@@ -111,11 +99,11 @@
         message: '',
         messageType: 'success',
         messageTimer: null,
-        uploadCategory: 'party',
+        uploadCategory: ['party', 'non_party'].includes(config.defaultCategory) ? config.defaultCategory : 'party',
         lastUploadedIds: [],
         pendingFiles: [],
         searchKeyword: '',
-        filterCategory: 'all',
+        filterCategory: ['party', 'non_party'].includes(config.defaultCategory) ? config.defaultCategory : 'all',
         filterSide: '',
         filterAuthorityId: '',
         onlyUnfinished: false,
@@ -242,7 +230,13 @@
             this.scanSessionId = sessionFromQuery;
             this.scanPanelVisible = true;
           }
-          this.loadArchiveConfig();
+          // 从 URL 参数恢复 defaultCategory（覆盖配置中的值）
+          const categoryFromQuery = readQueryValue('category');
+          if (['party', 'non_party'].includes(categoryFromQuery)) {
+            this.defaultCategory = categoryFromQuery;
+            this.uploadCategory = categoryFromQuery;
+            this.filterCategory = categoryFromQuery;
+          }
           this.load();
           // 始终加载子文件夹列表，确保"指定子文件夹"选项可点击
           this.loadScanSubfolders(false);
@@ -272,6 +266,12 @@
           }
           this.redirectTimer = window.setTimeout(() => {
             this.redirectTimer = null;
+            // 根据 defaultCategory 设置返回详情页时激活的 Tab
+            if (this.defaultCategory === 'party') {
+              localStorage.setItem('caseDetailTab', 'party_materials');
+            } else if (this.defaultCategory === 'non_party') {
+              localStorage.setItem('caseDetailTab', 'non_party_materials');
+            }
             window.location.href = this.detailUrl;
           }, 900);
         },
@@ -302,114 +302,6 @@
           return [];
         },
 
-        loadArchiveConfig() {
-          this.isLoadingArchiveConfig = true;
-          return fetch(`/api/v1/cases/${this.caseId}/materials/archive-config`, {
-            headers: { 'X-CSRFToken': getCsrfToken() },
-          })
-            .then((resp) => {
-              if (!resp.ok) throw new Error('archive config failed');
-              return resp.json();
-            })
-            .then((data) => {
-              this.archiveConfig = {
-                enabled: Boolean(data && data.enabled),
-                writable: Boolean(data && data.writable),
-                rootPath: (data && data.root_path) || '',
-                message: (data && data.message) || '',
-                folders: Array.isArray(data && data.folders) ? data.folders : [],
-              };
-            })
-            .catch(() => {
-              this.archiveConfig = {
-                enabled: false,
-                writable: false,
-                rootPath: '',
-                message: '归档目录加载失败，当前仅保存材料分类。',
-                folders: [],
-              };
-            })
-            .finally(() => {
-              this.isLoadingArchiveConfig = false;
-            });
-        },
-
-        archiveFolderLabel(relativePath) {
-          const folders = (this.archiveConfig && this.archiveConfig.folders) || [];
-          const raw = relativePath || '';
-          const found = folders.find((item) => String(item.relative_path || '') === String(raw));
-          if (found && found.display_name) return found.display_name;
-          return raw || '案件根目录';
-        },
-
-        autoArchiveLabel(row) {
-          return `自动推荐 (${this.archiveFolderLabel(row && row.archiveSuggestedRelativePath)})`;
-        },
-
-        archiveReady() {
-          return Boolean(this.archiveConfig && this.archiveConfig.enabled && this.archiveConfig.writable);
-        },
-
-        archiveStatusLabel(row) {
-          if (!this.archiveReady()) {
-            return this.archiveConfig.message || '未绑定案件目录，当前不会自动归档。';
-          }
-          if (row && row.archivedFilePath) {
-            const currentLabel = this.archiveFolderLabel(row.currentArchiveRelativePath || row.archiveSuggestedRelativePath);
-            if (!row.archiveSelection || row.archiveSelection === '__auto__') {
-              if (
-                row.archiveSuggestedRelativePath &&
-                String(row.archiveSuggestedRelativePath) !== String(row.currentArchiveRelativePath || '')
-              ) {
-                return `已归档到: ${currentLabel}；保存后按推荐改到: ${this.archiveFolderLabel(row.archiveSuggestedRelativePath)}`;
-              }
-              return `已归档到: ${currentLabel}`;
-            }
-            if (String(row.archiveSelection) === String(row.currentArchiveRelativePath || '')) {
-              return `已归档到: ${currentLabel}`;
-            }
-            return `已归档到: ${currentLabel}；保存后改到: ${this.archiveFolderLabel(row.archiveSelection)}`;
-          }
-          if (row && row.archiveSelection === '__auto__') {
-            return `当前建议: ${this.archiveFolderLabel(row.archiveSuggestedRelativePath)}`;
-          }
-          return `保存时归档到: ${this.archiveFolderLabel(row && row.archiveSelection)}`;
-        },
-
-        archiveReasonLabel(row) {
-          if (!row || !row.archiveSuggestedReason) return '';
-          return row.archiveSuggestedReason;
-        },
-
-        async rearchiveExisting() {
-          if (this.isRearchiving) return;
-          if (!this.archiveReady()) {
-            this.showMessage(this.archiveConfig.message || '褰撳墠缁戝畾鐩綍涓嶅彲鐢紝鏃犳硶鎵ц閲嶆柊褰掓。', 'error');
-            return;
-          }
-
-          this.isRearchiving = true;
-          try {
-            const resp = await fetch(`/api/v1/cases/${this.caseId}/materials/rearchive`, {
-              method: 'POST',
-              headers: { 'X-CSRFToken': getCsrfToken() },
-            });
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok) {
-              throw new Error((data && (data.message || data.detail)) || '閲嶆柊褰掓。澶辫触');
-            }
-            await this.load();
-            this.showMessage(
-              `宸插鐞? ${(data && data.processed_count) || 0} 涓檮浠讹紝褰掓。 ${(data && data.archived_count) || 0} 涓紝璺宠繃 ${(data && data.skipped_count) || 0} 涓€?`,
-              'success'
-            );
-          } catch (err) {
-            this.showMessage((err && err.message) || '閲嶆柊褰掓。澶辫触', 'error');
-          } finally {
-            this.isRearchiving = false;
-          }
-        },
-
         isUserEvent(event) {
           if (!event) return true;
           if (event.isTrusted === undefined) return true;
@@ -434,6 +326,17 @@
           if (category && this.filterCategory === 'unclassified') {
             this.filterCategory = 'all';
             this.onFilterCategoryChange();
+          }
+        },
+
+        onScanCandidateCategoryChange(candidate) {
+          // 切换为非当事人材料且只有一个主管机关时，自动选择
+          if (candidate.category === 'non_party' && !candidate.supervising_authority_id && (this.supervisingAuthorities || []).length === 1) {
+            candidate.supervising_authority_id = String(this.supervisingAuthorities[0].id);
+          }
+          // 切换为当事人材料时，清空主管机关
+          if (candidate.category === 'party') {
+            candidate.supervising_authority_id = '';
           }
         },
 
@@ -498,16 +401,6 @@
           }
         },
 
-        onArchiveSelectionChange(row, event) {
-          if (!this.isUserEvent(event)) return;
-          const archiveSelection = row.archiveSelection || '';
-          if (this.shouldBroadcast(row)) {
-            this.broadcastToSelected((target) => {
-              target.archiveSelection = archiveSelection;
-            });
-          }
-        },
-
         applyCategory(row, category) {
           row.category = category;
           row.side = '';
@@ -515,6 +408,10 @@
           row.supervisingAuthorityId = '';
           row.typeSelect = '';
           row.customTypeName = '';
+          // 非当事人材料且只有一个主管机关时，自动选择
+          if (category === 'non_party' && (this.supervisingAuthorities || []).length === 1) {
+            row.supervisingAuthorityId = String(this.supervisingAuthorities[0].id);
+          }
         },
 
         isRowSelected(row) {
@@ -576,7 +473,7 @@
 
         resetFilters() {
           this.searchKeyword = '';
-          this.filterCategory = 'all';
+          this.filterCategory = this.defaultCategory || 'all';
           this.filterSide = '';
           this.filterAuthorityId = '';
           this.onlyUnfinished = false;
@@ -639,12 +536,13 @@
             .then((data) => {
               const uploadedSet = new Set(this.lastUploadedIds.map(String));
               const prefillMap = this.scanPrefillMap || {};
+              const dc = this.defaultCategory;
               this.rows = (data || []).map((c) => {
                 let prefill = prefillMap[String(c.attachment_id)] || null;
                 if (!prefill && uploadedSet.has(String(c.attachment_id))) {
-                  prefill = { category: this.uploadCategory };
+                  prefill = { category: dc || this.uploadCategory };
                 }
-                return normalizeCandidate(c, prefill);
+                return normalizeCandidate(c, prefill, this.defaultCategory, this.supervisingAuthorities);
               });
               const existing = new Set((this.rows || []).map((row) => String(row.attachmentId)));
               this.selectedIds = (this.selectedIds || []).map(String).filter((id) => existing.has(id));
@@ -814,15 +712,30 @@
         },
 
         normalizeScanCandidates(candidates) {
+          const dc = this.defaultCategory;
+          const singleAuthorityId = (this.supervisingAuthorities || []).length === 1 ? String(this.supervisingAuthorities[0].id) : '';
           return (candidates || []).map((candidate) => {
-            const category = ['party', 'non_party'].includes(candidate.suggested_category) ? candidate.suggested_category : '';
-            const side = category === 'party' && ['our', 'opponent'].includes(candidate.suggested_side) ? candidate.suggested_side : '';
+            let category = ['party', 'non_party'].includes(candidate.suggested_category) ? candidate.suggested_category : '';
+            let side = category === 'party' && ['our', 'opponent'].includes(candidate.suggested_side) ? candidate.suggested_side : '';
+            // 如果页面指定了 defaultCategory，覆盖扫描建议的分类
+            if (dc && category !== dc) {
+              category = dc;
+              side = dc === 'party' ? (side || 'our') : '';
+            }
             const partyIds = Array.isArray(candidate.suggested_party_ids)
               ? candidate.suggested_party_ids
                   .map((item) => parseInt(item, 10))
                   .filter((item) => Number.isInteger(item) && item > 0)
               : [];
             const supervisingAuthorityIdRaw = parseInt(candidate.suggested_supervising_authority_id, 10);
+            let authorityId =
+              category === 'non_party' && Number.isInteger(supervisingAuthorityIdRaw) && supervisingAuthorityIdRaw > 0
+                ? String(supervisingAuthorityIdRaw)
+                : '';
+            // 非当事人材料且只有一个主管机关时，自动选择
+            if (category === 'non_party' && !authorityId && singleAuthorityId) {
+              authorityId = singleAuthorityId;
+            }
             return {
               source_path: candidate.source_path,
               filename: candidate.filename,
@@ -831,10 +744,7 @@
               side: side,
               type_name_hint: candidate.type_name_hint || '',
               party_ids: category === 'party' ? partyIds : [],
-              supervising_authority_id:
-                category === 'non_party' && Number.isInteger(supervisingAuthorityIdRaw) && supervisingAuthorityIdRaw > 0
-                  ? supervisingAuthorityIdRaw
-                  : null,
+              supervising_authority_id: authorityId,
               reason: candidate.reason || '',
             };
           });
@@ -851,7 +761,7 @@
               category: candidate.category || 'unknown',
               side: candidate.side || 'unknown',
               type_name_hint: candidate.type_name_hint || '',
-              supervising_authority_id: candidate.category === 'non_party' ? candidate.supervising_authority_id || null : null,
+              supervising_authority_id: candidate.category === 'non_party' ? (candidate.supervising_authority_id ? parseInt(candidate.supervising_authority_id, 10) || null : null) : null,
               party_ids: candidate.category === 'party' ? candidate.party_ids || [] : [],
             }));
 
@@ -883,7 +793,11 @@
             this.lastUploadedIds = (data && data.attachment_ids) || [];
 
             if (data && data.materials_url) {
-              window.history.replaceState({}, '', data.materials_url);
+              const targetUrl = new URL(data.materials_url, window.location.href);
+              if (this.defaultCategory) {
+                targetUrl.searchParams.set('category', this.defaultCategory);
+              }
+              window.history.replaceState({}, '', targetUrl.toString());
             } else {
               this.syncScanSessionToUrl(this.scanSessionId);
             }
@@ -919,6 +833,10 @@
               url.searchParams.delete('scan_session');
             }
             url.searchParams.delete('open_scan');
+            // 保留 category 参数
+            if (this.defaultCategory) {
+              url.searchParams.set('category', this.defaultCategory);
+            }
             window.history.replaceState({}, '', url.toString());
           } catch (_) {
           }
@@ -946,7 +864,6 @@
               side: row.category === 'party' ? row.side : null,
               party_ids: row.category === 'party' ? (row.partyIds || []).map((x) => parseInt(x, 10)) : [],
               supervising_authority_id: row.category === 'non_party' ? row.supervisingAuthorityId : null,
-              archive_relative_path: row.archiveSelection === '__auto__' ? null : (row.archiveSelection || ''),
             };
             if (row.typeSelect === '__custom__') {
               item.type_id = null;
@@ -991,7 +908,7 @@
             if (!resp.ok) throw new Error('保存失败');
             const data = await resp.json();
             const count = (data && data.saved_count) || 0;
-            this.showMessage(`已保存 ${count} 条材料，归档 ${(data && data.archived_count) || 0} 个文件，正在返回案件详情...`, 'success');
+            this.showMessage(`已保存 ${count} 条材料分类，正在返回案件详情...`, 'success');
             this.lastUploadedIds = [];
             this.redirectToDetailAfterSave();
           } catch (err) {
@@ -1022,22 +939,14 @@
               if (!resp.ok) throw new Error('upload failed');
               return resp.json();
             })
-            .then(async (data) => {
+            .then((data) => {
               this.lastUploadedIds = (data && data.attachment_ids) || [];
               this.pendingFiles = [];
               this.recentUploadedCount = this.lastUploadedIds.length || files.length;
-              await this.load();
-              const archivedCount = (data && data.archived_count) || 0;
-              const archiveEnabled = Boolean(data && data.archive_enabled);
-              if (archivedCount > 0) {
-                this.showMessage(`上传成功，已自动归档 ${archivedCount} 个文件，请继续完善分类后保存`, 'success');
-                return;
-              }
-              if (archiveEnabled) {
-                this.showMessage('上传成功，请继续完善分类后保存', 'success');
-                return;
-              }
-              this.showMessage('上传成功，当前案件还没有可用的归档目录，请继续完善分类后保存', 'success');
+              this.showMessage('上传成功，正在刷新...', 'success');
+              window.setTimeout(() => {
+                window.location.reload();
+              }, 600);
             })
             .catch(() => {
               this.showMessage('上传失败', 'error');

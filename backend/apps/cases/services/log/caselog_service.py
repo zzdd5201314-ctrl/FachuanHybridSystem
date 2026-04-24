@@ -7,8 +7,6 @@ from typing import Any
 
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
-from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 
 from apps.cases.models import CaseLog, CaseLogAttachment, CaseLogVersion
 from apps.cases.services.case.case_access_policy import CaseAccessPolicy
@@ -95,7 +93,6 @@ class CaseLogService:
     def list_logs(
         self,
         case_id: int | None = None,
-        contract_id: int | None = None,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
@@ -111,11 +108,7 @@ class CaseLogService:
             日志查询集
         """
         return self.query_service.list_logs(
-            case_id=case_id,
-            contract_id=contract_id,
-            user=user,
-            org_access=org_access,
-            perm_open_access=perm_open_access,
+            case_id=case_id, user=user, org_access=org_access, perm_open_access=perm_open_access
         )
 
     def get_log(
@@ -146,12 +139,6 @@ class CaseLogService:
         self,
         case_id: int,
         content: str,
-        stage: str | None = None,
-        note: str = "",
-        logged_at: datetime | None = None,
-        log_type: str | None = None,
-        source: str | None = None,
-        is_pinned: bool = False,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
@@ -174,31 +161,12 @@ class CaseLogService:
         return self.mutation_service.create_log(
             case_id=case_id,
             content=content,
-            stage=stage,
-            note=note,
-            logged_at=logged_at,
-            log_type=log_type,
-            source=source,
-            is_pinned=is_pinned,
             user=user,
             org_access=org_access,
             perm_open_access=perm_open_access,
             reminder_type=reminder_type,
             reminder_time=reminder_time,
         )
-
-    def parse_datetime_input(self, value: str | None) -> datetime | None:
-        if not value:
-            return None
-        parsed = parse_datetime(value)
-        if parsed is None:
-            return None
-        if timezone.is_naive(parsed):
-            return timezone.make_aware(parsed, timezone.get_current_timezone())
-        return parsed
-
-    def parse_reminder_time(self, value: str | None) -> datetime | None:
-        return self.parse_datetime_input(value)
 
     def update_log(
         self,

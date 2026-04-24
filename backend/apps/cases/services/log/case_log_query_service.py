@@ -27,22 +27,14 @@ class CaseLogQueryService:
         self,
         *,
         case_id: int | None = None,
-        contract_id: int | None = None,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
-    ) -> QuerySet[CaseLog, CaseLog]:
-        qs = (
-            CaseLog.objects.all()
-            .order_by("-is_pinned", "-logged_at", "-created_at")
-            .select_related("actor", "case", "case__contract")
-            .prefetch_related("attachments__source_invoice")
-        )
+    ) -> QuerySet[Case, Case]:
+        qs = CaseLog.objects.all().order_by("-created_at").select_related("actor").prefetch_related("attachments")
 
         if case_id:
             qs = qs.filter(case_id=case_id)
-        if contract_id:
-            qs = qs.filter(case__contract_id=contract_id)
 
         if perm_open_access:
             return qs
@@ -80,10 +72,6 @@ class CaseLogQueryService:
 
     def get_log_internal(self, *, log_id: int) -> Any:
         try:
-            return (
-                CaseLog.objects.select_related("actor", "case", "case__contract")
-                .prefetch_related("attachments__source_invoice")
-                .get(id=log_id)
-            )
+            return CaseLog.objects.select_related("actor", "case").prefetch_related("attachments").get(id=log_id)
         except CaseLog.DoesNotExist:
             raise NotFoundError(_("日志 %(log_id)s 不存在") % {"log_id": log_id}) from None

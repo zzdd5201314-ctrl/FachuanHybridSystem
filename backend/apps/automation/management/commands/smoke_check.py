@@ -59,6 +59,9 @@ class Command(BaseCommand):
         parser.add_argument("--skip-upload", action="store_true", default=False)
         parser.add_argument("--skip-websocket", action="store_true", default=False)
         parser.add_argument("--skip-q", action="store_true", default=False)
+        parser.add_argument("--skip-disk", action="store_true", default=False)
+        parser.add_argument("--disk-warning-pct", type=float, default=85.0)
+        parser.add_argument("--disk-critical-pct", type=float, default=95.0)
 
     def handle(self, *args, **options: Any) -> None:  # type: ignore[no-untyped-def]
         self._database_path = None
@@ -76,6 +79,11 @@ class Command(BaseCommand):
             self._check_websocket(client, user)
         if not options.get("skip_q"):
             self._check_django_q()
+        if not options.get("skip_disk"):
+            self._check_disk_space(
+                warning_pct=options.get("disk_warning_pct", 85.0),
+                critical_pct=options.get("disk_critical_pct", 95.0),
+            )
         self.stdout.write(self.style.SUCCESS("✅ smoke_check 通过"))
 
     def _maybe_switch_sqlite_db(self, database_path: str | None) -> None:
@@ -103,7 +111,7 @@ class Command(BaseCommand):
                 staff_user.save(update_fields=["is_staff"])
             return staff_user
         smoke_password = getattr(settings, "SMOKE_ADMIN_PASSWORD", "smoke_admin_password")
-        return User.objects.create_superuser(  # type: ignore[attr-defined]
+        return User.objects.create_superuser(
             username=username, email="smoke_admin@example.com", password=smoke_password
         )
 
@@ -157,10 +165,10 @@ class Command(BaseCommand):
         import logging
 
         from django_q.models import Task
-        from django_q.tasks import async_task
+        from apps.core.tasking import submit_task
 
         logger = logging.getLogger(__name__)
-        task_id = async_task("apps.automation.management.commands.smoke_check.smoke_q_task", 20, 22)
+        task_id = submit_task("apps.automation.management.commands.smoke_check.smoke_q_task", 20, 22)
         env = dict(os.environ)
         env.setdefault("DJANGO_SETTINGS_MODULE", "apiSystem.settings")
         if self._database_path:
@@ -194,3 +202,26 @@ class Command(BaseCommand):
             logger.exception("操作失败")
             proc.kill()
         raise CommandError("django-q 冒烟失败:任务未在超时时间内完成")
+
+    def _check_disk_space(self, warning_pct: float, critical_pct: float) -> None:
+        from apps.core.tasking.cleanup_tasks import check_disk_space
+
+        result = check_disk_space(warning_pct=warning_pct, critical_pct=critical_pct)
+        status = result.get("status", "error")
+        if status == "critical":
+            raise CommandError(
+                f"磁盘空间严重不足: {result.get('used_pct')}% >= {critical_pct}% "
+                f"(可用 {result.get('available_gb', '?')}GB / 总计 {result.get('total_gb', '?')}GB)"
+            )
+        if status == "warning":
+            self.stdout.write(
+                self.style.WARNING(
+                    f"⚠️  磁盘空间警告: {result.get('used_pct')}% >= {warning_pct}% "
+                    f"(可用 {result.get('available_gb', '?')}GB / 总计 {result.get('total_gb', '?')}GB)"
+                )
+            )
+        else:
+            self.stdout.write(
+                f"💾 磁盘空间: {result.get('used_pct')}% "
+                f"(可用 {result.get('available_gb', '?')}GB / 总计 {result.get('total_gb', '?')}GB)"
+            )

@@ -5,7 +5,7 @@
  */
 
 import { useNavigate } from 'react-router'
-import { FolderOpen } from 'lucide-react'
+import { Briefcase, FolderOpen } from 'lucide-react'
 import { format } from 'date-fns'
 
 import {
@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { generatePath } from '@/routes/paths'
 import {
   type Case,
+  type SimpleCaseType,
   type CaseStatus,
   SIMPLE_CASE_TYPE_LABELS,
   CASE_STATUS_LABELS,
@@ -103,7 +104,7 @@ export function CaseTable({ cases, isLoading }: CaseTableProps) {
             <TableHead className="w-[80px]">状态</TableHead>
             <TableHead className="w-[100px]">负责律师</TableHead>
             <TableHead className="w-[100px]">当前阶段</TableHead>
-            <TableHead className="w-[110px]">收案日期</TableHead>
+            <TableHead className="w-[110px]">立案日期</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -125,7 +126,7 @@ export function CaseTable({ cases, isLoading }: CaseTableProps) {
                   <TableCell className="max-w-[260px]">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium line-clamp-2">{c.name}</span>
-                      {c.is_archived && <Badge variant="secondary" className="shrink-0 text-xs">已归档</Badge>}
+                      {c.is_filed && <Badge variant="secondary" className="shrink-0 text-xs">已建档</Badge>}
                     </div>
                   </TableCell>
                   <TableCell>

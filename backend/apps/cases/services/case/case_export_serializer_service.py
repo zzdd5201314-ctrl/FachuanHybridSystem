@@ -73,7 +73,7 @@ def serialize_case_obj(obj: Case) -> SerializedPayload:
         "target_amount": str(obj.target_amount) if obj.target_amount is not None else None,
         "preservation_amount": str(obj.preservation_amount) if obj.preservation_amount is not None else None,
         "current_stage": obj.current_stage,
-        "is_archived": obj.is_archived,
+        "is_filed": obj.is_filed,
         "effective_date": str(obj.effective_date) if obj.effective_date else None,
         "specified_date": str(obj.specified_date) if obj.specified_date else None,
         "parties": [{"legal_status": p.legal_status, "client": _serialize_client(p.client)} for p in obj.parties.all()],
@@ -99,23 +99,11 @@ def serialize_case_obj(obj: Case) -> SerializedPayload:
         ],
         "logs": [
             {
-                "case_id": log.case_id,
-                "case_name": log.case.name,
-                "contract_id": getattr(log.case, "contract_id", None),
-                "contract_name": getattr(getattr(log.case, "contract", None), "name", None),
-                "stage": log.stage,
-                "note": log.note,
-                "logged_at": log.logged_at.isoformat() if getattr(log, "logged_at", None) else None,
-                "log_type": log.log_type,
-                "log_type_display": log.get_log_type_display(),
-                "source": log.source,
-                "source_display": log.get_source_display(),
-                "is_pinned": log.is_pinned,
                 "content": log.content,
                 "created_at": log.created_at.isoformat(),
                 "actor": {"real_name": log.actor.real_name, "phone": log.actor.phone, "username": log.actor.username},
                 "attachments": [
-                    {"file_path": att.file.name, "filename": att.file.name.split("/")[-1]}
+                    {"file_path": att.file.name, "filename": att.file.name.split("/")[-1] if att.file.name else ""}
                     for att in log.attachments.all()
                     if att.file
                 ],

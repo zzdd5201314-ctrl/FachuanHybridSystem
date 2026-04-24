@@ -3,19 +3,16 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
 from typing import Any
 
 from django.db import transaction
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.cases.models import Case
 from apps.core.config.business_config import business_config
 from apps.core.exceptions import NotFoundError, ValidationException
 from apps.core.interfaces import IContractService
-from apps.core.security.access_context import AccessContext
-from apps.core.security.permissions import PermissionMixin
+from apps.core.security.permissions import AccessContext, PermissionMixin
 
 from .case_access_policy import CaseAccessPolicy
 from .case_queryset import get_case_queryset
@@ -90,42 +87,6 @@ class CaseCommandService(PermissionMixin):
                 errors={"contract_id": str(_("合同状态不是 active"))},
             )
 
-    def _get_contract_start_date(self, contract_id: int | None) -> date | None:
-        if not contract_id or not self._contract_service:
-            return None
-        contract = self._contract_service.get_contract(contract_id)
-        if not contract:
-            return None
-        return getattr(contract, "start_date", None)
-
-    def _resolve_default_start_date(self, contract_id: int | None) -> date:
-        return self._get_contract_start_date(contract_id) or timezone.localdate()
-
-    def _resolve_start_date_for_create(self, data: dict[str, Any]) -> date:
-        provided = data.get("start_date")
-        if provided:
-            return provided
-        return self._resolve_default_start_date(data.get("contract_id"))
-
-    def _should_refresh_start_date_from_contract(self, case: Case) -> bool:
-        if getattr(case, "start_date", None) is None:
-            return True
-        contract_start_date = self._get_contract_start_date(getattr(case, "contract_id", None))
-        return bool(contract_start_date and case.start_date == contract_start_date)
-
-    def _resolve_start_date_for_update(self, case: Case, data: dict[str, Any]) -> date:
-        if "start_date" in data:
-            provided = data.get("start_date")
-            if provided:
-                return provided
-            return self._resolve_default_start_date(data.get("contract_id", case.contract_id))
-
-        if "contract_id" in data and data.get("contract_id") != case.contract_id:
-            if self._should_refresh_start_date_from_contract(case):
-                return self._resolve_default_start_date(data.get("contract_id"))
-
-        return case.start_date or self._resolve_default_start_date(data.get("contract_id", case.contract_id))
-
     # ------------------------------------------------------------------
     # 公开命令方法
     # ------------------------------------------------------------------
@@ -154,7 +115,6 @@ class CaseCommandService(PermissionMixin):
         current_stage: str | None = data.get("current_stage")
         if current_stage:
             data["current_stage"] = self._resolve_stage_from_contract(contract_id, current_stage)
-        data["start_date"] = self._resolve_start_date_for_create(data)
 
         logger.info(
             "创建案件",
@@ -224,9 +184,6 @@ class CaseCommandService(PermissionMixin):
         if current_stage:
             check_contract_id = contract_id if contract_id else case.contract_id
             data["current_stage"] = self._resolve_stage_from_contract(check_contract_id, current_stage)
-
-        if "start_date" in data or "contract_id" in data or getattr(case, "start_date", None) is None:
-            data["start_date"] = self._resolve_start_date_for_update(case, data)
 
         for key, value in data.items():
             setattr(case, key, value)
@@ -331,6 +288,25 @@ class CaseCommandService(PermissionMixin):
 
     def unbind_cases_from_contract_internal(self, contract_id: int) -> int:
         return int(Case.objects.filter(contract_id=contract_id).update(contract=None))
+
+    def close_cases_by_contract_internal(self, contract_id: int) -> int:
+        """将合同下所有在办案件状态设为已结案"""
+        from apps.core.models.enums import CaseStatus
+
+        count = int(
+            Case.objects.filter(
+                contract_id=contract_id,
+                status=CaseStatus.ACTIVE,
+            ).update(status=CaseStatus.CLOSED)
+        )
+        if count:
+            logger.info(
+                "合同 %s 下 %d 个在办案件已自动结案",
+                contract_id,
+                count,
+                extra={"contract_id": contract_id, "closed_case_count": count},
+            )
+        return count
 
     def count_cases_by_contract(self, contract_id: int) -> int:
         return int(Case.objects.filter(contract_id=contract_id).count())

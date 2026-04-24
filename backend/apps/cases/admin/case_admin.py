@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, cast
+import logging
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from django.contrib import admin
 from django.http import HttpRequest
-from django.utils.translation import gettext_lazy as _
 
 from apps.cases.admin.base_admin import BaseModelAdmin, BaseStackedInline, BaseTabularInline
 from apps.cases.admin.case_chat_admin import CaseChatInline
-from apps.cases.admin.case_forms_admin import CaseAdminForm, SupervisingAuthorityInlineForm
+from apps.cases.admin.case_forms_admin import CaseAdminForm, CasePartyInlineForm, SupervisingAuthorityInlineForm
 from apps.cases.admin.mixins import (
     CaseAdminActionsMixin,
     CaseAdminSaveMixin,
@@ -29,14 +29,61 @@ from apps.core.admin.mixins import AdminImportExportMixin
 if TYPE_CHECKING:
     from django.db.models import QuerySet
 
+logger = logging.getLogger(__name__)
+
 
 class CasePartyInline(BaseTabularInline):
     """案件当事人内联编辑组件"""
 
     model = CaseParty
+    form = CasePartyInlineForm
     extra = 1
     fields = ("client", "legal_status")
     classes = ["contract-party-inline"]
+
+    def formfield_for_foreignkey(self, db_field: Any, request: HttpRequest, **kwargs: Any) -> Any:
+        """限制 client 下拉框只显示关联合同/补充协议的当事人"""
+        if db_field.name == "client":
+            from apps.client.models import Client
+            from apps.contracts.models import ContractParty, SupplementaryAgreementParty
+
+            contract_id = self._get_contract_id_from_request(request)
+            if contract_id:
+                # 合同直接当事人
+                contract_client_ids = list(
+                    ContractParty.objects.filter(contract_id=contract_id).values_list("client_id", flat=True)
+                )
+                # 补充协议当事人
+                sa_client_ids = list(
+                    SupplementaryAgreementParty.objects.filter(
+                        supplementary_agreement__contract_id=contract_id
+                    ).values_list("client_id", flat=True)
+                )
+                all_client_ids = set(contract_client_ids) | set(sa_client_ids)
+                if all_client_ids:
+                    kwargs["queryset"] = Client.objects.filter(id__in=all_client_ids)
+                else:
+                    kwargs["queryset"] = Client.objects.none()
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def _get_contract_id_from_request(self, request: HttpRequest) -> int | None:
+        """从请求 URL 或 GET 参数中获取当前案件关联的合同 ID"""
+        import re
+
+        from apps.cases.models import Case
+
+        # 从 URL 中提取 case_id
+        match = re.search(r"/cases/case/(\d+)/change", request.path)
+        if not match:
+            return None
+
+        case_id = int(match.group(1))
+        try:
+            case = Case.objects.select_related("contract").values("contract_id").get(pk=case_id)
+            return case["contract_id"]
+        except Case.DoesNotExist:
+            return None
 
     class Media:
         js = (
@@ -57,7 +104,7 @@ class SupervisingAuthorityInline(BaseTabularInline):
     model = SupervisingAuthority
     form = SupervisingAuthorityInlineForm
     extra = 1
-    fields = ("authority_type", "name", "handler_name", "handler_phone", "remarks")
+    fields = ("name", "authority_type")
 
 
 class CaseLogAttachmentInline(BaseTabularInline):
@@ -95,18 +142,13 @@ class CaseNumberInline(BaseStackedInline):
 
 class CaseLogInline(BaseStackedInline):
     model = CaseLog
-    template = "admin/cases/case/caselog_inline.html"
     extra = 0
-    fields = ("stage", "logged_at", "content", "note", "created_at")
+    fields = ("content", "created_at")
     exclude = ("actor",)
     readonly_fields = ("created_at",)
     show_change_link = True
     verbose_name = ""
     verbose_name_plural = "日志"
-
-    def get_queryset(self, request: HttpRequest):
-        queryset = super().get_queryset(request)
-        return queryset.select_related("actor").prefetch_related("attachments").order_by("-logged_at", "-created_at", "-pk")
 
     if BaseModelAdmin is not admin.ModelAdmin:
         pass
@@ -116,7 +158,7 @@ def serialize_case_obj(obj: Case) -> dict[str, object]:
     """将单个 Case 实例序列化为 dict（供 CaseAdmin 和 ContractAdmin 共用）。"""
     from apps.cases.services.case.case_export_serializer_service import serialize_case_obj as serialize_case_obj_service
 
-    return cast(dict[str, object], serialize_case_obj_service(obj))
+    return serialize_case_obj_service(obj)
 
 
 @admin.register(Case)
@@ -129,9 +171,17 @@ class CaseAdmin(
     BaseModelAdmin,
 ):
     form = CaseAdminForm
-    list_display = ("id_link", "name_link", "current_stage_display", "status", "start_date", "effective_date", "is_archived")
+    autocomplete_fields = ["contract"]
+
+    def changelist_view(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> Any:
+        from django.http import HttpResponseRedirect
+
+        if "status__exact" not in request.GET:
+            return HttpResponseRedirect(f"{request.path}?status__exact=active")
+        return super().changelist_view(request, extra_context=extra_context)
+    list_display = ("id_link", "name_link", "status", "start_date", "effective_date", "is_filed")
     list_display_links = None
-    list_filter = ("current_stage", "status", "is_archived")
+    list_filter = ("status", "is_filed")
     search_fields = ("name",)
     change_form_template = "admin/cases/case/change_form.html"
     readonly_fields = ("filing_number",)
@@ -144,6 +194,7 @@ class CaseAdmin(
             "cases/admin_case_form.js",
             "cases/js/autocomplete.js",
             "cases/js/autocomplete_init.js",
+            "cases/js/case_log_sort.js",
             "cases/js/litigation_fee.js",
         )
         css = {"all": ("cases/css/case_log_admin.css",)}
@@ -164,21 +215,12 @@ class CaseAdmin(
 
         case_svc = build_case_import_service_for_admin()
         admin_service = self._get_case_admin_service()
-        return cast(
-            tuple[int, int, list[str]],
-            admin_service.import_cases_from_json_data(data_list, case_import_service=case_svc),
-        )
+        return admin_service.import_cases_from_json_data(data_list, case_import_service=case_svc),
 
     def serialize_queryset(self, queryset: QuerySet[Case]) -> list[dict[str, object]]:
         service = self._get_case_admin_service()
-        return cast(list[dict[str, object]], service.serialize_queryset_for_export(queryset))
+        return service.serialize_queryset_for_export(queryset)
 
     def get_file_paths(self, queryset: QuerySet[Case]) -> list[str]:
         service = self._get_case_admin_service()
-        return cast(list[str], service.collect_file_paths_for_export(queryset))
-
-    def current_stage_display(self, obj: Case) -> str:
-        return obj.get_current_stage_display() if obj.current_stage else "-"
-
-    current_stage_display.short_description = _("当前阶段")  # type: ignore[attr-defined]
-    current_stage_display.admin_order_field = "current_stage"  # type: ignore[attr-defined]
+        return service.collect_file_paths_for_export(queryset)

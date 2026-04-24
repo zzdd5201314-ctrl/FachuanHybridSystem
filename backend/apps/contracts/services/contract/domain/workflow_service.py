@@ -78,11 +78,11 @@ class ContractWorkflowService:
                 case_create_data = {
                     "name": case_data.get("name"),
                     "contract_id": contract.id,
-                    "is_archived": case_data.get("is_archived", False),
+                    "is_filed": case_data.get("is_filed", False),
                     "case_type": case_data.get("case_type"),
                     "target_amount": case_data.get("target_amount"),
                 }
-                case_dto = self.case_service.create_case(case_create_data, user=user)
+                case_dto = self.case_service.create_case(case_create_data)
 
                 for lawyer_id in all_lawyer_ids:
                     self.case_service.create_case_assignment(case_dto.id, lawyer_id)

@@ -1,7 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% load static i18n %}
 
-{% block title %}传统文书转要素式文书{% endblock %}
+{% block title %}要素式转换{% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
@@ -142,8 +142,8 @@
 {% block breadcrumbs %}
 <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans "首页" %}</a>
-    &rsaquo; <a href="{% url 'admin:app_list' app_label='doc_convert' %}">{% trans "传统文书转换" %}</a>
-    &rsaquo; {% trans "文书转换工作台" %}
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='doc_convert' %}">{% trans "要素式转换" %}</a>
+    &rsaquo; {% trans "要素式转换工作台" %}
 </div>
 {% endblock %}
 
@@ -423,11 +423,14 @@
             var link = document.getElementById('downloadLink');
             link.href = url;
 
-            // 生成文件名：要素式{文书类型}{原始后缀}.docx
-            var mbidName = input.value.trim();
+            // 生成文件名：将"传统"替换为"要素式"
             var baseName = file.name.replace(/\.[^.]+$/, '');
-            var suffix = baseName.startsWith(mbidName) ? baseName.slice(mbidName.length) : baseName;
-            link.download = '要素式' + mbidName + suffix + '.docx';
+            var newName = baseName.replace('传统', '要素式');
+            // 如果原文件名不含"传统"，则在文件名前加"要素式"
+            if (newName === baseName) {
+                newName = '要素式' + baseName;
+            }
+            link.download = newName + '.docx';
 
             document.getElementById('resFilename').textContent = file.name;
             document.getElementById('resMbid').textContent = mbidName;

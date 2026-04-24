@@ -16,12 +16,12 @@ import {
 /**
  * API 基础路径
  */
-export const API_BASE_URL = 'http://localhost:8002/api/v1'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'
 
 /**
  * 后端根地址（用于拼接 media_url 等相对路径）
  */
-export const BACKEND_URL = 'http://localhost:8002'
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8002'
 
 /**
  * 将后端返回的相对路径转为完整 URL

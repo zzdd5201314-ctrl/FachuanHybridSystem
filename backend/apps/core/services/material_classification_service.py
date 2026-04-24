@@ -15,9 +15,29 @@ logger = logging.getLogger(__name__)
 class MaterialClassificationService:
     """为自动捕获场景提供合同/案件材料分类建议。"""
 
-    _CONTRACT_CATEGORIES = {"contract_original", "supplementary_agreement", "invoice"}
+    _CONTRACT_CATEGORIES = {
+        "contract_original",
+        "supplementary_agreement",
+        "invoice",
+        "supervision_card",
+        "case_material",
+    }
     _CASE_CATEGORIES = {"party", "non_party", "unknown"}
     _CASE_SIDES = {"our", "opponent", "unknown"}
+    _SUPERVISION_CARD_KEYWORDS = (
+        "监督卡",
+        "质量监督卡",
+        "服务质量监督卡",
+        "办案服务质量监督卡",
+        "律师办案服务质量监督卡",
+    )
+    _AUTHORIZATION_KEYWORDS = (
+        "授权委托书",
+        "授权委托",
+        "委托书",
+        "所函",
+        "律师函",
+    )
     _SUPPLEMENTARY_KEYWORDS = (
         "补充协议",
         "补充合同",
@@ -36,6 +56,46 @@ class MaterialClassificationService:
     _CONTRACT_KEYWORDS = (
         "合同",
         "协议",
+    )
+    # "合同"/"协议"出现在这些上下文中时，是案由/描述而非合同本身，应跳过
+    _CONTRACT_FALSE_POSITIVE_PATTERNS = (
+        "合同纠纷",
+        "协议纠纷",
+        "合同争议",
+        "协议争议",
+    )
+    # 诉讼/刑事文书关键词 — 命中时不应归为合同正本，应归为 archive_document
+    # （后续由归档分类器匹配到 case_material + archive_item_code）
+    _LITIGATION_DOCUMENT_KEYWORDS = (
+        "起诉状",
+        "起诉书",
+        "上诉状",
+        "上诉书",
+        "答辩状",
+        "答辩书",
+        "执行申请书",
+        "强制执行申请书",
+        "判决书",
+        "裁定书",
+        "调解书",
+        "代理词",
+        "辩护词",
+        "辩护意见",
+        "庭审笔录",
+        "开庭笔录",
+        "传票",
+        "出庭通知",
+        "阅卷笔录",
+        "会见笔录",
+        "谈话笔录",
+        "财产保全",
+        "限制高消费",
+        "限高令",
+        "终本裁定",
+        "不予立案",
+        "受理通知",
+        "举证通知",
+        "应诉通知",
     )
     _CASE_OPPONENT_HINTS = (
         "被申请人",
@@ -113,50 +173,63 @@ class MaterialClassificationService:
         },
     )
 
-    def classify_contract_material(self, *, filename: str, text_excerpt: str, enable_ai: bool = True) -> dict[str, Any]:
-        rule_suggestion = self._classify_contract_by_filename(filename)
-        if rule_suggestion is not None:
-            return rule_suggestion
+    # 文件夹路径关键词 — 路径包含这些时属于"合同发票"区域
+    _CONTRACT_INVOICE_FOLDER_KEYWORDS = (
+        "合同发票",
+        "合同及发票",
+    )
 
-        default = {
-            "category": "invoice",
-            "confidence": 0.0,
-            "reason": "未命中关键词规则，请手动确认",
-        }
-        if not enable_ai:
-            default["reason"] = "未启用识别，且未命中关键词规则"
-            return default
-
-        content = self._complete(
-            system_prompt=(
-                "你是合同材料分类助手。仅输出 JSON，不要输出其他内容。"
-                'JSON 结构: {"category":"contract_original|supplementary_agreement|invoice","confidence":0-1,"reason":"..."}'
-            ),
-            user_prompt=(f"文件名: {filename}\n请根据文件名和文本片段给出材料分类。\n文本片段:\n{text_excerpt[:1800]}"),
+    def classify_contract_material(
+        self,
+        *,
+        filename: str,
+        text_excerpt: str,
+        source_path: str = "",
+        enable_ai: bool = True,
+    ) -> dict[str, Any]:
+        # ── 最高优先级：文件夹路径分类 ──
+        # 路径包含"合同发票"→ 合同/发票区域；否则一律为案件材料
+        path_lower = (source_path or "").lower()
+        in_contract_invoice_folder = any(
+            kw in path_lower for kw in self._CONTRACT_INVOICE_FOLDER_KEYWORDS
         )
-        if not content:
-            default["reason"] = "AI 分类不可用，请手动确认"
-            return default
 
-        payload = self._extract_json(content)
-        if not isinstance(payload, dict):
-            default["reason"] = "AI 输出解析失败，请手动确认"
-            return default
+        if in_contract_invoice_folder:
+            # 在"合同发票"文件夹内，仅区分合同正本 / 补充协议 / 发票 / 监督卡
+            rule_suggestion = self._classify_contract_by_filename(filename)
+            if rule_suggestion is not None:
+                return rule_suggestion
+            # 未命中关键词，默认合同正本
+            return {
+                "category": "contract_original",
+                "confidence": 0.5,
+                "reason": "位于合同发票文件夹，默认为合同正本",
+            }
 
-        category = str(payload.get("category") or "invoice").strip()
-        if category not in self._CONTRACT_CATEGORIES:
-            category = "invoice"
-
+        # 不在"合同发票"文件夹 → 一律案件材料
         return {
-            "category": category,
-            "confidence": self._to_confidence(payload.get("confidence")),
-            "reason": str(payload.get("reason") or ""),
+            "category": "case_material",
+            "confidence": 0.95,
+            "reason": "非合同发票文件夹，归为案件材料",
         }
 
     def _classify_contract_by_filename(self, filename: str) -> dict[str, Any] | None:
+        """在"合同发票"文件夹内，根据文件名区分合同正本/补充协议/发票/监督卡。
+
+        此方法仅由 classify_contract_material 在确认文件位于"合同发票"文件夹后调用，
+        因此不需要处理诉讼文书排除逻辑。
+        """
         normalized = (filename or "").strip().lower()
         if not normalized:
             return None
+
+        for keyword in self._SUPERVISION_CARD_KEYWORDS:
+            if keyword in normalized:
+                return {
+                    "category": "supervision_card",
+                    "confidence": 0.98,
+                    "reason": f"命中文件名关键词：{keyword}",
+                }
 
         for keyword in self._SUPPLEMENTARY_KEYWORDS:
             if keyword in normalized:
@@ -174,8 +247,12 @@ class MaterialClassificationService:
                     "reason": f"命中文件名关键词：{keyword}",
                 }
 
+        # 检查"合同"/"协议"关键词，但排除"合同纠纷"等案由描述
         for keyword in self._CONTRACT_KEYWORDS:
             if keyword in normalized:
+                # 排除"合同纠纷"/"协议纠纷"等案由描述中的误匹配
+                if any(fp in normalized for fp in self._CONTRACT_FALSE_POSITIVE_PATTERNS):
+                    continue
                 return {
                     "category": "contract_original",
                     "confidence": 0.96,
@@ -507,8 +584,360 @@ class MaterialClassificationService:
 
         return None
 
-    @staticmethod
-    def _to_confidence(value: Any) -> float:
+    # ================================================================
+    # 归档材料分类（合同域 → 归档清单项）
+    # ================================================================
+
+    _ARCHIVE_FOLDER_KEYWORD_RULES: dict[str, dict[str, list[str]]] = {
+        # 归档分类 → { 文件夹名关键词 → archive_item_code }
+        # 匹配规则：文件夹路径中包含关键词时，该文件夹下的文件映射到对应清单项
+        "litigation": {
+            "起诉状": "lt_7",
+            "起诉书": "lt_7",
+            "上诉书": "lt_7",
+            "答辩状": "lt_7",
+            "答辩书": "lt_7",
+            "管辖依据": "lt_10",
+            "材料清单": "lt_10",
+            "证据材料": "lt_10",
+            "主要证据": "lt_10",
+            "送达地址": "lt_10",
+            "委托授权": "lt_20",
+            "授权委托": "lt_20",
+            "原被告身份": "lt_20",
+            "身份信息": "lt_20",
+            "财产保全": "lt_11",
+            "阅卷": "lt_8",
+            "会见": "lt_9",
+            "谈话笔录": "lt_9",
+            "代理词": "lt_15",
+            "代理意见": "lt_15",
+            "辩护意见": "lt_12",
+            "辩护词": "lt_12",
+            "庭审笔录": "lt_16",
+            "开庭笔录": "lt_16",
+            "出庭通知": "lt_14",
+            "传票": "lt_14",
+            "判决": "lt_17",
+            "裁定": "lt_17",
+            "调解书": "lt_17",
+            "终本裁定": "lt_17",
+            "执行申请书": "lt_7",
+            "执行依据": "lt_17",
+            "限制性措施": "lt_10",
+            "失信": "lt_10",
+            "收取执行款": "lt_10",
+            "续封": "lt_10",
+            "解除保全": "lt_11",
+        },
+        "criminal": {
+            "授权委托": "cr_18",
+            "委托授权": "cr_18",
+            "会见笔录": "cr_7",
+            "会见": "cr_7",
+            "取保候审": "cr_8",
+            "调查材料": "cr_8",
+            "不起诉申请": "cr_11",
+            "起诉书": "cr_11",
+            "辩护意见": "cr_12",
+            "辩护词": "cr_12",
+            "代理词": "cr_12",
+            "判决书": "cr_14",
+            "判决": "cr_14",
+            "裁定书": "cr_14",
+            "裁定": "cr_14",
+            "出庭通知": "cr_13",
+            "传票": "cr_13",
+        },
+        "non_litigation": {
+            "授权": "nl_12",
+            "委托书": "nl_12",
+            "委托材料": "nl_12",
+            "律师函": "nl_8",
+            "法律意见书": "nl_8",
+            "合同": "nl_9",
+            "修订版": "nl_9",
+            "批注版": "nl_9",
+        },
+    }
+
+    _ARCHIVE_FILENAME_RULES: dict[str, dict[str, str]] = {
+        # 归档分类 → { 文件名关键词 → archive_item_code }
+        "litigation": {
+            "起诉状": "lt_7",
+            "起诉书": "lt_7",
+            "上诉状": "lt_7",
+            "上诉书": "lt_7",
+            "答辩状": "lt_7",
+            "答辩书": "lt_7",
+            "执行申请书": "lt_7",
+            "强制执行申请书": "lt_7",
+            "续封申请书": "lt_7",
+            "授权委托书": "lt_20",
+            "所函": "lt_20",
+            "律师证": "lt_20",
+            "身份证": "lt_20",
+            "营业执照": "lt_20",
+            "送达地址确认书": "lt_10",
+            "财产保全申请书": "lt_11",
+            "阅卷笔录": "lt_8",
+            "会见笔录": "lt_9",
+            "谈话笔录": "lt_9",
+            "代理词": "lt_15",
+            "辩护词": "lt_12",
+            "庭审笔录": "lt_16",
+            "开庭笔录": "lt_16",
+            "出庭通知": "lt_14",
+            "传票": "lt_14",
+            "判决书": "lt_17",
+            "裁定书": "lt_17",
+            "调解书": "lt_17",
+            "终本裁定": "lt_17",
+            "民事调解书": "lt_17",
+            "限制高消费": "lt_10",
+            "限高令": "lt_10",
+            "查封": "lt_10",
+            "冻结": "lt_10",
+        },
+        "criminal": {
+            "授权委托书": "cr_18",
+            "所函": "cr_18",
+            "律师证": "cr_18",
+            "会见笔录": "cr_7",
+            "取保候审申请书": "cr_8",
+            "不起诉申请书": "cr_11",
+            "起诉书": "cr_11",
+            "辩护词": "cr_12",
+            "辩护意见": "cr_12",
+            "代理词": "cr_12",
+            "判决书": "cr_14",
+            "裁定书": "cr_14",
+            "出庭通知": "cr_13",
+            "传票": "cr_13",
+        },
+        "non_litigation": {
+            "授权委托书": "nl_12",
+            "所函": "nl_12",
+            "律师函": "nl_8",
+            "法律意见书": "nl_8",
+            "修订版": "nl_9",
+            "批注版": "nl_9",
+        },
+    }
+
+    def classify_archive_material(
+        self,
+        *,
+        filename: str,
+        source_path: str,
+        archive_category: str,
+        parent_folder_hint: str = "",
+    ) -> dict[str, Any]:
+        """根据文件夹路径和文件名，为合同域扫描的文件匹配归档清单项。
+
+        Args:
+            filename: 文件名（含扩展名）
+            source_path: 文件完整路径
+            archive_category: 归档分类 (litigation/criminal/non_litigation)
+            parent_folder_hint: 父文件夹名提示
+
+        Returns:
+            dict: {
+                "archive_item_code": str,  # 归档清单编号，空字符串表示未匹配
+                "archive_item_name": str,  # 归档清单项名称
+                "category": str,           # MaterialCategory 值
+                "confidence": float,       # 匹配置信度
+                "reason": str,             # 匹配原因
+            }
+        """
+        valid_categories = {"litigation", "criminal", "non_litigation"}
+        if archive_category not in valid_categories:
+            archive_category = "litigation"
+
+        # 1. 先尝试文件夹路径匹配（优先级最高，用户手动组织的分类最可靠）
+        folder_result = self._match_archive_by_folder(
+            source_path=source_path,
+            archive_category=archive_category,
+            parent_folder_hint=parent_folder_hint,
+        )
+        if folder_result:
+            return folder_result
+
+        # 2. 再尝试文件名匹配
+        filename_result = self._match_archive_by_filename(
+            filename=filename,
+            archive_category=archive_category,
+        )
+        if filename_result:
+            return filename_result
+
+        # 3. 使用 CASE_MATERIAL_KEYWORD_MAPPING 作为兜底
+        mapping_result = self._match_archive_by_keyword_mapping(
+            filename=filename,
+            source_path=source_path,
+            archive_category=archive_category,
+        )
+        if mapping_result:
+            return mapping_result
+
+        # 4. 未匹配
+        return {
+            "archive_item_code": "",
+            "archive_item_name": "未匹配",
+            "category": "case_material",
+            "confidence": 0.0,
+            "reason": "未命中归档清单规则，请手动选择归档清单项",
+        }
+
+    def _match_archive_by_folder(
+        self,
+        *,
+        source_path: str,
+        archive_category: str,
+        parent_folder_hint: str = "",
+    ) -> dict[str, Any] | None:
+        """通过文件夹路径匹配归档清单项。"""
+        rules = self._ARCHIVE_FOLDER_KEYWORD_RULES.get(archive_category, {})
+        if not rules:
+            return None
+
+        # 收集所有路径段（从source_path提取所有目录名）
+        path_parts = self._extract_path_parts(source_path)
+        # 也加上 parent_folder_hint
+        if parent_folder_hint:
+            path_parts.append(parent_folder_hint)
+
+        # 按优先级匹配：路径中越靠后（越靠近文件）的目录名优先
+        best_match: tuple[str, str] | None = None
+        for part in reversed(path_parts):
+            normalized_part = self._normalize_for_match(part)
+            for keyword, code in rules.items():
+                if self._normalize_for_match(keyword) in normalized_part:
+                    best_match = (keyword, code)
+                    break
+            if best_match:
+                break
+
+        if not best_match:
+            return None
+
+        keyword, code = best_match
+        item_name = self._get_archive_item_name(archive_category, code)
+        return {
+            "archive_item_code": code,
+            "archive_item_name": item_name,
+            "category": "case_material",
+            "confidence": 0.95,
+            "reason": f"命中文件夹关键词：{keyword} → {item_name}",
+        }
+
+    def _match_archive_by_filename(
+        self,
+        *,
+        filename: str,
+        archive_category: str,
+    ) -> dict[str, Any] | None:
+        """通过文件名匹配归档清单项。"""
+        rules = self._ARCHIVE_FILENAME_RULES.get(archive_category, {})
+        if not rules:
+            return None
+
+        normalized_filename = self._normalize_for_match(filename)
+
+        # 按关键词长度倒序匹配（更具体的关键词优先）
+        sorted_rules = sorted(rules.items(), key=lambda x: len(x[0]), reverse=True)
+        for keyword, code in sorted_rules:
+            if self._normalize_for_match(keyword) in normalized_filename:
+                item_name = self._get_archive_item_name(archive_category, code)
+                return {
+                    "archive_item_code": code,
+                    "archive_item_name": item_name,
+                    "category": "case_material",
+                    "confidence": 0.90,
+                    "reason": f"命中文件名关键词：{keyword} → {item_name}",
+                }
+
+        return None
+
+    def _match_archive_by_keyword_mapping(
+        self,
+        *,
+        filename: str,
+        source_path: str,
+        archive_category: str,
+    ) -> dict[str, Any] | None:
+        """通过 CASE_MATERIAL_KEYWORD_MAPPING 兜底匹配。"""
+        from apps.contracts.services.archive.constants import CASE_MATERIAL_KEYWORD_MAPPING
+
+        mapping = CASE_MATERIAL_KEYWORD_MAPPING.get(archive_category, {})
+        if not mapping:
+            return None
+
+        match_text = self._normalize_for_match(f"{source_path} {filename}")
+
+        for code, keywords in mapping.items():
+            for keyword in keywords:
+                if self._normalize_for_match(keyword) in match_text:
+                    item_name = self._get_archive_item_name(archive_category, code)
+                    return {
+                        "archive_item_code": code,
+                        "archive_item_name": item_name,
+                        "category": "case_material",
+                        "confidence": 0.80,
+                        "reason": f"命中关键词映射：{keyword} → {item_name}",
+                    }
+
+        return None
+
+    def _extract_path_parts(self, source_path: str) -> list[str]:
+        """从文件路径提取所有目录名（去掉编号前缀）。"""
+        from pathlib import Path
+
+        parts: list[str] = []
+        p = Path(source_path)
+        for part in p.parent.parts:
+            # 去掉编号前缀：1- / 2_ / 3. 等
+            cleaned = re.sub(r"^[\d]+[\s.\-_]*[\)）]?\s*", "", part).strip()
+            if (cleaned and cleaned != part) or len(cleaned) > 0:
+                parts.append(cleaned if cleaned else part)
+        return parts
+
+    def _get_archive_item_name(self, archive_category: str, code: str) -> str:
+        """根据归档分类和编号获取清单项名称。"""
+        from apps.contracts.services.archive.constants import ARCHIVE_CHECKLIST
+
+        checklist = ARCHIVE_CHECKLIST.get(archive_category, [])
+        for item in checklist:
+            if item.get("code") == code:
+                return str(item.get("name") or "")
+        return ""
+
+    def parse_work_log_from_folder_name(self, folder_name: str) -> dict[str, str] | None:
+        """从常法办案子文件夹名解析律师工作日志信息。
+
+        文件夹名格式：YYYY.MM.DD-事项名
+        例如：2025.01.23-知识产权合同 → {date: "2025-01-23", content: "审核知识产权合同"}
+
+        Args:
+            folder_name: 文件夹名
+
+        Returns:
+            解析结果或 None（不匹配时）
+        """
+        pattern = r"^(\d{4})[\.\-](\d{2})[\.\-](\d{2})[\s.\-_]+(.+)$"
+        match = re.match(pattern, folder_name.strip())
+        if not match:
+            return None
+
+        year, month, day, task = match.group(1), match.group(2), match.group(3), match.group(4)
+        date_str = f"{year}-{month}-{day}"
+
+        # 自动补全"审核"字段
+        content = f"审核{task.strip()}"
+
+        return {"date": date_str, "content": content}
+
+    def _to_confidence(self, value: Any) -> float:
         try:
             val = float(value)
         except (TypeError, ValueError):

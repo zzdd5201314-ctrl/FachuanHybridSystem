@@ -1,20 +1,27 @@
+/**
+ * 菜单配置
+ * 统一管理侧边栏和顶部导航的菜单结构
+ */
+
 import {
-  Briefcase,
-  Cog,
-  FileSearch,
-  FileText,
-  Inbox,
   LayoutDashboard,
-  Settings,
-  Shield,
-  User,
+  Inbox,
+  Briefcase,
+  FileText,
   Users,
   Zap,
+  Shield,
+  FileSearch,
+  Settings,
+  User,
+  Cog,
   type LucideIcon,
 } from 'lucide-react'
-
 import { PATHS } from '@/routes/paths'
 
+/**
+ * 菜单项
+ */
 export interface MenuItem {
   id: string
   icon: LucideIcon
@@ -23,6 +30,9 @@ export interface MenuItem {
   badge?: number
 }
 
+/**
+ * 菜单组
+ */
 export interface MenuGroup {
   id: string
   label: string
@@ -30,6 +40,9 @@ export interface MenuGroup {
   items: MenuItem[]
 }
 
+/**
+ * 顶级菜单项（无子菜单）
+ */
 export interface TopLevelMenuItem {
   id: string
   icon: LucideIcon
@@ -38,28 +51,42 @@ export interface TopLevelMenuItem {
   badge?: number
 }
 
+/**
+ * 菜单配置类型
+ */
 export type MenuConfig = (TopLevelMenuItem | MenuGroup)[]
 
+/**
+ * 判断是否为菜单组
+ */
 export function isMenuGroup(item: TopLevelMenuItem | MenuGroup): item is MenuGroup {
   return 'items' in item
 }
 
+/**
+ * 菜单配置
+ */
 export const menuConfig: MenuConfig = [
+  // 仪表盘 - 顶级菜单
   {
     id: 'dashboard',
     icon: LayoutDashboard,
     label: '仪表盘',
     path: PATHS.ADMIN_DASHBOARD,
   },
+
+  // 收件箱 - 顶级菜单
   {
     id: 'inbox',
     icon: Inbox,
     label: '收件箱',
     path: PATHS.ADMIN_INBOX,
   },
+
+  // 开始办案 - 菜单组
   {
     id: 'business',
-    label: '业务',
+    label: '开始办案',
     icon: Briefcase,
     items: [
       {
@@ -80,14 +107,10 @@ export const menuConfig: MenuConfig = [
         label: '案件',
         path: PATHS.ADMIN_CASES,
       },
-      {
-        id: 'logs',
-        icon: FileText,
-        label: '日志',
-        path: PATHS.ADMIN_LOGS,
-      },
     ],
   },
+
+  // 自动化工具 - 菜单组
   {
     id: 'automation',
     label: '自动化工具',
@@ -96,7 +119,7 @@ export const menuConfig: MenuConfig = [
       {
         id: 'preservation-quotes',
         icon: Shield,
-        label: '财产保全报价',
+        label: '财产保全询价',
         path: PATHS.ADMIN_AUTOMATION_QUOTES,
       },
       {
@@ -107,6 +130,8 @@ export const menuConfig: MenuConfig = [
       },
     ],
   },
+
+  // 设置 - 菜单组
   {
     id: 'settings',
     label: '设置',
@@ -121,13 +146,16 @@ export const menuConfig: MenuConfig = [
       {
         id: 'system-settings',
         icon: Cog,
-        label: '系统设置',
+        label: '系统配置',
         path: PATHS.ADMIN_SETTINGS_SYSTEM,
       },
     ],
   },
 ]
 
+/**
+ * 获取所有菜单路径（用于路由匹配）
+ */
 export function getAllMenuPaths(): string[] {
   const paths: string[] = []
 
@@ -144,6 +172,9 @@ export function getAllMenuPaths(): string[] {
   return paths
 }
 
+/**
+ * 根据路径查找所属的菜单组 ID
+ */
 export function findGroupByPath(pathname: string): string | null {
   for (const item of menuConfig) {
     if (isMenuGroup(item)) {
@@ -154,6 +185,5 @@ export function findGroupByPath(pathname: string): string | null {
       }
     }
   }
-
   return null
 }

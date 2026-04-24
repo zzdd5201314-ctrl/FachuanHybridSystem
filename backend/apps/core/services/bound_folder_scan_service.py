@@ -38,6 +38,18 @@ class BoundFolderScanService:
     _PATTERN_BRACKET = re.compile(r"^(?P<base>.*?)[\s._-]*[（(](?P<num>\d+)[）)]$")
     _PATTERN_COPY = re.compile(r"^(?P<base>.*?)[\s._-]*(?P<label>副本|复制)$")
 
+    # 合同域扫描时，除 PDF 外也扫描的文件扩展名
+    _CONTRACT_EXTRA_EXTENSIONS: frozenset[str] = frozenset({".docx", ".doc"})
+
+    # 合同域扫描时，识别为案件子文件夹的关键词
+    _CASE_SUBFOLDER_KEYWORDS: tuple[str, ...] = (
+        "一审", "二审", "执行", "再审", "会见辩护",
+        "立案材料", "递交给法院", "提交给法院", "法院反馈",
+    )
+
+    # 常法项目办案子文件夹关键词
+    _NON_LITIGATION_WORK_KEYWORDS: tuple[str, ...] = ("办案",)
+
     def __init__(
         self,
         *,
@@ -79,15 +91,18 @@ class BoundFolderScanService:
 
         candidates: list[dict[str, Any]] = []
 
+        # 合同域：仅凭文件名分类，无需提取 PDF 内容
+        is_contract_domain = domain == "contract"
+
         total = len(deduped)
         for idx, item in enumerate(deduped, start=1):
             current_file = item["path"].name
             progress = self._calc_progress(idx=idx, total=total)
 
-            self._notify(progress_callback, "extracting", progress, current_file)
             extraction_method = "none"
             text_excerpt = ""
-            if enable_recognition:
+            if enable_recognition and not is_contract_domain:
+                self._notify(progress_callback, "extracting", progress, current_file)
                 try:
                     extraction = self._text_extraction_service.extract_text(item["path"].as_posix())
                     extraction_method = extraction.extraction_method if extraction.success else "none"
@@ -157,14 +172,16 @@ class BoundFolderScanService:
         }
 
         if domain == "contract":
+            # 合同域仅凭文件名关键词 + 文件夹路径分类，不使用 AI
             suggestion = self._classification_service.classify_contract_material(
                 filename=path.name,
-                text_excerpt=text_excerpt,
-                enable_ai=enable_recognition,
+                text_excerpt="",
+                source_path=path.as_posix(),
+                enable_ai=False,
             )
             candidate.update(
                 {
-                    "suggested_category": suggestion.get("category", "invoice"),
+                    "suggested_category": suggestion.get("category", "archive_document"),
                     "confidence": float(suggestion.get("confidence", 0.0) or 0.0),
                     "reason": str(suggestion.get("reason") or ""),
                 }

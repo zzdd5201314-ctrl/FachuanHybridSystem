@@ -34,7 +34,7 @@ class IdCardValidateResponse(BaseModel):
     message: str
 
 
-router = Router(tags=["Client"])
+router = Router(tags=["客户管理"])
 
 
 def _get_query_facade() -> Any:
@@ -91,7 +91,7 @@ def parse_client_text(request: Any, payload: ParseTextRequest) -> dict[str, Any]
 @router.get("/parse-text")
 def parse_text_get(request: Any, text: str = "") -> dict[str, Any]:
     """解析客户文本（GET 方式）。"""
-    return cast(dict[str, Any], _parse_client(text))
+    return _parse_client(text)
 
 
 @router.post("/clients/validate-id-card", response=IdCardValidateResponse)

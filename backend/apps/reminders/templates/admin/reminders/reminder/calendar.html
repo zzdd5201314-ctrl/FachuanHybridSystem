@@ -523,7 +523,6 @@
                         data-event-courtroom="{{ event.courtroom|escape }}"
                         data-event-lawyer-name="{{ event.lawyer_name|escape }}"
                         data-event-url="{{ event.url }}"
-                        data-event-open-label="{{ event.open_label|escape }}"
                     >
                         <span class="reminder-event-top">
                             <span class="reminder-event-time">{{ event.time }}</span>
@@ -908,7 +907,6 @@
             }
             detailTarget.textContent = (card.dataset.eventTargetType || '') + ' · ' + (card.dataset.eventTargetName || '');
             detailOpenLink.href = card.dataset.eventUrl || '#';
-            detailOpenLink.textContent = card.dataset.eventOpenLabel || '详情';
             openModal(detailModal);
         });
     });

@@ -255,30 +255,6 @@ def save_uploaded_file(
     return str(rel_path).replace("\\", "/"), safe_original_name
 
 
-def validate_uploaded_file(
-    uploaded_file: Any,
-    *,
-    allowed_extensions: list[str] | None = None,
-    max_size_bytes: int | None = None,
-    field_name: str = "file",
-    file_validator: FileValidator | None = None,
-) -> Any:
-    validator = file_validator if file_validator is not None else _DefaultFileValidator()
-    return validator.validate_uploaded_file(
-        uploaded_file,
-        allowed_extensions=allowed_extensions,
-        max_size_bytes=max_size_bytes,
-        field_name=field_name,
-    )
-
-
-def resolve_stored_file_path(file_path: str) -> Path:
-    if is_absolute_path(file_path):
-        resolved = Path(file_path).expanduser().resolve()
-        return resolved
-    return to_media_abs(file_path)
-
-
 def delete_media_file(file_path: str) -> bool:
     if not file_path:
         return False
@@ -311,37 +287,12 @@ def delete_media_file(file_path: str) -> bool:
     return True
 
 
-def delete_stored_file(file_path: str) -> bool:
-    if not file_path:
-        return False
-
-    if not is_absolute_path(file_path):
-        return delete_media_file(file_path)
-
-    try:
-        resolved = Path(file_path).expanduser().resolve()
-    except Exception:
-        logger.exception("绝对路径解析失败", extra={"file_path": file_path})
-        return False
-
-    try:
-        resolved.unlink(missing_ok=True)
-    except Exception:
-        logger.exception("删除绝对路径文件失败", extra={"file_path": file_path})
-        return False
-
-    return True
-
-
 __all__ = [
     "_get_media_root",
-    "delete_stored_file",
     "delete_media_file",
     "is_absolute_path",
     "normalize_to_media_rel",
-    "resolve_stored_file_path",
     "sanitize_upload_filename",
     "save_uploaded_file",
     "to_media_abs",
-    "validate_uploaded_file",
 ]

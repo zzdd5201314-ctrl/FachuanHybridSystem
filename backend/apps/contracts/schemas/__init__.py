@@ -25,6 +25,7 @@ from .folder_binding_schemas import (
     FolderBrowseResponseSchema,
 )
 from .folder_scan_schemas import (
+    ArchiveItemOptionOut,
     ContractFolderScanCandidateOut,
     ContractFolderScanConfirmIn,
     ContractFolderScanConfirmItemIn,
@@ -35,6 +36,7 @@ from .folder_scan_schemas import (
     ContractFolderScanSubfolderListOut,
     ContractFolderScanSubfolderOptionOut,
     ContractFolderScanSummaryOut,
+    WorkLogSuggestionOut,
 )
 
 # Lawyer, Reminder, Case Schemas

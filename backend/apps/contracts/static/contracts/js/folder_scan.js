@@ -34,11 +34,16 @@
         scanError: '',
         pollTimer: null,
 
-        scanScopeMode: 'all',
+        scanScopeMode: 'subfolder',
         scanRootPath: '',
         scanSubfolderOptions: [],
         scanSubfolder: '',
         subfoldersLoaded: false,
+
+        // 归档相关
+        archiveCategory: '',
+        archiveItemOptions: [],
+        workLogSuggestions: [],
 
         get selectedCount() {
           return (this.scanCandidates || []).filter((item) => item.selected).length;
@@ -63,9 +68,13 @@
           return Array.isArray(this.scanSubfolderOptions) && this.scanSubfolderOptions.length > 0;
         },
 
+        get visibleCandidates() {
+          return (this.scanCandidates || []).filter((item) => !item.skip_reason);
+        },
+
         openModal() {
           if (!this.hasFolderBinding) {
-            this.scanError = this.texts.needBindFolder || '请先在“文档与提醒”中绑定文件夹';
+            this.scanError = this.texts.needBindFolder || '请先在"文档与提醒"中绑定文件夹';
             window.dispatchEvent(
               new CustomEvent('contract-folder-scan-needs-binding', { detail: { contractId: this.contractId } })
             );
@@ -76,12 +85,61 @@
           this.loadSubfolders(false);
           if (this.scanSessionId) {
             this.fetchStatus(true);
+          } else {
+            this.loadLatestSession();
+          }
+        },
+
+        async loadLatestSession() {
+          try {
+            const resp = await fetch(`/api/v1/contracts/${this.contractId}/folder-scan/latest`, {
+              headers: { 'X-CSRFToken': getCsrfToken() },
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) return;
+            if (!data || !data.session_id) return;
+            this.scanSessionId = data.session_id;
+            this.scanStatus = data.status || '';
+            this.scanProgress = data.progress || 0;
+            this.scanCurrentFile = data.current_file || '';
+            this.scanSummary = data.summary || { total_files: 0, deduped_files: 0, classified_files: 0 };
+            this.scanCandidates = this.normalizeCandidates(data.candidates || []);
+            this.scanError = data.error_message || '';
+            this.archiveCategory = data.archive_category || '';
+            this.archiveItemOptions = Array.isArray(data.archive_item_options) ? data.archive_item_options : [];
+            this.workLogSuggestions = Array.isArray(data.work_log_suggestions)
+              ? data.work_log_suggestions.map((item) => ({
+                  date: item.date || '',
+                  content: item.content || '',
+                }))
+              : [];
+            this.isScanning = ['pending', 'running', 'classifying'].includes(this.scanStatus);
+            if (this.isScanning) {
+              this.fetchStatus(true);
+            }
+          } catch (_e) {
+            // 静默忽略，用户可手动点扫描
           }
         },
 
         closeModal() {
           if (this.isScanning || this.isConfirming) return;
           this.isOpen = false;
+        },
+
+        openFolder() {
+          var contractId = this.contractId;
+          fetch('/admin/contracts/contract/' + contractId + '/open-folder/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+          })
+            .then(function (resp) { return resp.json(); })
+            .then(function (data) {
+              if (!data.success) {
+                alert(data.error || '打开文件夹失败');
+              }
+            })
+            .catch(function (err) { alert('请求失败: ' + (err.message || '未知错误')); });
         },
 
         clearPoll() {
@@ -109,7 +167,10 @@
               this.scanSubfolder = '';
             }
             if (!this.scanSubfolderOptions.length) {
-              this.scanScopeMode = 'all';
+              this.scanScopeMode = 'subfolder';
+              if (!this.hasSubfolderOptions) {
+                this.scanScopeMode = 'all';
+              }
             }
             this.subfoldersLoaded = true;
           } catch (err) {
@@ -154,6 +215,9 @@
           this.scanProgress = 0;
           this.scanCurrentFile = '';
           this.scanCandidates = [];
+          this.archiveCategory = '';
+          this.archiveItemOptions = [];
+          this.workLogSuggestions = [];
           this.clearPoll();
 
           fetch(`/api/v1/contracts/${this.contractId}/folder-scan`, {
@@ -208,6 +272,16 @@
               this.scanCandidates = this.normalizeCandidates((data && data.candidates) || []);
               this.scanError = (data && data.error_message) || '';
 
+              // 归档相关数据
+              this.archiveCategory = (data && data.archive_category) || '';
+              this.archiveItemOptions = Array.isArray(data && data.archive_item_options) ? data.archive_item_options : [];
+              this.workLogSuggestions = Array.isArray(data && data.work_log_suggestions)
+                ? data.work_log_suggestions.map((item) => ({
+                    date: item.date || '',
+                    content: item.content || '',
+                  }))
+                : [];
+
               this.isScanning = ['pending', 'running', 'classifying'].includes(this.scanStatus);
               if (keepPolling && this.isScanning) {
                 this.clearPoll();
@@ -227,29 +301,81 @@
         },
 
         normalizeCandidates(candidates) {
+          var validCategories = [
+            'contract_original', 'supplementary_agreement', 'invoice',
+            'supervision_card', 'case_material',
+          ];
           return (candidates || []).map((candidate) => {
-            const category = ['contract_original', 'supplementary_agreement', 'invoice'].includes(
-              candidate.suggested_category
-            )
-              ? candidate.suggested_category
-              : 'invoice';
+            var suggestedCategory = candidate.suggested_category || '';
+            // archive_document / authorization_material 归入案件材料
+            var category = validCategories.includes(suggestedCategory)
+              ? suggestedCategory
+              : 'case_material';
             return {
               source_path: candidate.source_path,
               filename: candidate.filename,
               selected: candidate.selected !== false,
               category: category,
               reason: candidate.reason || '',
+              archive_item_code: candidate.archive_item_code || '',
+              archive_item_name: candidate.archive_item_name || '',
+              is_docx: candidate.is_docx || false,
+              skip_reason: candidate.skip_reason || '',
             };
           });
         },
 
+        categoryLabel(category) {
+          var labels = {
+            'contract_original': '合同正本',
+            'supplementary_agreement': '补充协议',
+            'invoice': '发票',
+            'supervision_card': '监督卡',
+            'case_material': '案件材料',
+          };
+          return labels[category] || category;
+        },
+
+        isCaseMaterial(candidate) {
+          return candidate.category === 'case_material';
+        },
+
+        hasUnmatchedArchiveItem(candidate) {
+          return candidate.category === 'case_material' && !candidate.archive_item_code;
+        },
+
+        selectArchiveItem(candidate, code) {
+          var option = this.archiveItemOptions.find(function (opt) { return opt.code === code; });
+          if (option) {
+            candidate.archive_item_code = option.code;
+            candidate.archive_item_name = option.name;
+          }
+        },
+
+        addWorkLogEntry() {
+          this.workLogSuggestions.push({ date: '', content: '' });
+        },
+
+        removeWorkLogEntry(index) {
+          this.workLogSuggestions.splice(index, 1);
+        },
+
         confirmImport() {
           if (this.isConfirming || !this.scanSessionId) return;
-          const items = (this.scanCandidates || []).map((candidate) => ({
-            source_path: candidate.source_path,
-            selected: candidate.selected,
-            category: candidate.category || 'invoice',
-          }));
+          const items = (this.scanCandidates || [])
+            .filter((candidate) => !candidate.skip_reason)
+            .map((candidate) => ({
+              source_path: candidate.source_path,
+              selected: candidate.selected,
+              category: candidate.category || 'archive_document',
+              archive_item_code: candidate.archive_item_code || '',
+              is_docx: candidate.is_docx || false,
+            }));
+
+          // 过滤掉空的工作日志条目
+          const validWorkLogs = (this.workLogSuggestions || []).filter(
+            (entry) => entry.date && entry.content
+          );
 
           this.isConfirming = true;
           fetch(`/api/v1/contracts/${this.contractId}/folder-scan/${this.scanSessionId}/confirm`, {
@@ -258,7 +384,10 @@
               'Content-Type': 'application/json',
               'X-CSRFToken': getCsrfToken(),
             },
-            body: JSON.stringify({ items }),
+            body: JSON.stringify({
+              items: items,
+              work_log_suggestions: validWorkLogs,
+            }),
           })
             .then(async (resp) => {
               const data = await resp.json().catch(() => ({}));

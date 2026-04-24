@@ -135,7 +135,7 @@
             <div class="invoice-files-list" style="padding: 4px 0 8px 12px; border-left: 2px solid #e5e7eb; margin: 4px 0 8px 0;">
                 {% for inv in inv_list %}
                 <div class="invoice-file-item" style="display:flex;align-items:center;gap:8px;font-size:12px;padding:2px 0;">
-                    <a href="{% url 'admin:contracts_contractpayment_invoice_file' inv.pk %}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">{{ inv.original_filename }}</a>
+                    <a href="{{ media_url }}{{ inv.file_path }}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">{{ inv.original_filename }}</a>
                     <span style="color:#9ca3af;">{{ inv.uploaded_at|date:"Y-m-d H:i" }}</span>
                     {% if inv.remark %}<span style="color:#6b7280;">{{ inv.remark }}</span>{% endif %}
                 </div>

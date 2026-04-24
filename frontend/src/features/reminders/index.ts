@@ -12,7 +12,7 @@ export type {
   Reminder,
   ReminderInput,
   ReminderTypeOption,
-  ReminderFilters as ReminderFilterParams,
+  ReminderFilters,
 } from './types'
 
 export { REMINDER_TYPE_LABELS } from './types'

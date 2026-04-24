@@ -71,6 +71,7 @@ backend/apiSystem/htmlcov/
 .trae/
 # CodeBuddy IDE
 .codebuddy/
+.workbuddy/
 CODEBUDDY.md
 AGENTS.md
 **/AGENTS.md
@@ -80,13 +81,14 @@ agents.md
 .agents/
 /.playwright-cli/
 # Logs
-/logs/
+logs/
 # Testing
 .coverage
 htmlcov/
 .tox/
 .nox/
 .pytest_cache/
+test-results/
 .hypothesis/
 coverage.xml
 *.cover
@@ -98,6 +100,10 @@ backend/tests/screenshots/*.png
 backend/tests/screenshots/*.jpg
 backend/tests/screenshots/*.jpeg
 backend/tests/screenshots/*.webp
+**/screenshots/*.png
+**/screenshots/*.jpg
+**/screenshots/*.jpeg
+**/screenshots/*.webp
 # App tests (privacy: do not upload tests under backend/apps)
 backend/apps/**/tests/
 # enterprise_data tests（单独显式标注，便于团队检索）
@@ -217,3 +223,6 @@ extensions/
 
 # Local scratch notes
 .test/
+
+# 设计稿原型（本地参考，不入库）
+prototypes/

@@ -133,6 +133,16 @@ class CaseAdminViewsMixin:
                 self.admin_site.admin_view(self.upload_temp_document_view),  # type: ignore[attr-defined]
                 name="cases_casenumber_upload_temp",
             ),
+            path(
+                "<int:object_id>/open-folder/",
+                self.admin_site.admin_view(self.open_folder_view),
+                name="cases_case_open_folder",
+            ),
+            path(
+                "<int:object_id>/email-folder-import/",
+                self.admin_site.admin_view(self.email_folder_import_view),
+                name="cases_case_email_folder_import",
+            ),
         ]
         return custom_urls + urls
 
@@ -217,6 +227,13 @@ class CaseAdminViewsMixin:
 
         case_materials_view = self._build_case_materials_view(request, case)
 
+        # 检查案件文件夹路径可达性，先修复合同路径再检查案件路径
+        folder_path_auto_repaired = False
+        case_folder_binding = getattr(case, "folder_binding", None)
+        if case_folder_binding:
+            case_folder_service = self._get_case_folder_binding_service()  # type: ignore[attr-defined]
+            folder_path_auto_repaired = case_folder_service.check_and_repair_contract_path(case_folder_binding)
+
         template_binding_service = self._get_case_template_binding_service()  # type: ignore[attr-defined]
         bound_templates = template_binding_service.get_bindings_for_case(case.id)
         bound_templates_json = json_mod.dumps(bound_templates, ensure_ascii=False)
@@ -258,6 +275,7 @@ class CaseAdminViewsMixin:
                 "has_preservation_template": has_preservation_template,
                 "has_delay_delivery_template": has_delay_delivery_template,
                 "is_our_party_all_defendant": is_our_party_all_defendant,
+                "folder_path_auto_repaired": folder_path_auto_repaired,
             }
         )
 
@@ -270,7 +288,7 @@ class CaseAdminViewsMixin:
     ) -> list[tuple[str, list[dict[str, object]]]]:
         from apps.cases.services.case.case_admin_service import CaseAdminService
 
-        return CaseAdminService().group_templates_by_sub_type(templates, sub_type_choices)  # type: ignore[no-any-return]
+        return CaseAdminService().group_templates_by_sub_type(templates, sub_type_choices)
 
     def _build_case_materials_view(self, request: HttpRequest, case: Case) -> dict[str, object]:
         material_service = self._get_case_material_service()  # type: ignore[attr-defined]
@@ -302,6 +320,9 @@ class CaseAdminViewsMixin:
         scan_session_id = (request.GET.get("scan_session") or "").strip()
         open_scan_flag = (request.GET.get("open_scan") or "").strip().lower() in {"1", "true", "yes", "on"}
         open_scan = bool(scan_session_id) or open_scan_flag
+        default_category = (request.GET.get("category") or "").strip()
+        if default_category not in {"party", "non_party"}:
+            default_category = ""
 
         context = self.admin_site.each_context(request)  # type: ignore[attr-defined]
         context.update(
@@ -317,6 +338,7 @@ class CaseAdminViewsMixin:
                 "supervising_authorities_json": json_mod.dumps(payload["authorities"], ensure_ascii=False),
                 "scan_session_id": scan_session_id,
                 "open_scan": open_scan,
+                "default_category": default_category,
             }
         )
 
@@ -421,7 +443,18 @@ class CaseAdminViewsMixin:
 
         try:
             # 支持临时文件路径（未保存的情况）
-            temp_file_path = request.POST.get("temp_file_path")
+            # 前端以 application/json 发送，需从 request.body 解析
+            import json
+
+            temp_file_path = None
+            if request.body:
+                try:
+                    body = json.loads(request.body)
+                    temp_file_path = body.get("temp_file_path")
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            if not temp_file_path:
+                temp_file_path = request.POST.get("temp_file_path")
 
             if temp_file_path:
                 # 临时文件模式（未保存到数据库）
@@ -619,6 +652,120 @@ class CaseAdminViewsMixin:
         except Exception as e:
             logger.exception("临时文件上传失败")
             return JsonResponse({"success": False, "error": f"上传失败: {e}"}, status=500)
+
+    def open_folder_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """打开案件绑定的本地文件夹（Finder/资源管理器）"""
+        import platform
+        import subprocess
+        from pathlib import Path
+
+        from django.http import JsonResponse
+
+        if request.method != "POST":
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+        if not self.has_view_permission(request):  # type: ignore[attr-defined]
+            return JsonResponse({"success": False, "error": str(_("无权限"))}, status=403)
+
+        try:
+            from apps.cases.models.material import CaseFolderBinding
+
+            try:
+                binding = CaseFolderBinding.objects.get(case_id=object_id)
+            except CaseFolderBinding.DoesNotExist:
+                return JsonResponse({"success": False, "error": str(_("未绑定文件夹"))}, status=404)
+
+            folder_path = binding.resolved_folder_path
+            if not folder_path:
+                return JsonResponse({"success": False, "error": str(_("文件夹路径为空"))}, status=400)
+
+            folder = Path(folder_path).expanduser()
+            if not folder.exists():
+                return JsonResponse(
+                    {"success": False, "error": str(_("文件夹不存在: %(path)s") % {"path": folder_path})}, status=404
+                )
+
+            system = platform.system()
+            if system == "Darwin":
+                subprocess.Popen(["open", str(folder)])  # noqa: S607
+            elif system == "Windows":
+                subprocess.Popen(["explorer", str(folder)])  # noqa: S607
+            else:
+                subprocess.Popen(["xdg-open", str(folder)])  # noqa: S607
+
+            logger.info("已打开案件文件夹: %s, case_id=%s", folder_path, object_id)
+            return JsonResponse({"success": True, "folder_path": folder_path})
+        except Exception as e:
+            logger.exception("打开案件文件夹失败: case_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    def email_folder_import_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """从案件绑定文件夹的第一层级子目录批量导入案件日志"""
+        import json as json_mod
+
+        from django.http import JsonResponse
+
+        if not self.has_view_permission(request):  # type: ignore[attr-defined]
+            return JsonResponse({"success": False, "error": str(_("无权限"))}, status=403)
+
+        try:
+            from apps.cases.models.material import CaseFolderBinding
+
+            binding = CaseFolderBinding.objects.filter(case_id=object_id).first()
+            if not binding or not binding.resolved_folder_path:
+                return JsonResponse({"success": False, "error": str(_("未绑定文件夹"))}, status=404)
+
+            if request.method == "GET":
+                # 列出第一层级所有子文件夹，让用户自己选
+                from pathlib import Path
+
+                root = Path(binding.resolved_folder_path).expanduser().resolve()
+                if not root.exists():
+                    return JsonResponse({"success": False, "error": str(_("文件夹不存在"))}, status=404)
+
+                subfolders = []
+                for child in sorted(root.iterdir(), key=lambda item: item.name.lower()):
+                    if not child.is_dir() or child.name.startswith("."):
+                        continue
+                    subfolders.append({
+                        "relative_path": child.name,
+                        "display_name": child.name,
+                    })
+
+                return JsonResponse({"success": True, "subfolders": subfolders})
+
+            if request.method == "POST":
+                # 执行导入
+                body = json_mod.loads(request.body) if request.body else {}
+                subfolder = body.get("subfolder", "")
+                if not subfolder:
+                    return JsonResponse({"success": False, "error": str(_("请指定子文件夹"))}, status=400)
+
+                from apps.cases.services.log.email_folder_scan_service import EmailFolderScanService
+
+                service = EmailFolderScanService()
+                result = service.import_email_folder(
+                    case_id=object_id,
+                    subfolder=subfolder,
+                    user=getattr(request, "user", None),
+                    org_access=getattr(request, "org_access", None),
+                    perm_open_access=getattr(request, "perm_open_access", False),
+                )
+
+                log_count = len(result["logs"])
+                skipped = result["skipped_count"]
+                msg = str(_("导入完成：新增 %(count)s 条日志，跳过 %(skipped)s 条（已存在）")) % {
+                    "count": log_count,
+                    "skipped": skipped,
+                }
+                logger.info("案件 %s 邮件导入完成: 新增=%s, 跳过=%s", object_id, log_count, skipped)
+                return JsonResponse({"success": True, "message": msg, "imported_count": log_count, "skipped_count": skipped})
+
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+        except Exception as e:
+            logger.exception("邮件文件夹导入失败: case_id=%s", object_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
 
     def _coerce_optional_date(self, raw: object) -> date | None:
         if raw is None:

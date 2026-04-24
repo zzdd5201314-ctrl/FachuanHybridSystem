@@ -10,9 +10,9 @@ from typing import Any
 
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_q.tasks import async_task
 
 from apps.automation.models import CourtSMS, CourtSMSStatus, ScraperTaskStatus
+from apps.core.tasking import ScheduleQueryService, submit_task
 
 logger = logging.getLogger("apps.automation")
 
@@ -195,7 +195,7 @@ class TaskRecoveryService:
         # 根据当前状态决定恢复策略
         if sms.status == CourtSMSStatus.PENDING:
             # 待处理状态，直接提交处理任务
-            async_task(
+            submit_task(
                 "apps.automation.services.sms.court_sms_service.process_sms_async",
                 sms.id,
                 task_name=f"court_sms_recovery_{sms.id}",
@@ -204,7 +204,7 @@ class TaskRecoveryService:
         elif sms.status == CourtSMSStatus.DOWNLOAD_FAILED:
             # 下载失败，检查是否可以重试
             if sms.retry_count < self.max_retry_count:
-                async_task(
+                submit_task(
                     "apps.automation.services.sms.court_sms_service.retry_download_task",
                     sms.id,
                     task_name=f"court_sms_retry_recovery_{sms.id}",
@@ -217,8 +217,22 @@ class TaskRecoveryService:
                 return False
 
         elif sms.status in [CourtSMSStatus.MATCHING, CourtSMSStatus.RENAMING, CourtSMSStatus.NOTIFYING]:
+            # 匹配阶段的特殊保护：如果重试次数已达上限（通常因 OCR 导致 worker OOM），
+            # 直接标记为待人工处理，避免无限循环
+            if sms.status == CourtSMSStatus.MATCHING and sms.retry_count >= self.max_retry_count:
+                logger.warning(
+                    f"短信 {sms.id} 匹配阶段重试次数已达 {sms.retry_count} 次，"
+                    f"疑似 OCR 内存不足导致 worker 反复崩溃，标记为待人工处理"
+                )
+                sms.status = CourtSMSStatus.PENDING_MANUAL
+                sms.error_message = str(
+                    _("匹配阶段反复失败（已重试%(count)d次），可能因OCR内存不足导致处理中断，需要人工处理")
+                ) % {"count": sms.retry_count}
+                sms.save()
+                return False
+
             # 处理中状态，继续处理
-            async_task(
+            submit_task(
                 "apps.automation.services.sms.court_sms_service.process_sms_async",
                 sms.id,
                 task_name=f"court_sms_continue_recovery_{sms.id}",
@@ -232,7 +246,7 @@ class TaskRecoveryService:
                     sms.status = CourtSMSStatus.MATCHING
                     sms.save()
 
-                    async_task(
+                    submit_task(
                         "apps.automation.services.sms.court_sms_service.process_sms_async",
                         sms.id,
                         task_name=f"court_sms_download_complete_recovery_{sms.id}",
@@ -243,7 +257,7 @@ class TaskRecoveryService:
                     sms.save()
 
                     if sms.retry_count < self.max_retry_count:
-                        async_task(
+                        submit_task(
                             "apps.automation.services.sms.court_sms_service.retry_download_task",
                             sms.id,
                             task_name=f"court_sms_download_retry_recovery_{sms.id}",
@@ -261,7 +275,7 @@ class TaskRecoveryService:
                 sms.status = CourtSMSStatus.PARSING
                 sms.save()
 
-                async_task(
+                submit_task(
                     "apps.automation.services.sms.court_sms_service.process_sms_async",
                     sms.id,
                     task_name=f"court_sms_reparse_recovery_{sms.id}",
@@ -269,7 +283,7 @@ class TaskRecoveryService:
 
         else:
             # 其他状态，重新处理
-            async_task(
+            submit_task(
                 "apps.automation.services.sms.court_sms_service.process_sms_async",
                 sms.id,
                 task_name=f"court_sms_general_recovery_{sms.id}",
@@ -284,20 +298,16 @@ class TaskRecoveryService:
         Args:
             interval_minutes: 检查间隔（分钟）
         """
-        # 删除已存在的定期任务
-        from django_q.models import Schedule
-        from django_q.tasks import schedule
+        schedule_service = ScheduleQueryService()
 
-        Schedule.objects.filter(
-            func="apps.automation.services.sms.task_recovery_service.periodic_recovery_task"
-        ).delete()
+        # 删除已存在的定期任务
+        schedule_service.delete_schedules(func="apps.automation.services.sms.task_recovery_service.periodic_recovery_task")
 
         # 创建新的定期任务
-        schedule(
-            "apps.automation.services.sms.task_recovery_service.periodic_recovery_task",
-            schedule_type="I",  # 间隔执行
-            minutes=interval_minutes,
+        schedule_service.create_interval_schedule(
+            func="apps.automation.services.sms.task_recovery_service.periodic_recovery_task",
             name="court_sms_periodic_recovery",
+            minutes=interval_minutes,
         )
 
         logger.info(f"已安排定期恢复任务，间隔 {interval_minutes} 分钟")

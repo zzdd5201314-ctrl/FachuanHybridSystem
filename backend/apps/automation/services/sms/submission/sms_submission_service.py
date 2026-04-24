@@ -15,9 +15,8 @@ from typing import TYPE_CHECKING, Optional
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_q.tasks import async_task
-
 from apps.automation.models import CourtSMS, CourtSMSStatus
+from apps.core.tasking import submit_task
 from apps.core.exceptions import NotFoundError, ValidationException
 
 if TYPE_CHECKING:
@@ -109,7 +108,7 @@ class SMSSubmissionService:
             logger.info(f"创建短信记录成功: ID={sms.id}, 长度={len(content)}")
 
             # 提交异步处理任务
-            task_id = async_task(
+            task_id = submit_task(
                 "apps.automation.services.sms.court_sms_service.process_sms_async",
                 sms.id,
                 task_name=f"court_sms_processing_{sms.id}",
@@ -169,13 +168,13 @@ class SMSSubmissionService:
                 logger.info(f"案件绑定创建成功，进入重命名阶段: SMS ID={sms_id}")
             else:
                 sms.status = CourtSMSStatus.FAILED
-                sms.error_message = _("创建案件绑定失败")
+                sms.error_message = str(_("创建案件绑定失败"))
                 sms.save()
                 logger.error(f"案件绑定创建失败: SMS ID={sms_id}")
                 return sms
 
             # 触发后续处理流程（从重命名阶段开始）
-            task_id = async_task(
+            task_id = submit_task(
                 "apps.automation.services.sms.court_sms_service.process_sms_from_renaming",
                 sms.id,
                 task_name=f"court_sms_continue_{sms.id}",
@@ -227,7 +226,7 @@ class SMSSubmissionService:
             logger.info(f"重置短信状态成功: SMS ID={sms_id}, 重试次数={sms.retry_count}")
 
             # 重新提交处理任务
-            task_id = async_task(
+            task_id = submit_task(
                 "apps.automation.services.sms.court_sms_service.process_sms_async",
                 sms.id,
                 task_name=f"court_sms_retry_{sms.id}_{sms.retry_count}",

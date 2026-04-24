@@ -66,4 +66,17 @@ DEFAULT_DOCUMENT_TEMPLATES = [
         "legal_status_match_mode": "any",
         "is_active": True,
     },
+    {
+        "name": "财产保全申请书",
+        "template_type": "case",
+        "contract_sub_type": None,
+        "case_sub_type": "property_preservation_materials",
+        "file_path": "2-案件材料/1-起诉材料/2-财产保全材料/财产保全申请书.docx",
+        "contract_types": [],
+        "case_types": ["civil"],
+        "case_stages": ["all"],
+        "legal_statuses": ["plaintiff", "applicant"],
+        "legal_status_match_mode": "any",
+        "is_active": True,
+    },
 ]

@@ -53,6 +53,7 @@ class SystemConfigAdmin(admin.ModelAdmin[SystemConfig]):
             "feishu": "#3370ff",
             "dingtalk": "#0089ff",
             "wechat_work": "#07c160",
+            "telegram": "#0088cc",
             "court_sms": "#ff6b35",
             "ai": "#9c27b0",
             "llm": "#e91e63",
@@ -113,19 +114,10 @@ class SystemConfigAdmin(admin.ModelAdmin[SystemConfig]):
     def changelist_view(self, request: Any, extra_context: Any = None) -> Any:
         """自定义列表页面"""
         extra_context = extra_context or {}
-        system_update_state = self._get_system_update_service().get_state()
-        options = system_update_state.get("options")
-        enable_post_update_setup_default = False
-        if isinstance(options, dict):
-            enable_post_update_setup_default = bool(options.get("enable_post_update_setup"))
 
         extra_context["show_init_button"] = True
         extra_context["show_sync_button"] = True
         extra_context["show_clear_cache_button"] = True
-        extra_context["show_trigger_update_button"] = True
-        extra_context["system_update_trigger_url"] = reverse("admin:core_systemconfig_trigger_update")
-        extra_context["system_update_state"] = system_update_state
-        extra_context["system_update_enable_post_update_setup_default"] = enable_post_update_setup_default
         extra_context["has_add_permission"] = self.has_add_permission(request)
         return super().changelist_view(request, extra_context=extra_context)
 
@@ -230,11 +222,11 @@ class SystemConfigAdmin(admin.ModelAdmin[SystemConfig]):
 
     def _get_default_configs(self) -> list[dict[str, Any]]:
         """委托给模块级函数"""
-        return cast(list[dict[str, Any]], get_default_configs())
+        return get_default_configs()
 
     def _get_env_mappings(self) -> dict[str, dict[str, Any]]:
         """委托给模块级函数"""
-        return cast(dict[str, dict[str, Any]], get_env_mappings())
+        return get_env_mappings()
 
     def _mask_secret_value(self, value: str) -> str:
         plain_value = value

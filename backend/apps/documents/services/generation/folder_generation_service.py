@@ -11,13 +11,14 @@ from __future__ import annotations
 import logging
 import zipfile
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.exceptions import NotFoundError, ValidationException
+from apps.core.models.enums import CaseType
 
 if TYPE_CHECKING:
     from apps.core.interfaces import IContractService
@@ -93,10 +94,8 @@ class FolderGenerationService:
         """
         格式化根目录文件夹名称
 
-        格式:{合同名称}-{日期}
-        示例:奥创公司案件-2026.01.02
-
-        日期优先使用 start_date，其次使用 specified_date，最后回退到当天日期。
+        格式:{日期}-[{合同类型显示名}]{合同名称}
+        示例:2026.01.02-[民商事]奥创公司案件
 
         Args:
             contract: 合同数据(Contract 实例或 ContractDataWrapper)
@@ -104,25 +103,17 @@ class FolderGenerationService:
         Returns:
             格式化后的文件夹名称
         """
-        raw_folder_date = (
-            getattr(contract, "start_date", None)
-            or getattr(contract, "specified_date", None)
-            or date.today()
-        )
-        if isinstance(raw_folder_date, datetime):
-            folder_date = raw_folder_date.date()
-        elif isinstance(raw_folder_date, date):
-            folder_date = raw_folder_date
-        elif isinstance(raw_folder_date, str):
-            normalized_date = raw_folder_date.strip().replace("/", "-").replace(".", "-")
-            try:
-                folder_date = date.fromisoformat(normalized_date)
-            except ValueError:
-                folder_date = date.today()
-        else:
-            folder_date = date.today()
+        # 获取当前日期
+        today = date.today().strftime("%Y.%m.%d")
+
+        # 获取合同类型中文显示名
+        case_type = getattr(contract, "case_type", None)
+        case_type_display = dict(CaseType.choices).get(case_type, case_type or "未知类型")
+        # 获取合同名称
         contract_name = getattr(contract, "name", None) or "未命名合同"
-        return f"{contract_name}-{folder_date.strftime('%Y.%m.%d')}"
+
+        # 组合格式化名称
+        return f"{today}-[{case_type_display}]{contract_name}"
 
     def generate_folder_structure(self, template: FolderTemplate, root_name: str) -> dict[str, Any]:
         """
@@ -425,7 +416,7 @@ class FolderGenerationService:
 
         # 3. 构建案件上下文并渲染文档
         documents: list[tuple[str, bytes, str]] = []
-        context = EnhancedContextBuilder().build_context({"case": case, "case_id": case.id})  # type: ignore[typeddict-unknown-key]
+        context = EnhancedContextBuilder().build_context({"case": case, "case_id": case.id})
         # raw_structure 的根才是案件文件夹真正的根（root_name），用于路径剥离
         root_folder_name = raw_structure.get("name", "")
 
@@ -518,13 +509,13 @@ class FolderGenerationService:
                     auth_service = AuthorizationMaterialGenerationService()
                     # _build_power_of_attorney_context 在调用 EnhancedContextBuilder 之前就把
                     # selected_clients 放入 context_data，保证 PowerOfAttorneyPlaceholderService 能读到
-                    ctx = auth_service._build_power_of_attorney_context(  # type: ignore[attr-defined]
+                    ctx = auth_service._build_power_of_attorney_context(
                         case=case,
                         selected_clients=[p.client for p in our_parties],
                     )
                     content = DocxRenderer().render(file_location, ctx)
                     # 使用与单独点击"授权委托书"相同的文件名生成逻辑
-                    filename = auth_service._build_power_of_attorney_filename(  # type: ignore[attr-defined]
+                    filename = auth_service._build_power_of_attorney_filename(
                         case=case,
                         selected_clients=[p.client for p in our_parties],
                     )
@@ -555,7 +546,7 @@ class FolderGenerationService:
                     ctx = auth_service._build_context(case=case)
                     content = DocxRenderer().render(file_location, ctx)
                     # 使用与单独点击"所函"相同的文件名生成逻辑
-                    filename = auth_service._build_authority_letter_filename(  # type: ignore[attr-defined]
+                    filename = auth_service._build_authority_letter_filename(
                         case_name=case.name or "案件",
                     )
                     documents.append((folder_path, content, filename))

@@ -11,6 +11,7 @@ from ninja import Router
 from apps.cases.schemas import (
     CaseFolderBindingCreateSchema,
     CaseFolderBindingResponseSchema,
+    ContractFolderPathSchema,
     FolderBrowseEntrySchema,
     FolderBrowseResponseSchema,
 )
@@ -22,7 +23,7 @@ router = Router()
 
 def _get_folder_binding_service() -> Any:
     """工厂函数:获取案件文件夹绑定服务"""
-    from apps.cases.services import CaseFolderBindingService  # type: ignore[attr-defined]
+    from apps.cases.services import CaseFolderBindingService
     from apps.core.dependencies import (
         build_case_service_with_deps,
         build_client_service,
@@ -46,8 +47,8 @@ def create_folder_binding(request: HttpRequest, case_id: int, data: CaseFolderBi
     ctx = get_request_access_context(request)
 
     binding = service.create_binding_ctx(case_id=case_id, folder_path=data.folder_path, ctx=ctx)
-    is_accessible: bool = service.check_folder_accessible(binding.folder_path)
-    display_path: str = service.format_path_for_display(binding.folder_path)
+    is_accessible: bool = service.check_folder_accessible(binding.resolved_folder_path)
+    display_path: str = service.format_path_for_display(binding.resolved_folder_path)
 
     logger.info(
         "case_folder_binding_upsert",
@@ -70,7 +71,12 @@ def create_folder_binding(request: HttpRequest, case_id: int, data: CaseFolderBi
 
 @router.get("/{case_id}/folder-binding", response=CaseFolderBindingResponseSchema | None)
 def get_folder_binding(request: HttpRequest, case_id: int) -> CaseFolderBindingResponseSchema | None:
-    """获取案件文件夹绑定信息"""
+    """获取案件文件夹绑定信息
+
+    自动修复链路：
+    1. 先修复合同文件夹路径（通过 inode BFS 搜索）
+    2. 再检查案件 resolved_folder_path 是否可达
+    """
     service = _get_folder_binding_service()
     ctx = get_request_access_context(request)
 
@@ -79,10 +85,18 @@ def get_folder_binding(request: HttpRequest, case_id: int) -> CaseFolderBindingR
     if not binding:
         return None
 
-    is_accessible: bool = service.check_folder_accessible(binding.folder_path)
-    display_path: str = service.format_path_for_display(binding.folder_path)
+    # 先尝试修复合同文件夹路径（合同路径修复后，案件的 resolved_folder_path 自动更新）
+    contract_auto_repaired = service.check_and_repair_contract_path(binding)
 
-    return CaseFolderBindingResponseSchema.from_binding(binding, is_accessible=is_accessible, display_path=display_path)
+    is_accessible: bool = service.check_folder_accessible(binding.resolved_folder_path)
+    display_path: str = service.format_path_for_display(binding.resolved_folder_path)
+
+    return CaseFolderBindingResponseSchema.from_binding(
+        binding,
+        is_accessible=is_accessible,
+        display_path=display_path,
+        path_auto_repaired=contract_auto_repaired,
+    )
 
 
 @router.delete("/{case_id}/folder-binding")
@@ -104,6 +118,27 @@ def delete_folder_binding(request: HttpRequest, case_id: int) -> dict[str, bool 
     )
 
     return {"success": success, "message": "文件夹绑定删除成功" if success else "未找到绑定记录"}
+
+
+@router.get("/{case_id}/contract-folder-path", response=ContractFolderPathSchema)
+def get_contract_folder_path(request: HttpRequest, case_id: int) -> ContractFolderPathSchema:
+    """获取案件关联合同的文件夹路径"""
+    service = _get_folder_binding_service()
+    ctx = get_request_access_context(request)
+
+    folder_path = service.get_contract_folder_path(case_id)
+
+    logger.info(
+        "case_contract_folder_path",
+        extra={
+            "action": "case_contract_folder_path",
+            "case_id": case_id,
+            "has_folder_path": folder_path is not None,
+            "user_id": getattr(getattr(ctx, "user", None), "id", None),
+        },
+    )
+
+    return ContractFolderPathSchema(folder_path=folder_path)
 
 
 @router.get("/folder-browse", response=FolderBrowseResponseSchema)

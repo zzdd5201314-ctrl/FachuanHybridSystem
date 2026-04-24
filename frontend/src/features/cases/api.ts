@@ -70,10 +70,6 @@ export const caseApi = {
     return api.get(`cases/${id}`).json<Case>()
   },
 
-  getLog: async (id: number | string): Promise<CaseLog> => {
-    return api.get(`logs/${id}`).json<CaseLog>()
-  },
-
   create: async (data: CaseInput): Promise<Case> => {
     return api.post('cases', { json: data }).json<Case>()
   },
@@ -128,29 +124,11 @@ export const caseApi = {
     return api.get('logs', { searchParams: { case_id: String(caseId) } }).json<CaseLog[]>()
   },
 
-  createLog: async (data: {
-    case_id: number
-    content: string
-    stage?: string | null
-    note?: string | null
-    logged_at?: string | null
-    log_type?: string | null
-    source?: string | null
-    is_pinned?: boolean
-  }): Promise<CaseLog> => {
+  createLog: async (data: { case_id: number; content: string }): Promise<CaseLog> => {
     return api.post('logs', { json: data }).json<CaseLog>()
   },
 
-  updateLog: async (id: number | string, data: {
-    case_id?: number
-    content?: string
-    stage?: string | null
-    note?: string | null
-    logged_at?: string | null
-    log_type?: string | null
-    source?: string | null
-    is_pinned?: boolean
-  }): Promise<CaseLog> => {
+  updateLog: async (id: number | string, data: { case_id?: number; content?: string }): Promise<CaseLog> => {
     return api.put(`logs/${id}`, { json: data }).json<CaseLog>()
   },
 
@@ -162,10 +140,6 @@ export const caseApi = {
     const formData = new FormData()
     files.forEach((file) => formData.append('files', file))
     return api.post(`logs/${logId}/attachments`, { body: formData }).json<CaseLogAttachment[]>()
-  },
-
-  deleteLogAttachment: async (attachmentId: number | string): Promise<void> => {
-    await api.delete(`log-attachments/${attachmentId}`)
   },
 
   // ==================== 案号 ====================

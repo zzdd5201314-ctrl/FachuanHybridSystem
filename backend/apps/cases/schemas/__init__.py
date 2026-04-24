@@ -15,6 +15,7 @@ from .case_schemas import (
 from .folder_binding_schemas import (
     CaseFolderBindingCreateSchema,
     CaseFolderBindingResponseSchema,
+    ContractFolderPathSchema,
     FolderBrowseEntrySchema,
     FolderBrowseResponseSchema,
 )
@@ -46,8 +47,6 @@ from .log_schemas import (
     CaseLogVersionOut,
 )
 from .material_schemas import (
-    CaseMaterialArchiveConfigOut,
-    CaseMaterialArchiveFolderOut,
     CaseMaterialBindCandidateOut,
     CaseMaterialBindIn,
     CaseMaterialBindingOut,
@@ -58,7 +57,6 @@ from .material_schemas import (
     CaseMaterialGroupOrderIn,
     CaseMaterialGroupRenameIn,
     CaseMaterialGroupRenameOut,
-    CaseMaterialRearchiveOut,
     CaseMaterialReplaceIn,
     CaseMaterialReplaceOut,
     CaseMaterialUploadOut,
@@ -88,6 +86,7 @@ __all__ = [
     "CaseFolderBindingCreateSchema",
     "CaseFolderBindingResponseSchema",
     "CaseFolderScanCandidateOut",
+    "ContractFolderPathSchema",
     "CaseFolderScanPrefillOut",
     "CaseFolderScanStartIn",
     "CaseFolderScanStartOut",
@@ -110,8 +109,6 @@ __all__ = [
     "CaseLogOut",
     "CaseLogUpdate",
     "CaseLogVersionOut",
-    "CaseMaterialArchiveConfigOut",
-    "CaseMaterialArchiveFolderOut",
     "CaseMaterialBindCandidateOut",
     "CaseMaterialBindIn",
     "CaseMaterialBindItemIn",
@@ -122,7 +119,6 @@ __all__ = [
     "CaseMaterialGroupOrderIn",
     "CaseMaterialGroupRenameIn",
     "CaseMaterialGroupRenameOut",
-    "CaseMaterialRearchiveOut",
     "CaseMaterialReplaceIn",
     "CaseMaterialReplaceOut",
     "CaseMaterialUploadOut",

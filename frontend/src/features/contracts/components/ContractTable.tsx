@@ -58,11 +58,11 @@ export function ContractTable({ contracts, isLoading = false }: { contracts: Con
                   <TableCell className="max-w-[260px]">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm line-clamp-2">{c.name}</span>
-                      {c.is_archived && <Badge variant="secondary" className="shrink-0 text-xs">已建档</Badge>}
+                      {c.is_filed && <Badge variant="secondary" className="shrink-0 text-xs">已建档</Badge>}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={c.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                    <Badge variant={c.status === 'active' ? 'default' : c.status === 'archived' ? 'secondary' : 'outline'} className="text-xs">
                       {c.status_label}
                     </Badge>
                   </TableCell>

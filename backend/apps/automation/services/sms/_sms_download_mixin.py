@@ -5,9 +5,8 @@ import re
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from django_q.tasks import async_task
-
 from apps.automation.models import CourtSMS, CourtSMSStatus, ScraperTask, ScraperTaskStatus, ScraperTaskType
+from apps.core.tasking import submit_task
 
 logger = logging.getLogger("apps.automation")
 
@@ -20,13 +19,13 @@ class SMSDownloadMixin:
     SFDW_VERIFICATION_CODE_PATTERN = re.compile(r"验证码[：:]\s*(\w{4,6})")
     SFDW_GUANGXI_HOST = "171.106.48.55:28083"
 
-    @staticmethod
-    def _normalize_phone_tail6(raw: str | None) -> str | None:
+    @classmethod
+    def _normalize_phone_tail6(cls, raw: str | None) -> str | None:
         digits = "".join(ch for ch in str(raw or "") if ch.isdigit())
         return digits[-6:] if len(digits) >= 6 else None
 
-    @staticmethod
-    def _host_equals_or_subdomain(host: str, domain: str) -> bool:
+    @classmethod
+    def _host_equals_or_subdomain(cls, host: str, domain: str) -> bool:
         return host == domain or host.endswith(f".{domain}")
 
     @classmethod
@@ -56,6 +55,46 @@ class SMSDownloadMixin:
         return (cls._host_equals_or_subdomain(host, "dzsd.hbfy.gov.cn") and path.endswith("/sfsddz")) or path.endswith(
             "/sfsddz"
         )
+
+    @classmethod
+    def _is_zxfw_url(cls, url: str) -> bool:
+        """判断是否为一张网链接（纯 API 可用，不依赖 Playwright）"""
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        return cls._host_equals_or_subdomain(host, "zxfw.court.gov.cn")
+
+    @classmethod
+    def _get_required_platform_name(cls, url: str) -> str | None:
+        """获取 URL 对应的平台名称，如果该平台需要 Playwright 则返回名称，否则返回 None。
+
+        一张网(zxfw)支持纯 API 模式，不需要 Playwright，返回 None。
+        其他平台都需要 Playwright，返回平台中文名。
+        """
+        if cls._is_zxfw_url(url):
+            return None  # 一张网支持纯 API，不强制要求 Playwright
+        if cls._is_hbfy_account_url(url):
+            return "湖北电子送达"
+        if cls._is_jysd_url(url):
+            return "简易送达"
+        if cls._is_sfdw_url(url):
+            return "司法送达网"
+        # 检查广东电子送达
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        if cls._host_equals_or_subdomain(host, "sd.gdems.com"):
+            return "广东电子送达"
+        # 未知平台，保守地不要求 Playwright（后续结构探测时会检查）
+        return None
+
+    @classmethod
+    def _is_playwright_available(cls) -> bool:
+        """检查 Playwright 是否已安装"""
+        try:
+            import playwright
+
+            return True
+        except ImportError:
+            return False
 
     def _collect_lawyer_phone_tail6_candidates(self, sms: CourtSMS) -> list[str]:
         """基于现有律师手机号优先级，提取后6位候选并去重。"""
@@ -145,6 +184,25 @@ class SMSDownloadMixin:
         try:
             download_url = sms.download_links[0]
 
+            # 检查该 URL 是否需要 Playwright，若需要但未安装则直接标记失败
+            platform_name = self._get_required_platform_name(download_url)
+            if platform_name and not self._is_playwright_available():
+                error_msg = (
+                    f"「{platform_name}」平台需要 Playwright 浏览器支持，"
+                    "但 Playwright 未安装。请运行: uv add playwright && playwright install chromium"
+                )
+                logger.warning(f"短信 {sms.id} 跳过下载任务创建: {error_msg}")
+                # 创建一个失败状态的任务，让流程继续而非卡住
+                task = ScraperTask.objects.create(
+                    task_type=ScraperTaskType.COURT_DOCUMENT,
+                    url=download_url,
+                    case=sms.case,
+                    config={"court_sms_id": sms.id, "auto_download": True, "source": "court_sms"},
+                    status=ScraperTaskStatus.FAILED,
+                    error_message=error_msg,
+                )
+                return task
+
             task_config: dict[str, Any] = {"court_sms_id": sms.id, "auto_download": True, "source": "court_sms"}
 
             if self._is_hbfy_account_url(download_url):
@@ -195,7 +253,7 @@ class SMSDownloadMixin:
 
             logger.info(f"创建下载任务成功: Task ID={task.id}, URL={download_url}")
 
-            queue_task_id = async_task(
+            queue_task_id = submit_task(
                 "apps.automation.tasks.execute_scraper_task", task.id, task_name=f"court_document_download_{task.id}"
             )
 
@@ -297,6 +355,93 @@ class SMSDownloadMixin:
             f"短信 {sms.id} {'还有文书在下载中或任务进行中，需要等待' if should_wait else '下载状态检查完成，无需等待'}"
         )
         return should_wait
+
+    def handle_scraper_task_status_change(self, scraper_task: ScraperTask) -> None:
+        """当 ScraperTask 状态变为 SUCCESS/FAILED 时，触发关联 SMS 的后续处理流程。
+
+        此方法从 Model 层 @hook 薄调用，业务逻辑集中在 Service 层。
+        """
+        if scraper_task.status not in [ScraperTaskStatus.SUCCESS, ScraperTaskStatus.FAILED]:
+            return
+
+        try:
+            court_sms_records = CourtSMS.objects.filter(scraper_task=scraper_task)
+            for sms in court_sms_records:
+                if sms.status not in [CourtSMSStatus.DOWNLOADING, CourtSMSStatus.MATCHING]:
+                    continue
+                if scraper_task.status == ScraperTaskStatus.SUCCESS:
+                    self._handle_sms_download_success(sms, scraper_task)
+                elif scraper_task.status == ScraperTaskStatus.FAILED:
+                    if self._handle_sms_download_failed(sms, scraper_task):
+                        continue
+        except Exception as e:
+            logger.error(
+                "❌ 处理下载完成信号失败: Task ID=%s, 错误: %s",
+                scraper_task.id,
+                e,
+                extra={"action": "download_signal_failed", "task_id": scraper_task.id, "error": str(e)},
+                exc_info=True,
+            )
+
+    def _handle_sms_download_success(self, sms: CourtSMS, scraper_task: ScraperTask) -> None:
+        """处理下载成功的 SMS"""
+        if sms.status == CourtSMSStatus.DOWNLOADING:
+            sms.status = CourtSMSStatus.MATCHING
+            sms.save()
+            logger.info("✅ 下载任务完成，进入匹配阶段: SMS ID=%s, Task ID=%s", sms.id, scraper_task.id)
+        elif sms.status == CourtSMSStatus.MATCHING:
+            logger.info("✅ 下载任务完成，继续匹配流程: SMS ID=%s, Task ID=%s", sms.id, scraper_task.id)
+
+        task_id = submit_task(
+            "apps.automation.services.sms.court_sms_service.process_sms_async",
+            sms.id,
+            task_name=f"court_sms_continue_{sms.id}",
+        )
+        logger.info("提交后续处理任务: SMS ID=%s, Queue Task ID=%s", sms.id, task_id)
+
+    def _handle_sms_download_failed(self, sms: CourtSMS, scraper_task: ScraperTask) -> bool:
+        """处理下载失败的 SMS，返回是否需要 continue（跳过重试逻辑）"""
+        if sms.status == CourtSMSStatus.MATCHING:
+            logger.info("下载失败但继续匹配流程: SMS ID=%s", sms.id)
+            task_id = submit_task(
+                "apps.automation.services.sms.court_sms_service.process_sms_async",
+                sms.id,
+                task_name=f"court_sms_continue_after_download_failed_{sms.id}",
+            )
+            logger.info("下载失败后继续处理任务: SMS ID=%s, Queue Task ID=%s", sms.id, task_id)
+            return True
+
+        sms.status = CourtSMSStatus.DOWNLOAD_FAILED
+        sms.error_message = scraper_task.error_message or "下载任务失败"
+        sms.save()
+        logger.warning(
+            "⚠️ 下载任务失败: SMS ID=%s, Task ID=%s, 错误: %s",
+            sms.id,
+            scraper_task.id,
+            scraper_task.error_message,
+        )
+
+        if sms.retry_count < 3:
+            from datetime import timedelta
+
+            from django.utils import timezone
+
+            from apps.core.tasking import ScheduleQueryService
+
+            next_run = timezone.now() + timedelta(seconds=60)
+            ScheduleQueryService().create_once_schedule(
+                func="apps.automation.services.sms.court_sms_service.retry_download_task",
+                args=str(sms.id),
+                name=f"court_sms_retry_download_{sms.id}",
+                next_run=next_run,
+            )
+            logger.info("提交重试下载任务: SMS ID=%s, 计划执行时间=%s", sms.id, next_run)
+        else:
+            sms.status = CourtSMSStatus.FAILED
+            sms.error_message = f"下载失败，已重试{sms.retry_count}次"
+            sms.save()
+            logger.error("下载重试次数用完，标记为失败: SMS ID=%s", sms.id)
+        return False
 
     def _process_downloading_or_matching(
         self,

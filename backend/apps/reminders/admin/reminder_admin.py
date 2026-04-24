@@ -23,15 +23,6 @@ from django.utils.translation import gettext_lazy as _
 from ..models import Reminder, ReminderType
 
 
-def _get_calendar_event_destination(reminder: Reminder, *, fallback_url: str) -> tuple[str, str]:
-    if reminder.case_log_id is not None and reminder.case_log is not None:
-        return (
-            reverse("admin:cases_caselog_edit", args=[reminder.case_log.case_id, reminder.case_log_id]),
-            str(_("\u6253\u5f00\u65e5\u5fd7")),
-        )
-    return fallback_url, str(_("\u8be6\u60c5"))
-
-
 class ReminderAdminForm(forms.ModelForm[Reminder]):
     class Meta:
         model = Reminder
@@ -472,8 +463,6 @@ class ReminderAdmin(admin.ModelAdmin[Reminder]):
 
         for reminder in reminders:
             due_local = timezone.localtime(reminder.due_at)
-            fallback_url = reverse(change_url_name, args=[reminder.id])
-            event_url, open_label = _get_calendar_event_destination(reminder, fallback_url=fallback_url)
             if reminder.contract_id is not None and reminder.contract is not None:
                 target_type = _("合同")
                 target_name = reminder.contract.name
@@ -533,8 +522,7 @@ class ReminderAdmin(admin.ModelAdmin[Reminder]):
                 "courtroom": courtroom,
                 "lawyer_name": lawyer_name,
                 "lawyer_names": [lawyer_name] if lawyer_name else [],
-                "url": event_url,
-                "open_label": open_label,
+                "url": reverse(change_url_name, args=[reminder.id]),
                 "is_overdue": reminder.due_at < now,
             }
             events_by_day.setdefault(due_local.day, []).append(event)

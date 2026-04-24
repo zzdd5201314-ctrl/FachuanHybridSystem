@@ -17,7 +17,7 @@ from ninja.renderers import BaseRenderer
 from ninja_extra.router import Router as NinjaExtraRouter
 
 if not hasattr(NinjaExtraRouter, "api"):
-    NinjaExtraRouter.api = None
+    NinjaExtraRouter.api = None  # type: ignore[attr-defined]
 
 from ninja_jwt.routers.obtain import obtain_pair_router
 from ninja_jwt.routers.verify import verify_router
@@ -50,12 +50,91 @@ class UTF8JSONRenderer(BaseRenderer):
 # ============================================================
 # API v1 实例
 # ============================================================
+# OpenAPI tags 定义（按业务模块排序，含中文描述）
+_OPENAPI_TAGS: list[dict[str, str]] = [
+    {"name": "系统", "description": "系统信息与健康检查"},
+    {"name": "资源监控", "description": "服务器资源使用与监控"},
+    {"name": "JWT认证", "description": "JWT 令牌获取与验证"},
+    {"name": "认证登录", "description": "用户登录、登出与信息"},
+    {"name": "律师管理", "description": "律师信息管理"},
+    {"name": "账号凭证", "description": "外部系统账号凭证"},
+    {"name": "律所管理", "description": "律师事务所管理"},
+    {"name": "团队管理", "description": "律师团队管理"},
+    {"name": "客户管理", "description": "客户信息的增删改查"},
+    {"name": "客户证件", "description": "客户身份证件管理"},
+    {"name": "财产线索", "description": "客户财产线索管理"},
+    {"name": "客户导入", "description": "批量导入客户数据"},
+    {"name": "案件管理", "description": "案件信息管理"},
+    {"name": "案件当事人", "description": "案件当事人管理"},
+    {"name": "案件指派", "description": "案件律师指派"},
+    {"name": "案件日志", "description": "案件日志记录"},
+    {"name": "案件授权", "description": "案件访问授权"},
+    {"name": "案件案号", "description": "案件案号管理"},
+    {"name": "案由主管机关", "description": "案由与主管机关查询"},
+    {"name": "诉讼费计算", "description": "诉讼费用计算器"},
+    {"name": "案件文件夹生成", "description": "案件文件夹自动生成"},
+    {"name": "案件文件夹绑定", "description": "案件文件夹绑定"},
+    {"name": "案件材料", "description": "案件材料管理"},
+    {"name": "案件文件夹自动捕获", "description": "案件文件夹自动捕获"},
+    {"name": "案件导入", "description": "批量导入案件数据"},
+    {"name": "合同管理", "description": "合同信息管理"},
+    {"name": "合同收款", "description": "合同收款记录"},
+    {"name": "财务统计", "description": "合同财务统计"},
+    {"name": "补充协议", "description": "合同补充协议"},
+    {"name": "文件夹绑定", "description": "合同文件夹绑定"},
+    {"name": "文件夹自动捕获", "description": "合同文件夹自动捕获"},
+    {"name": "合同审查", "description": "AI 合同审查"},
+    {"name": "文件模板", "description": "文档模板管理"},
+    {"name": "文件夹模板", "description": "文件夹模板管理"},
+    {"name": "替换词", "description": "文档占位符/替换词管理"},
+    {"name": "文档生成", "description": "基于模板生成文档"},
+    {"name": "诉讼文书生成", "description": "AI 辅助诉讼文书生成"},
+    {"name": "授权委托材料生成", "description": "授权委托书材料生成"},
+    {"name": "财产保全材料生成", "description": "财产保全材料生成"},
+    {"name": "案件模板下载", "description": "案件模板文件下载"},
+    {"name": "外部模板", "description": "外部文档模板管理"},
+    {"name": "证据管理", "description": "证据材料管理"},
+    {"name": "案件材料整理", "description": "案件证据材料分类整理"},
+    {"name": "模拟庭审", "description": "AI 模拟庭审"},
+    {"name": "案例检索", "description": "法律案例检索"},
+    {"name": "梳理聊天记录", "description": "聊天记录梳理与导出"},
+    {"name": "买卖纠纷计算", "description": "买卖合同纠纷利息计算"},
+    {"name": "LPR利率", "description": "LPR 利率查询"},
+    {"name": "法院短信处理", "description": "法院短信解析与处理"},
+    {"name": "文书送达自动下载", "description": "法院文书自动下载"},
+    {"name": "财产保全询价", "description": "财产保全询价查询"},
+    {"name": "财产保全日期识别", "description": "财产保全日期 AI 识别"},
+    {"name": "一张网立案", "description": "一张网在线立案"},
+    {"name": "一张网担保", "description": "一张网担保信息查询"},
+    {"name": "OA立案", "description": "OA 系统自动立案"},
+    {"name": "要素式转换", "description": "传统文书转要素式文书"},
+    {"name": "LLM 服务", "description": "大语言模型服务接口"},
+    {"name": "国际化", "description": "多语言支持"},
+    {"name": "性能监控", "description": "自动化性能监控"},
+    {"name": "文档处理", "description": "文档内容提取与处理"},
+    {"name": "自动命名", "description": "AI 自动文件命名"},
+    {"name": "AI工具", "description": "AI 集成工具接口"},
+    {"name": "验证码识别", "description": "验证码 AI 识别"},
+    {"name": "图片旋转", "description": "图片旋转校正"},
+    {"name": "发票识别", "description": "发票 OCR 识别"},
+    {"name": "交费通知书识别", "description": "法院交费通知书识别"},
+    {"name": "法院文书识别", "description": "法院文书 AI 识别"},
+    {"name": "PDF 拆解", "description": "PDF 文件拆分"},
+    {"name": "批量打印", "description": "批量打印管理"},
+    {"name": "故事可视化", "description": "案件故事可视化"},
+    {"name": "企业数据查询", "description": "企业工商信息查询"},
+    {"name": "重要日期提醒", "description": "案件重要日期提醒"},
+    {"name": "收件箱", "description": "消息收件箱"},
+]
+
 api_v1 = NinjaAPI(
     title="法穿AI案件管理系统 API",
     version=API_VERSION,
     description="律师事务所案件、合同、客户管理系统",
     urls_namespace="api_v1",
     renderer=UTF8JSONRenderer(),
+    servers=[{"url": "/", "description": "当前服务器"}],
+    openapi_extra={"tags": _OPENAPI_TAGS},
 )
 
 # 注册全局异常处理器
@@ -93,7 +172,10 @@ def _register_app_routers() -> None:
     )
     from apps.enterprise_data.api import router as enterprise_data_router
     from apps.evidence.api import evidence_router
+    from apps.evidence_sorting.api import router as evidence_sorting_router
     from apps.fee_notice.api import router as fee_notice_router
+    from apps.litigation_ai.api.litigation_api import router as litigation_router
+    from apps.litigation_ai.api.mock_trial_api import router as mock_trial_router
     from apps.image_rotation.api import router as image_rotation_router
     from apps.invoice_recognition.api import router as invoice_recognition_router
     from apps.legal_research.api import router as legal_research_router
@@ -136,6 +218,9 @@ def _register_app_routers() -> None:
     api_v1.add_router("/documents", case_template_download_router, tags=["案件模板下载"])
     api_v1.add_router("/documents/external-templates", external_template_router, tags=["外部模板"])
     api_v1.add_router("/evidence", evidence_router, tags=["证据管理"])
+    api_v1.add_router("/evidence-sorting", evidence_sorting_router, tags=["案件材料整理"])
+    api_v1.add_router("/litigation", litigation_router, auth=JWTOrSessionAuth(), tags=["诉讼文书生成"])
+    api_v1.add_router("/mock-trial", mock_trial_router, auth=JWTOrSessionAuth(), tags=["模拟庭审"])
     api_v1.add_router("/contract-review", contract_review_router, auth=JWTOrSessionAuth(), tags=["合同审查"])
     api_v1.add_router("/legal-research", legal_research_router, auth=JWTOrSessionAuth(), tags=["案例检索"])
 
@@ -145,7 +230,7 @@ def _register_app_routers() -> None:
 
     from apps.doc_convert.api import router as doc_convert_router
 
-    api_v1.add_router("/doc-convert", doc_convert_router, auth=JWTOrSessionAuth(), tags=["文书转换"])
+    api_v1.add_router("/doc-convert", doc_convert_router, auth=JWTOrSessionAuth(), tags=["要素式转换"])
 
     from apps.oa_filing.api.client_import_api import router as client_import_router
 
@@ -174,7 +259,7 @@ def _register_app_routers() -> None:
 def _ensure_routers_registered() -> None:
     if getattr(api_v1, "_routers_registered", False):
         return
-    api_v1._routers_registered = True
+    api_v1._routers_registered = True  # type: ignore[attr-defined]
     _register_app_routers()
 
 
@@ -207,7 +292,7 @@ def health_check(request: HttpRequest) -> dict[str, Any]:
     返回系统整体健康状态
     """
     health = HealthChecker.get_system_health(include_details=False)
-    return health.to_dict()  # type: ignore
+    return health.to_dict()
 
 
 @api_v1.get("/health/detail", tags=["系统"], auth=JWTOrSessionAuth())
@@ -219,7 +304,7 @@ def health_check_detail(request: HttpRequest) -> dict[str, Any]:
     ensure_admin_request(request, message="无权限访问健康检查详情", code="PERMISSION_DENIED")
 
     health = HealthChecker.get_system_health(include_details=True)
-    return health.to_dict()  # type: ignore
+    return health.to_dict()
 
 
 @api_v1.get("/health/live", tags=["系统"])
@@ -228,7 +313,7 @@ def liveness_probe(request: HttpRequest) -> dict[str, Any]:
     存活探针 (Kubernetes liveness probe)
     仅检查应用是否运行
     """
-    return HealthChecker.liveness_check()  # type: ignore
+    return HealthChecker.liveness_check()
 
 
 @api_v1.get("/health/ready", tags=["系统"])
@@ -237,7 +322,7 @@ def readiness_probe(request: HttpRequest) -> dict[str, Any]:
     就绪探针 (Kubernetes readiness probe)
     检查应用是否可以接收流量
     """
-    return HealthChecker.readiness_check()  # type: ignore
+    return HealthChecker.readiness_check()
 
 
 # ============================================================
@@ -258,7 +343,7 @@ def resource_status(request: HttpRequest) -> dict[str, Any]:
     Requirements: 4.1, 4.2, 4.3, 4.4 - 资源监控和状态查询
     """
     _require_admin(request)
-    return get_resource_status()  # type: ignore
+    return get_resource_status()
 
 
 @api_v1.get("/resource/usage", tags=["资源监控"], auth=JWTOrSessionAuth())
@@ -290,7 +375,7 @@ def resource_recommendations(request: HttpRequest) -> dict[str, Any]:
     Requirements: 4.1, 4.2 - 动态资源分配建议
     """
     _require_admin(request)
-    return resource_monitor.get_resource_recommendations()  # type: ignore[no-any-return]
+    return resource_monitor.get_resource_recommendations()
 
 
 @api_v1.get("/resource/health", tags=["资源监控"], auth=JWTOrSessionAuth())
@@ -300,7 +385,7 @@ def resource_health(request: HttpRequest) -> dict[str, Any]:
     Requirements: 4.3, 4.4 - 资源健康状态检查
     """
     _require_admin(request)
-    return resource_monitor.check_resource_health()  # type: ignore[no-any-return]
+    return resource_monitor.check_resource_health()
 
 
 @api_v1.get("/resource/metrics", tags=["资源监控"], auth=JWTOrSessionAuth())
@@ -309,7 +394,7 @@ def resource_metrics(request: HttpRequest, window_minutes: int = 10, top: int = 
     _require_admin(request)
     from apps.core.telemetry.metrics import snapshot
 
-    return snapshot(window_minutes=int(window_minutes or 10), top=int(top or 10))  # type: ignore[no-any-return]
+    return snapshot(window_minutes=int(window_minutes or 10), top=int(top or 10))
 
 
 @api_v1.get("/resource/metrics/prometheus", tags=["资源监控"], auth=JWTOrSessionAuth())

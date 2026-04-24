@@ -18,8 +18,6 @@ logger = logging.getLogger(__name__)
 @receiver(post_delete, sender="cases.CaseLogAttachment")
 def _cleanup_log_attachment_file(sender: Any, instance: Any, **kwargs: Any) -> None:
     """删除 CaseLogAttachment 时清理物理文件。"""
-    if getattr(instance, "source_invoice_id", None):
-        return
     if instance.file:
         try:
             instance.file.delete(save=False)

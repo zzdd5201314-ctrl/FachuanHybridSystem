@@ -41,7 +41,7 @@ function isImageFile(path: string): boolean {
 }
 
 export function IdentityDocManager({ clientId, clientType, docs }: Props) {
-  const { addDoc } = useIdentityDocMutations(clientId)
+  const { addDoc, deleteDoc } = useIdentityDocMutations(clientId)
 
   const [previewDoc, setPreviewDoc] = useState<IdentityDoc | null>(null)
   const [addOpen, setAddOpen] = useState(false)

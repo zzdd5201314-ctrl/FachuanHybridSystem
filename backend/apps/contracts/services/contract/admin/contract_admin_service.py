@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.contracts.models import Contract
+from apps.contracts.models.finalized_material import MaterialCategory
 from apps.core.interfaces import CaseDTO
 from apps.core.models.enums import CaseStage
 
@@ -214,7 +215,9 @@ class ContractAdminService:
 
         related_cases = self.query_service.get_related_cases(contract.pk)
 
-        finalized_materials = contract.finalized_materials.all()
+        finalized_materials = contract.finalized_materials.exclude(
+            category__in=(MaterialCategory.ARCHIVE_DOCUMENT, MaterialCategory.CASE_MATERIAL),
+        )
         finalized_materials_grouped: dict[str, list[Any]] = {}
         for material in finalized_materials:
             finalized_materials_grouped.setdefault(material.category, []).append(material)
@@ -229,6 +232,18 @@ class ContractAdminService:
         client_payment_service = ClientPaymentRecordService()
         client_payments = client_payment_service.get_contract_payment_records(contract.pk)
         total_client_payment = client_payment_service.calculate_total_amount(contract.pk)
+
+        # 归档检查清单数据
+        from apps.contracts.services.archive.wiring import build_archive_checklist_service
+
+        archive_checklist_service = build_archive_checklist_service()
+        archive_checklist = archive_checklist_service.get_checklist_with_status(contract)
+
+        # 构建 archive_item_code → template_subtype 映射，供归档材料预览按钮使用
+        archive_code_to_template: dict[str, str] = {}
+        for item in archive_checklist.get("items", []):
+            if item.get("template"):
+                archive_code_to_template[item["code"]] = item["template"]
 
         return {
             "contract": contract,
@@ -254,7 +269,9 @@ class ContractAdminService:
             "invoices_by_payment": invoices_by_payment,
             "client_payments": client_payments,
             "total_client_payment": total_client_payment,
+            "archive_checklist": archive_checklist,
+            "archive_code_to_template": archive_code_to_template,
         }
 
-    def handle_contract_filing_change(self, contract_id: int, is_archived: bool) -> str | None:
-        return self.mutation_service.handle_contract_filing_change(contract_id, is_archived)
+    def handle_contract_filing_change(self, contract_id: int, is_filed: bool) -> str | None:
+        return self.mutation_service.handle_contract_filing_change(contract_id, is_filed)

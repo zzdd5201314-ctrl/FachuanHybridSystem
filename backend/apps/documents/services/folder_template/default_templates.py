@@ -118,50 +118,9 @@ def get_default_folder_templates() -> list[dict[str, Any]]:
                                         "name": "4-申请退费(待申请)",
                                         "children": [],
                                     },
-                                    {
-                                        "id": "folder_civil_first_trial_plaintiff_case_summary",
-                                        "name": "5-结案小结",
-                                        "children": [],
-                                    },
                                 ],
                             },
-                            {
-                                "id": "folder_civil_first_trial_plaintiff_court_delivery",
-                                "name": "4-法院送达材料",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_first_trial_plaintiff_acceptance_notice",
-                                        "name": "1-受理通知书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_first_trial_plaintiff_payment_notice_invoice",
-                                        "name": "2-缴费通知书、发票",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_first_trial_plaintiff_opponent_materials",
-                                        "name": "3-对方当事人提交材料",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_first_trial_plaintiff_judgments_notices",
-                                        "name": "4-裁定书、判决书、通知书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_first_trial_plaintiff_court_delivery_other",
-                                        "name": "5-其他材料",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {"id": "folder_1767235760272_vga4rbfld", "name": "5-邮件往来", "children": []},
-                            {
-                                "id": "folder_civil_first_trial_plaintiff_editable_files",
-                                "name": "6-可编辑文件",
-                                "children": [],
-                            },
+                            {"id": "folder_1767235760272_vga4rbfld", "name": "4-邮件往来", "children": []},
                         ],
                     }
                 ]
@@ -221,7 +180,7 @@ def get_default_folder_templates() -> list[dict[str, Any]]:
                             },
                             {
                                 "id": "folder_1767240664621_mkoie73p",
-                                "name": "3-结案文书",
+                                "name": "4-结案文书",
                                 "children": [
                                     {
                                         "id": "folder_1767240664622_c040f0we",
@@ -231,343 +190,7 @@ def get_default_folder_templates() -> list[dict[str, Any]]:
                                     {"id": "folder_1767240664622_ckctj4n3", "name": "2-其他结案文书", "children": []},
                                 ],
                             },
-                            {
-                                "id": "folder_civil_first_trial_defendant_court_delivery_materials",
-                                "name": "4-法院送达材料",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_first_trial_defendant_summons",
-                                        "name": "1-传票",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_first_trial_defendant_opponent_complaint_materials",
-                                        "name": "2-对方当事人起诉材料",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_first_trial_defendant_judgments_notices",
-                                        "name": "3-裁定书、判决书、通知书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_first_trial_defendant_other_court_delivery_materials",
-                                        "name": "4-其他材料",
-                                        "children": [],
-                                    },
-                                ],
-                            },
                             {"id": "folder_1767240664622_rtqxrxy4", "name": "5-邮件往来", "children": []},
-                        ],
-                    }
-                ]
-            },
-            "is_default": True,
-            "is_active": True,
-        },
-        {
-            "name": "民事二审上诉",
-            "template_type": "case",
-            "case_types": ["civil"],
-            "case_stages": ["second_trial"],
-            "contract_types": [],
-            "legal_statuses": ["appellant"],
-            "legal_status_match_mode": "any",
-            "structure": {
-                "children": [
-                    {
-                        "id": "folder_civil_second_trial_appellant_root",
-                        "name": "二审",
-                        "children": [
-                            {
-                                "id": "folder_civil_second_trial_appellant_appeal_materials",
-                                "name": "1-上诉材料",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_appeal_petition",
-                                        "name": "1-上诉状",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_identity_documents",
-                                        "name": "2-当事人身份证明",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_evidence_catalog",
-                                        "name": "3-证据目录",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_evidence_materials",
-                                        "name": "4-证据材料",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_service_address_confirmation",
-                                        "name": "6-送达地址确认书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_refund_account_confirmation",
-                                        "name": "7-退费账户确认书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_other_filing_materials",
-                                        "name": "8-其他立案材料",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellant_trial_preparation",
-                                "name": "2-庭审准备",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_issue_list",
-                                        "name": "1-问题清单",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_trial_outline",
-                                        "name": "2-庭审提纲",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_cross_examination_opinions",
-                                        "name": "3-质证意见",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_timeline",
-                                        "name": "4-时间轴大事记",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_agent_opinions",
-                                        "name": "5-代理意见",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_other_trial_materials",
-                                        "name": "6-其他材料",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellant_closing_documents",
-                                "name": "3-结案文书",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_withdraw_appeal",
-                                        "name": "1-撤回上诉申请书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_unseal_application",
-                                        "name": "2-解除查封申请书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_settlement_agreement",
-                                        "name": "3-和解(调解)协议",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_refund_application",
-                                        "name": "4-申请退费(待申请)",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_case_summary",
-                                        "name": "5-结案小结",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellant_court_delivery_materials",
-                                "name": "4-法院送达材料",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_acceptance_notice",
-                                        "name": "1-受理通知书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_payment_notice_invoice",
-                                        "name": "2-缴费通知书、发票",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_opponent_materials",
-                                        "name": "3-对方当事人提交材料",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_judgments_notices",
-                                        "name": "4-裁定书、判决书、通知书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellant_other_court_delivery_materials",
-                                        "name": "5-其他材料",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellant_mail_correspondence",
-                                "name": "5-邮件往来",
-                                "children": [],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellant_editable_files",
-                                "name": "6-可编辑文件",
-                                "children": [],
-                            },
-                        ],
-                    }
-                ]
-            },
-            "is_default": True,
-            "is_active": True,
-        },
-        {
-            "name": "民事二审答辩",
-            "template_type": "case",
-            "case_types": ["civil"],
-            "case_stages": ["second_trial"],
-            "contract_types": [],
-            "legal_statuses": ["appellee"],
-            "legal_status_match_mode": "any",
-            "structure": {
-                "children": [
-                    {
-                        "id": "folder_civil_second_trial_appellee_root",
-                        "name": "二审",
-                        "children": [
-                            {
-                                "id": "folder_civil_second_trial_appellee_defense_materials",
-                                "name": "1-答辩材料",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_defense_statement",
-                                        "name": "1-答辩状(反诉状)",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_evidence_catalog",
-                                        "name": "2-证据目录",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_evidence_materials",
-                                        "name": "3-证据材料",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_identity_documents",
-                                        "name": "4-当事人身份证明",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_entrust_documents",
-                                        "name": "5-委托材料",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_other_defense_materials",
-                                        "name": "6-其他答辩材料",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellee_trial_preparation",
-                                "name": "2-庭审准备",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_issue_list",
-                                        "name": "1-问题清单",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_trial_outline",
-                                        "name": "2-庭审提纲",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_cross_examination_opinions",
-                                        "name": "3-质证意见",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_timeline",
-                                        "name": "4-时间轴大事记",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_agent_opinions",
-                                        "name": "5-代理意见",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_other_trial_materials",
-                                        "name": "6-其他材料",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellee_closing_documents",
-                                "name": "3-结案文书",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_settlement_agreement",
-                                        "name": "1-和解(调解)协议",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_other_closing_documents",
-                                        "name": "2-其他结案文书",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellee_court_delivery_materials",
-                                "name": "4-法院送达材料",
-                                "children": [
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_summons",
-                                        "name": "1-传票",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_opponent_appeal_materials",
-                                        "name": "2-对方当事人上诉材料",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_judgments_notices",
-                                        "name": "3-裁定书、判决书、通知书",
-                                        "children": [],
-                                    },
-                                    {
-                                        "id": "folder_civil_second_trial_appellee_other_court_delivery_materials",
-                                        "name": "4-其他材料",
-                                        "children": [],
-                                    },
-                                ],
-                            },
-                            {
-                                "id": "folder_civil_second_trial_appellee_mail_correspondence",
-                                "name": "5-邮件往来",
-                                "children": [],
-                            },
                         ],
                     }
                 ]
@@ -596,7 +219,7 @@ def get_default_folder_templates() -> list[dict[str, Any]]:
                                     {"id": "folder_1774250377875_km2h1b4f", "name": "1-强制执行申请书", "children": []},
                                     {"id": "folder_1774250377876_a93zfd2s", "name": "2-当事人身份证明", "children": []},
                                     {"id": "folder_1774250377876_aepfz20q", "name": "3-委托材料", "children": []},
-                                    {"id": "folder_1774250377877_07bdwj6d", "name": "4-财产线索", "children": []},
+                                    {"id": "folder_1774250377877_07bdwj6d", "name": "4-限制性措施", "children": []},
                                     {
                                         "id": "folder_1774250377878_bd72h67r",
                                         "name": "5-执行依据及生效证明",
@@ -604,19 +227,9 @@ def get_default_folder_templates() -> list[dict[str, Any]]:
                                     },
                                     {"id": "folder_1774250377878_991ago5r", "name": "6-送达地址确认书", "children": []},
                                     {"id": "folder_1774250377879_1tztdlni", "name": "7-退费账户确认书", "children": []},
-                                    {
-                                        "id": "folder_enforcement_filing_other_materials",
-                                        "name": "8-其他材料",
-                                        "children": [],
-                                    },
                                 ],
                             },
-                            {
-                                "id": "folder_enforcement_court_delivery_documents",
-                                "name": "2-法院送达文书",
-                                "children": [],
-                            },
-                            {"id": "folder_1774250377885_1r5w975h", "name": "3-邮件往来", "children": []},
+                            {"id": "folder_1774250377885_1r5w975h", "name": "2-邮件往来", "children": []},
                         ],
                     }
                 ]

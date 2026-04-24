@@ -10,7 +10,7 @@ import type {
   FolderBinding, FolderBrowseResponse,
   FolderScanStart, FolderScanSubfolderList, FolderScanStatus,
   FolderScanConfirmItem, FolderScanConfirmResult,
-  FinanceStats, ContractPartySource,
+  FinanceStats, PaginatedResponse, ContractPartySource,
 } from './types'
 
 const contractApi_ = api.extend({

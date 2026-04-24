@@ -13,24 +13,25 @@ def check_scraper_dependencies(app_configs: Any, **kwargs: Any) -> list[CheckMes
     """检查爬虫依赖"""
     errors: list[CheckMessage] = []
 
-    # 检查 Playwright
+    # 检查 Playwright（降级为 Warning：一张网等平台可通过纯 API 工作）
     try:
         import playwright  # 检查是否安装
     except ImportError:
         errors.append(
-            Error(
-                "Playwright 未安装",
-                hint="运行: uv add playwright && playwright install chromium",
-                id="automation.E001",
+            Warning(
+                "Playwright 未安装，部分平台（广东电子送达、简易送达、司法送达网）的文书下载功能不可用",
+                hint="运行: uv add playwright && playwright install chromium；一张网(法院执行网)可通过纯 API 正常下载",
+                id="automation.W002",
             )
         )
 
     # 检查加密密钥
-    if not hasattr(settings, "SCRAPER_ENCRYPTION_KEY"):
+    encryption_key = getattr(settings, "SCRAPER_ENCRYPTION_KEY", None)
+    if not encryption_key:
         errors.append(
             Warning(
                 "未配置 SCRAPER_ENCRYPTION_KEY",
-                hint="在 settings.py 中添加: SCRAPER_ENCRYPTION_KEY = Fernet.generate_key()",
+                hint="设置环境变量 SCRAPER_ENCRYPTION_KEY 或在系统配置中设置固定密钥",
                 id="automation.W001",
             )
         )

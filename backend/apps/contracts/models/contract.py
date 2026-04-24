@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 
 
 class ContractStatus(models.TextChoices):
+    UNSIGNED = "unsigned", _("未签约")
     ACTIVE = "active", _("在办")
-    CLOSED = "closed", _("已结案")
     ARCHIVED = "archived", _("已归档")
 
 
@@ -48,7 +48,7 @@ class Contract(models.Model):
     specified_date: models.DateField = models.DateField(default=timezone.localdate, verbose_name=_("指定日期"))
     start_date: models.DateField = models.DateField(blank=True, null=True, verbose_name=_("开始日期"))
     end_date: models.DateField = models.DateField(blank=True, null=True, verbose_name=_("结束日期"))
-    is_archived: models.BooleanField = models.BooleanField(default=False, verbose_name=_("是否已建档"))
+    is_filed: models.BooleanField = models.BooleanField(default=False, verbose_name=_("是否已建档"))
     filing_number: models.CharField = models.CharField(
         max_length=50,
         blank=True,
@@ -82,19 +82,13 @@ class Contract(models.Model):
         help_text=_("律所OA系统中的案件编号"),
     )
     representation_stages: Any = models.JSONField(default=list, blank=True, verbose_name=_("代理阶段"))
-
-    log_anchor_case = models.ForeignKey(
-        "cases.Case",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="contracts_as_log_anchor",
-        verbose_name=_("日志中心案件"),
+    compact_archive: models.BooleanField = models.BooleanField(
+        default=False, verbose_name=_("精简视图"),
+        help_text=_("开启后，归档检查清单仅显示有材料的项，未上传材料的项目不纳入归档范围"),
     )
 
     if TYPE_CHECKING:
         cases: RelatedManager[Case]
-        log_anchor_case: Case | None
         finance_logs: RelatedManager[ContractFinanceLog]
         folder_binding: ContractFolderBinding
         contract_parties: RelatedManager[ContractParty]
@@ -111,7 +105,7 @@ class Contract(models.Model):
             # 单字段索引 - 用于基本过滤
             models.Index(fields=["case_type"]),
             models.Index(fields=["status"]),
-            models.Index(fields=["is_archived"]),
+            models.Index(fields=["is_filed"]),
             models.Index(fields=["specified_date"]),
             models.Index(fields=["-specified_date"]),
             models.Index(fields=["filing_number"]),
@@ -121,7 +115,7 @@ class Contract(models.Model):
             # 按状态和指定日期查询(常用于时间范围过滤)
             models.Index(fields=["status", "-specified_date"]),
             # 按是否建档和指定日期查询(常用于归档管理)
-            models.Index(fields=["is_archived", "-specified_date"]),
+            models.Index(fields=["is_filed", "-specified_date"]),
             # 按案件类型、状态和指定日期查询(常用于复杂过滤)
             models.Index(fields=["case_type", "status", "-specified_date"]),
         ]
@@ -130,8 +124,6 @@ class Contract(models.Model):
         return str(self.name)
 
     def clean(self) -> None:
-        from django.core.exceptions import ValidationError
-
         from apps.contracts.validators import normalize_representation_stages
         from apps.core.exceptions import ValidationException
 
@@ -139,13 +131,3 @@ class Contract(models.Model):
         rep = getattr(self, "representation_stages", None)
         with contextlib.suppress(ValidationException):
             self.representation_stages = normalize_representation_stages(ctype, rep, strict=False)
-
-        anchor_case = getattr(self, "log_anchor_case", None)
-        if anchor_case is not None and self.pk and getattr(anchor_case, "contract_id", None) != self.pk:
-            raise ValidationError({"log_anchor_case": _("日志中心案件必须属于当前合同")})
-
-    @property
-    def resolved_log_anchor_case(self) -> Case | None:
-        if self.log_anchor_case_id:
-            return self.log_anchor_case
-        return self.cases.order_by("id").first()

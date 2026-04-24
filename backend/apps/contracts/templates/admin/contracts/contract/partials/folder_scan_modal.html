@@ -2,7 +2,7 @@
 <div class="modal-overlay" x-show="isOpen" x-cloak @click.self="closeModal()">
     <div class="modal-dialog fm-scan-modal">
         <div class="modal-header">
-            <h3>{% trans "自动捕获" %}</h3>
+            <h3>{% trans "从合同文件夹同步" %}</h3>
             <button type="button" class="modal-close" @click="closeModal()">&times;</button>
         </div>
 
@@ -15,8 +15,14 @@
                 <div class="fm-scope-root" x-show="scanRootPath">
                     <span>{% trans "当前目录：" %}</span>
                     <code x-text="scanRootPath"></code>
+                    <button type="button" class="fm-open-folder-btn"
+                            :disabled="!scanRootPath"
+                            @click="openFolder()"
+                            title="{% trans '在 Finder 中打开' %}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </button>
                 </div>
-                <div class="fm-scope-row">
+                <div class="fm-scope-row" style="display:none;">
                     <label class="fm-radio-item">
                         <input type="radio" value="all" x-model="scanScopeMode">
                         <span>{% trans "扫描全部内容" %}</span>
@@ -57,26 +63,28 @@
                 <div class="fm-progress-text" x-text="`${scanProgress}%`"></div>
             </div>
 
-            <div class="fm-scan-empty" x-show="!isScanning && scanSessionId && !scanCandidates.length">
-                {% trans "未找到可导入的 PDF" %}
+            <div class="fm-scan-empty" x-show="!isScanning && scanSessionId && !visibleCandidates.length">
+                {% trans "未找到可导入的文件" %}
             </div>
 
-            <div class="fm-scan-table-wrap" x-show="scanCandidates.length">
+            <div class="fm-scan-table-wrap" x-show="visibleCandidates.length">
                 <table class="fm-scan-table">
                     <thead>
                         <tr>
-                            <th style="width: 60px;">{% trans "导入" %}</th>
+                            <th style="width: 50px;">{% trans "导入" %}</th>
                             <th>{% trans "文件" %}</th>
-                            <th style="width: 220px;">{% trans "材料分类" %}</th>
+                            <th style="width: 180px;">{% trans "材料分类" %}</th>
+                            <th style="width: 180px;">{% trans "归档清单项" %}</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <template x-for="candidate in scanCandidates" :key="candidate.source_path">
+                        <template x-for="candidate in visibleCandidates" :key="candidate.source_path">
                             <tr>
                                 <td><input type="checkbox" x-model="candidate.selected" /></td>
                                 <td>
                                     <div class="fm-file-cell">
                                         <span x-text="candidate.filename"></span>
+                                        <span class="fm-docx-badge" x-show="candidate.is_docx" title="{% trans 'docx 将自动转换为 PDF' %}">docx→PDF</span>
                                         <span class="fm-file-reason" x-show="candidate.reason" x-text="candidate.reason"></span>
                                     </div>
                                 </td>
@@ -85,12 +93,45 @@
                                         <option value="contract_original">{% trans "合同正本" %}</option>
                                         <option value="supplementary_agreement">{% trans "补充协议" %}</option>
                                         <option value="invoice">{% trans "发票" %}</option>
+                                        <option value="supervision_card">{% trans "监督卡" %}</option>
+                                        <option value="case_material">{% trans "案件材料" %}</option>
                                     </select>
+                                </td>
+                                <td>
+                                    <!-- 案件材料才显示归档清单项下拉 -->
+                                    <template x-if="isCaseMaterial(candidate)">
+                                        <select @change="selectArchiveItem(candidate, $event.target.value)"
+                                                class="fm-archive-select"
+                                                :data-current="candidate.archive_item_code || ''">
+                                            <option value="" :selected="!candidate.archive_item_code">{% trans "选择归档清单项" %}</option>
+                                            <template x-for="opt in archiveItemOptions" :key="opt.code">
+                                                <option :value="opt.code" :selected="candidate.archive_item_code === opt.code" x-text="opt.name"></option>
+                                            </template>
+                                        </select>
+                                    </template>
+                                    <span x-show="!isCaseMaterial(candidate)" class="fm-archive-na">—</span>
                                 </td>
                             </tr>
                         </template>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- 工作日志建议区域 -->
+            <div class="fm-worklog-section" x-show="workLogSuggestions.length > 0 && !isScanning">
+                <div class="fm-worklog-header">
+                    <span class="fm-worklog-title">{% trans "律师办案工作日志建议" %}</span>
+                    <button type="button" class="btn btn-secondary btn-sm" @click="addWorkLogEntry()">{% trans "添加" %}</button>
+                </div>
+                <div class="fm-worklog-list">
+                    <template x-for="(entry, index) in workLogSuggestions" :key="index">
+                        <div class="fm-worklog-row">
+                            <input type="date" x-model="entry.date" class="fm-worklog-date" />
+                            <input type="text" x-model="entry.content" class="fm-worklog-content" placeholder="{% trans '事项内容' %}" />
+                            <button type="button" class="fm-worklog-remove" @click="removeWorkLogEntry(index)">&times;</button>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
 
@@ -100,3 +141,92 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* docx 徽章 */
+    .fm-docx-badge {
+        display: inline-block;
+        font-size: 11px;
+        background: #e8f4fd;
+        color: #1890ff;
+        padding: 1px 6px;
+        border-radius: 3px;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+
+    /* 归档清单项下拉 */
+    .fm-archive-select {
+        width: 100%;
+        font-size: 13px;
+        padding: 2px 4px;
+        border: 1px solid #d9d9d9;
+        border-radius: 3px;
+    }
+
+    .fm-archive-na {
+        color: #bbb;
+    }
+
+    /* 工作日志区域 */
+    .fm-worklog-section {
+        margin-top: 16px;
+        border-top: 1px solid #eee;
+        padding-top: 12px;
+    }
+
+    .fm-worklog-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .fm-worklog-title {
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .fm-worklog-list {
+        max-height: 240px;
+        overflow-y: auto;
+    }
+
+    .fm-worklog-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .fm-worklog-date {
+        width: 140px;
+        padding: 4px 6px;
+        font-size: 13px;
+        border: 1px solid #d9d9d9;
+        border-radius: 3px;
+    }
+
+    .fm-worklog-content {
+        flex: 1;
+        padding: 4px 6px;
+        font-size: 13px;
+        border: 1px solid #d9d9d9;
+        border-radius: 3px;
+    }
+
+    .fm-worklog-remove {
+        background: none;
+        border: none;
+        color: #ff4d4f;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+    }
+
+    .btn-sm {
+        font-size: 12px;
+        padding: 2px 8px;
+    }
+</style>

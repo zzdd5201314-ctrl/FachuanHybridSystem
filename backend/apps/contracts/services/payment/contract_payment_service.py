@@ -355,43 +355,6 @@ class ContractPaymentService(DjangoPermsMixin):
 
     # ==================== 内部方法 ====================
 
-    @transaction.atomic
-    def sync_invoice_summary(self, payment_id: int) -> ContractPayment:
-        """根据发票价税合计自动回写收款记录的开票摘要。"""
-        obj = self.get_payment(payment_id)
-        totals = obj.invoices.aggregate(total=Sum("total_amount"))
-        raw_total = Decimal(str(totals["total"] or 0))
-        if raw_total < 0:
-            raw_total = Decimal("0")
-
-        synced_total = min(raw_total, obj.amount)
-        synced_status = self._calculate_invoice_status(
-            float(synced_total),
-            float(obj.amount),
-            obj.invoice_status,
-        )
-
-        update_fields: list[str] = []
-        if obj.invoiced_amount != synced_total:
-            obj.invoiced_amount = synced_total
-            update_fields.append("invoiced_amount")
-        if obj.invoice_status != synced_status:
-            obj.invoice_status = synced_status
-            update_fields.append("invoice_status")
-
-        if update_fields:
-            obj.save(update_fields=[*update_fields, "updated_at"])
-
-        if raw_total - obj.amount > Decimal("0.000001"):
-            logger.warning(
-                "invoice total exceeds payment amount, payment_id=%s raw_total=%s amount=%s",
-                payment_id,
-                raw_total,
-                obj.amount,
-            )
-
-        return obj
-
     def _get_contract(self, contract_id: int) -> Contract:
         """
         获取合同

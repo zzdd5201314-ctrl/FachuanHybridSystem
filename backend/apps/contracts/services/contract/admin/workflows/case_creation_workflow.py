@@ -41,8 +41,4 @@ class ContractCaseCreationWorkflow:
                 lawyer_id=assignment.lawyer_id,
             )
 
-        if not getattr(contract, "log_anchor_case_id", None):
-            contract.log_anchor_case_id = case_dto.id
-            contract.save(update_fields=["log_anchor_case"])
-
         return case_dto

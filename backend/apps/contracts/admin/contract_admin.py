@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from django import forms
 from django.contrib import admin
-from django.http import FileResponse, Http404, HttpRequest, JsonResponse
-from django.urls import reverse
+from django.http import HttpRequest, JsonResponse
 from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -28,7 +27,6 @@ from apps.contracts.models import (
 )
 from apps.core.admin.mixins import AdminImportExportMixin
 from apps.core.models.enums import CaseStage
-from apps.core.services import storage_service as storage
 
 if TYPE_CHECKING:
     BaseModelAdmin = admin.ModelAdmin
@@ -59,13 +57,6 @@ class FinalizedMaterialAdminForm(forms.ModelForm[FinalizedMaterial]):
         model = FinalizedMaterial
         fields = ("file", "category")
 
-    def clean(self) -> dict[str, Any]:
-        cleaned_data = super().clean()
-        if self.instance.pk and getattr(self.instance, "source_invoice_id", None):
-            if "file" in self.changed_data or "category" in self.changed_data:
-                raise forms.ValidationError(_("该归档材料来源于律师费收款发票，请在律师费收款记录中维护。"))
-        return cleaned_data
-
     def save(self, commit: bool = True) -> FinalizedMaterial:
         instance = super().save(commit=False)
         uploaded_file = self.cleaned_data.get("file")
@@ -94,16 +85,13 @@ class FinalizedMaterialInline(BaseTabularInline):
         from django.utils.html import format_html
 
         if obj.file_path and obj.original_filename:
-            url = reverse("admin:contracts_contract_material_file", args=[obj.pk])
+            url = f"/media/{obj.file_path}"
             return format_html('<a href="{}" target="_blank">{}</a>', url, obj.original_filename)
         return obj.original_filename or "-"
 
     def delete_model(self, request: HttpRequest, obj: FinalizedMaterial) -> None:
         from apps.contracts.admin.wiring_admin import get_material_service
 
-        if getattr(obj, "source_invoice_id", None):
-            obj.delete()
-            return
         get_material_service().delete_material_file(obj.file_path)
         obj.delete()
 
@@ -184,19 +172,6 @@ class ContractAdmin(
             self.fields["representation_stages"].initial = list(
                 getattr(self.instance, "representation_stages", []) or []
             )
-            if "log_anchor_case" in self.fields:
-                from apps.cases.models import Case
-
-                if getattr(self.instance, "pk", None):
-                    self.fields["log_anchor_case"].queryset = Case.objects.filter(contract_id=self.instance.pk).order_by(
-                        "-start_date", "id"
-                    )
-                    self.fields["log_anchor_case"].help_text = _(
-                        "选择这份合同的日志中心案件，后续需要统一归口的合同日志建议都写入这里。"
-                    )
-                else:
-                    self.fields["log_anchor_case"].queryset = Case.objects.none()
-                    self.fields["log_anchor_case"].help_text = _("请先保存合同并创建关联案件，再选择日志中心案件。")
 
         def clean(self) -> dict[str, Any]:
             cleaned = super().clean() or {}
@@ -208,10 +183,6 @@ class ContractAdmin(
                 cleaned["representation_stages"] = normalize_representation_stages(ctype, rep, strict=False)
             except Exception:
                 logger.exception("操作失败")
-            anchor_case = cleaned.get("log_anchor_case")
-            if anchor_case is not None and getattr(self.instance, "pk", None):
-                if getattr(anchor_case, "contract_id", None) != self.instance.pk:
-                    self.add_error("log_anchor_case", _("日志中心案件必须属于当前合同"))
             return cleaned
 
     form = ContractAdminForm
@@ -226,9 +197,9 @@ class ContractAdmin(
         "fee_mode",
         "fixed_amount",
         "risk_rate",
-        "is_archived",
+        "is_filed",
     )
-    list_filter = ("case_type", "status", "fee_mode", "is_archived")
+    list_filter = ("case_type", "status", "fee_mode", "is_filed")
     search_fields = ("name",)
     readonly_fields = ("get_primary_lawyer_display", "filing_number")
     export_model_name = "contract"
@@ -247,6 +218,13 @@ class ContractAdmin(
 
     change_form_template = "admin/contracts/contract/change_form.html"
     change_list_template = "admin/contracts/contract/change_list.html"
+
+    def changelist_view(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> Any:
+        from django.http import HttpResponseRedirect
+
+        if "status__exact" not in request.GET:
+            return HttpResponseRedirect(f"{request.path}?status__exact=active")
+        return super().changelist_view(request, extra_context=extra_context)
 
     def get_queryset(self, request: HttpRequest) -> Any:
         return super().get_queryset(request).prefetch_related("assignments__lawyer", "contract_parties__client")
@@ -282,11 +260,6 @@ class ContractAdmin(
                 name="contracts_contract_reorder_materials",
             ),
             urlpath(
-                "material-file/<int:material_id>/",
-                self.admin_site.admin_view(self.material_file_view),
-                name="contracts_contract_material_file",
-            ),
-            urlpath(
                 "oa-sync/",
                 self.admin_site.admin_view(self.oa_sync_view),
                 name="contracts_contract_oa_sync",
@@ -307,25 +280,7 @@ class ContractAdmin(
                 name="contracts_contract_oa_sync_save",
             ),
         ]
-        return custom + urls
-
-    def material_file_view(self, request: HttpRequest, material_id: int) -> FileResponse:
-        if not self.has_view_permission(request):
-            raise Http404
-
-        material = FinalizedMaterial.objects.filter(pk=material_id).first()
-        if material is None:
-            raise Http404(_("归档材料不存在"))
-
-        file_path = storage.resolve_stored_file_path(material.file_path)
-        if not file_path.exists() or not file_path.is_file():
-            raise Http404(_("文件不存在"))
-
-        return FileResponse(
-            file_path.open("rb"),
-            as_attachment=False,
-            filename=material.original_filename or file_path.name,
-        )
+        return custom + urls  # type: ignore[no-any-return]
 
     def reorder_materials_view(self, request: HttpRequest, contract_id: int) -> Any:
         if request.method != "POST":
@@ -535,7 +490,7 @@ class ContractAdmin(
             try:
                 filing_number = item.get("filing_number")
                 before = Contract.objects.filter(filing_number=filing_number).exists() if filing_number else False
-                contract_svc.resolve(item)
+                contract_svc.resolve(item)  # type: ignore[arg-type]
                 if before:
                     skipped += 1
                 else:
@@ -587,7 +542,7 @@ class ContractAdmin(
             for m in obj.finalized_materials.all():
                 _add(m.file_path)
             for r in obj.client_payment_records.all():
-                _add(r.image_path)
+                _add(r.image_path)  # type: ignore[arg-type]
             for p in obj.payments.all():
                 for inv in p.invoices.all():
                     _add(inv.file_path)

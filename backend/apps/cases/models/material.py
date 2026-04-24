@@ -1,7 +1,8 @@
-"""Case material and folder binding models."""
+"""Module for material."""
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import ClassVar
 
 from django.db import models
@@ -51,7 +52,8 @@ class CaseMaterialType(models.Model):
 
     def __str__(self) -> str:
         scope = self.law_firm.name if self.law_firm_id and self.law_firm else "全局"
-        return f"{scope}-{self.get_category_display()}-{self.name}"
+        category_display = self.get_category_display()
+        return f"{scope}-{category_display}-{self.name}"
 
 
 class CaseMaterial(models.Model):
@@ -92,9 +94,6 @@ class CaseMaterial(models.Model):
         verbose_name=_("主管机关"),
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("创建时间"))
-    archive_relative_path = models.CharField(max_length=500, blank=True, default="", verbose_name=_("归档相对目录"))
-    archived_file_path = models.CharField(max_length=1000, blank=True, default="", verbose_name=_("归档文件路径"))
-    archived_at = models.DateTimeField(null=True, blank=True, verbose_name=_("归档时间"))
 
     class Meta:
         verbose_name = _("案件材料")
@@ -107,7 +106,8 @@ class CaseMaterial(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.case_id}-{self.get_category_display()}-{self.type_name}"
+        category_display = self.get_category_display()
+        return f"{self.case_id}-{category_display}-{self.type_name}"
 
 
 class CaseMaterialGroupOrder(models.Model):
@@ -155,14 +155,19 @@ class CaseMaterialGroupOrder(models.Model):
 
 
 class CaseFolderBinding(models.Model):
-    """案件文件夹绑定。"""
+    """案件文件夹绑定"""
 
     id: int
     case = models.OneToOneField(Case, on_delete=models.CASCADE, related_name="folder_binding", verbose_name=_("案件"))
     folder_path = models.CharField(
-        max_length=1000,
-        verbose_name=_("文件夹路径"),
-        help_text=_("绑定的本地或网络文件夹路径"),
+        max_length=1000, verbose_name=_("文件夹路径"), help_text=_("绑定的本地或网络文件夹路径")
+    )
+    relative_path = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        verbose_name=_("相对路径"),
+        help_text=_("相对合同文件夹的路径，如 2026.04.22-[民商事]某某案"),
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("绑定时间"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("更新时间"))
@@ -180,11 +185,35 @@ class CaseFolderBinding(models.Model):
 
     @property
     def folder_path_display(self) -> str:
-        if not self.folder_path:
+        """格式化显示路径"""
+        path = self.resolved_folder_path
+        if not path:
             return ""
         max_length = 50
-        if len(self.folder_path) <= max_length:
-            return self.folder_path
+        if len(path) <= max_length:
+            return path
         start_len = max_length // 2 - 2
         end_len = max_length - start_len - 3
-        return f"{self.folder_path[:start_len]}...{self.folder_path[-end_len:]}"
+        return f"{path[:start_len]}...{path[-end_len:]}"
+
+    @property
+    def resolved_folder_path(self) -> str:
+        """解析后的绝对路径：优先合同路径+相对路径，降级到 folder_path."""
+        if self.relative_path:
+            contract_folder_path = self._get_contract_folder_path()
+            if contract_folder_path:
+                return str(PurePosixPath(contract_folder_path) / self.relative_path)
+        return self.folder_path
+
+    def _get_contract_folder_path(self) -> str | None:
+        """获取关联合同的文件夹路径."""
+        try:
+            case = self.case
+            if not case.contract_id or not case.contract:
+                return None
+            contract = case.contract
+            if not hasattr(contract, "folder_binding") or not contract.folder_binding:
+                return None
+            return contract.folder_binding.folder_path
+        except (AttributeError, TypeError, ValueError):
+            return None

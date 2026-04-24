@@ -97,7 +97,7 @@ class ICaseService(Protocol):
             data: 案件数据字典,包含:
                 - name: 案件名称(必填)
                 - contract_id: 合同 ID(可选)
-                - is_archived: 是否已建档(可选,默认 False)
+                - is_filed: 是否已建档(可选,默认 False)
                 - case_type: 案件类型(可选)
                 - target_amount: 涉案金额(可选)
                 - cause_of_action: 案由(可选)
@@ -421,6 +421,21 @@ class ICaseService(Protocol):
         """
         ...
 
+    def close_cases_by_contract_internal(self, contract_id: int) -> int:
+        """
+        内部方法:将合同下所有在办案件状态设为已结案
+
+        当合同状态变更为已结案或已归档时调用，
+        自动将关联的在办案件状态同步为已结案。
+
+        Args:
+            contract_id: 合同 ID
+
+        Returns:
+            更新的案件数量
+        """
+        ...
+
 
 class ICaseSearchService(Protocol):
     """
@@ -525,7 +540,6 @@ class ICaseLogService(Protocol):
     def list_logs(
         self,
         case_id: int | None = None,
-        contract_id: int | None = None,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
@@ -573,12 +587,6 @@ class ICaseLogService(Protocol):
         self,
         case_id: int,
         content: str,
-        stage: str | None = None,
-        note: str = "",
-        logged_at: Any | None = None,
-        log_type: str | None = None,
-        source: str | None = None,
-        is_pinned: bool = False,
         user: Any | None = None,
         reminder_type: str | None = None,
         reminder_time: Any | None = None,

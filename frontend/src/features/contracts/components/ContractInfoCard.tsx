@@ -25,8 +25,8 @@ export function ContractInfoCard({ contract: c }: { contract: Contract }) {
           <Info icon={Tag} label="类型 / 状态">
             <div className="flex gap-2">
               <Badge variant="outline">{c.case_type_label}</Badge>
-              <Badge variant={c.status === 'active' ? 'default' : 'secondary'}>{c.status_label}</Badge>
-              {c.is_archived && <Badge variant="secondary">已建档</Badge>}
+              <Badge variant={c.status === 'active' ? 'default' : c.status === 'archived' ? 'secondary' : 'outline'}>{c.status_label}</Badge>
+              {c.is_filed && <Badge variant="secondary">已建档</Badge>}
             </div>
           </Info>
           <Info icon={Calendar} label="指定日期">{c.specified_date || '-'}</Info>

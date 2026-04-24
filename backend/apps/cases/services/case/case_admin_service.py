@@ -133,11 +133,8 @@ class CaseAdminService:
         """
         try:
             if legal_statuses:
-                return cast(
-                    str,
-                    self.document_service.get_matched_folder_templates_with_legal_status(case_type, legal_statuses),
-                )
-            return cast(str, self.document_service.get_matched_folder_templates(case_type))
+                return self.document_service.get_matched_folder_templates_with_legal_status(case_type, legal_statuses),
+            return self.document_service.get_matched_folder_templates(case_type)
         except Exception:
             logger.exception(
                 "get_matched_folder_templates_failed", extra={"case_type": case_type, "legal_statuses": legal_statuses}
@@ -151,13 +148,10 @@ class CaseAdminService:
             module = import_module("apps.documents.services.template.template_matching_service")
             template_matching_service_cls = module.TemplateMatchingService
 
-            return cast(
-                list[JSONDict],
-                template_matching_service_cls().find_matching_case_folder_templates_list(
+            return template_matching_service_cls().find_matching_case_folder_templates_list(
                     case_type=case_type,
                     legal_statuses=legal_statuses,
-                ),
-            )
+                )
         except Exception:
             logger.exception("get_matched_folder_templates_list_failed", extra={"case_type": case_type})
             return []
@@ -169,14 +163,11 @@ class CaseAdminService:
         applicable_institutions: list[str] | None = None,
     ) -> list[JSONDict]:
         try:
-            return cast(
-                list[JSONDict],
-                self.document_service.find_matching_case_file_templates(
+            return self.document_service.find_matching_case_file_templates(
                     case_type=case_type,
                     case_stage=case_stage,
                     applicable_institutions=applicable_institutions,
-                ),
-            )
+                )
         except Exception:
             logger.exception(
                 "get_matched_case_file_templates_failed",
@@ -303,8 +294,7 @@ class CaseAdminService:
         from apps.cases.models import CaseLog
 
         try:
-            return cast(
-                Case,
+            return (
                 Case.objects.select_related(
                     "contract",
                     "folder_binding",
@@ -322,7 +312,7 @@ class CaseAdminService:
                     ),
                     "chats",
                 )
-                .get(pk=case_id),
+                .get(pk=case_id)
             )
         except Case.DoesNotExist:
             return None
@@ -480,7 +470,7 @@ class CaseAdminService:
         # 复制主对象
         new_case = Case.objects.create(
             contract=original.contract,
-            is_archived=False,  # 副本默认未建档
+            is_filed=False,  # 副本默认未建档
             name=f"{original.name} (副本)",
             status=original.status,
             effective_date=original.effective_date,
@@ -538,17 +528,17 @@ class CaseAdminService:
         return new_case
 
     @transaction.atomic
-    def handle_case_filing_change(self, case_id: int, is_archived: bool) -> str | None:
+    def handle_case_filing_change(self, case_id: int, is_filed: bool) -> str | None:
         """
         处理案件建档状态变化
 
         业务逻辑:
-        - 如果 is_archived=True 且 filing_number 为空,调用 FilingNumberService 生成编号
-        - 如果 is_archived=True 且 filing_number 已存在,返回现有编号
-        - 如果 is_archived=False,不修改 filing_number(保留在数据库中)
+        - 如果 is_filed=True 且 filing_number 为空,调用 FilingNumberService 生成编号
+        - 如果 is_filed=True 且 filing_number 已存在,返回现有编号
+        - 如果 is_filed=False,不修改 filing_number(保留在数据库中)
 
             case_id: 案件ID
-            is_archived: 是否已建档
+            is_filed: 是否已建档
 
             str | None: 建档编号(如果已建档)
 
@@ -567,7 +557,7 @@ class CaseAdminService:
             ) from None
 
         # 如果取消建档,不修改 filing_number(保留在数据库中)
-        if not is_archived:
+        if not is_filed:
             logger.info(
                 "取消案件建档,保留建档编号",
                 extra={"case_id": case_id, "filing_number": case.filing_number, "action": "handle_case_filing_change"},
@@ -585,14 +575,11 @@ class CaseAdminService:
         # 如果已建档但没有编号,生成新编号
         created_year = case.start_date.year
         case_type = str(case.case_type or "")
-        filing_number = cast(
-            str,
-            self.filing_number_service.generate_case_filing_number_internal(
+        filing_number = self.filing_number_service.generate_case_filing_number_internal(
                 case_id=case_id,
                 case_type=case_type,
                 created_year=created_year,
-            ),
-        )
+            )
 
         # 保存编号到数据库
         case.filing_number = filing_number

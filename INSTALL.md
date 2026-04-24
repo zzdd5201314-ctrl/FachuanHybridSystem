@@ -27,17 +27,11 @@
 
 ```bash
 # 1) 克隆项目
-git clone --depth 1 git@github.com:Lawyer-ray/FachuanHybridSystem.git
+git clone --depth 1 https://github.com/Lawyer-ray/FachuanHybridSystem.git
 cd FachuanHybridSystem/backend
 
 # 2) 配置环境变量
 cp .env.example .env
-# If you use folder binding / folder scan in Docker, also set HOST_HOME_PATH
-# in .env so the container can browse your real host home directory:
-#   Linux: /home
-#   macOS: /Users
-#   Windows (Docker Desktop): C:/Users
-# Otherwise the container's /home may appear empty in the folder browser.
 # 必须修改 DJANGO_SECRET_KEY，生成命令：
 #   python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 
@@ -101,9 +95,14 @@ choco install postgresql --yes
 按 `backend/.env` 里的 `DB_NAME/DB_USER/DB_PASSWORD` 保持一致（默认示例：`fachuan_dev/postgres/postgres`）：
 
 ```bash
-# 如使用默认 postgres 超级用户，可直接执行
-psql -h 127.0.0.1 -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD 'postgres';"
-psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE fachuan_dev OWNER postgres;"
+# 先通过本地 socket（peer 认证，无需密码）设置密码
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+
+# 再创建数据库
+sudo -u postgres psql -c "CREATE DATABASE fachuan_dev OWNER postgres;"
+
+# 密码设好后，后续也可通过 TCP 连接（需输入密码）
+# psql -h 127.0.0.1 -U postgres -d postgres -c "..."
 ```
 
 如果数据库已存在，第二条 `CREATE DATABASE` 报错可忽略。

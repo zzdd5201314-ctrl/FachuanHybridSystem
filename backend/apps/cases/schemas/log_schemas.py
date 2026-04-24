@@ -21,27 +21,11 @@ ReminderPayload = dict[str, object]
 class CaseLogIn(Schema):
     case_id: int
     content: str
-    stage: str | None = None
-    note: str = ""
-    logged_at: str | None = None
-    log_type: str | None = None
-    source: str | None = None
-    is_pinned: bool = False
-    reminder_type: str | None = None
-    reminder_time: str | None = None
 
 
 class CaseLogUpdate(Schema):
     case_id: int | None = None
     content: str | None = None
-    stage: str | None = None
-    note: str | None = None
-    logged_at: str | None = None
-    log_type: str | None = None
-    source: str | None = None
-    is_pinned: bool | None = None
-    reminder_type: str | None = None
-    reminder_time: str | None = None
 
 
 class CaseLogAttachmentOut(ModelSchema, SchemaMixin):
@@ -54,14 +38,10 @@ class CaseLogAttachmentOut(ModelSchema, SchemaMixin):
 
     @staticmethod
     def resolve_file_path(obj: CaseLogAttachment) -> str | None:
-        if getattr(obj, "source_invoice_id", None):
-            return obj.display_name
         return SchemaMixin._get_file_path(obj.file)
 
     @staticmethod
     def resolve_media_url(obj: CaseLogAttachment) -> str | None:
-        if getattr(obj, "source_invoice_id", None):
-            return f"/api/v1/cases/log-attachments/{obj.id}/download"
         return SchemaMixin._get_file_url(obj.file)
 
     @staticmethod
@@ -89,21 +69,12 @@ class CaseLogOut(ModelSchema, SchemaMixin):
     attachments: list[CaseLogAttachmentOut]
     reminders: list[ReminderOut]
     actor_detail: CaseLogActorOut
-    case_name: str | None = None
-    contract_id: int | None = None
-    contract_name: str | None = None
 
     class Meta:
         model = CaseLog
         fields: ClassVar = [
             "id",
             "case",
-            "stage",
-            "note",
-            "logged_at",
-            "log_type",
-            "source",
-            "is_pinned",
             "content",
             "actor",
             "created_at",
@@ -133,27 +104,8 @@ class CaseLogOut(ModelSchema, SchemaMixin):
         return CaseLogActorOut(id=obj.actor_id, username=f"lawyer_{obj.actor_id}", real_name=None, phone=None)
 
     @staticmethod
-    def resolve_case_name(obj: CaseLog) -> str | None:
-        case = getattr(obj, "case", None)
-        return getattr(case, "name", None)
-
-    @staticmethod
-    def resolve_contract_id(obj: CaseLog) -> int | None:
-        contract = getattr(obj, "contract", None)
-        return getattr(contract, "id", None)
-
-    @staticmethod
-    def resolve_contract_name(obj: CaseLog) -> str | None:
-        contract = getattr(obj, "contract", None)
-        return getattr(contract, "name", None)
-
-    @staticmethod
     def resolve_created_at(obj: CaseLog) -> datetime | None:
         return SchemaMixin._resolve_datetime(getattr(obj, "created_at", None))
-
-    @staticmethod
-    def resolve_logged_at(obj: CaseLog) -> datetime | None:
-        return SchemaMixin._resolve_datetime(getattr(obj, "logged_at", None))
 
     @staticmethod
     def resolve_updated_at(obj: CaseLog) -> datetime | None:
@@ -181,12 +133,6 @@ class CaseLogAttachmentCreate(Schema):
 
 class CaseLogCreate(Schema):
     content: str
-    stage: str | None = None
-    note: str = ""
-    logged_at: str | None = None
-    log_type: str | None = None
-    source: str | None = None
-    is_pinned: bool = False
     reminder_type: str | None = None
     reminder_time: str | None = None
 

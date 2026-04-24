@@ -30,7 +30,7 @@ TIMEOUT = 60
 
 
 class ZnszjClient:
-    """znszj 文书转换客户端。"""
+    """znszj 要素式转换客户端。"""
 
     def convert_document(
         self,
@@ -163,4 +163,4 @@ class ZnszjClient:
             )
             r4.raise_for_status()
             logger.info("znszj 下载成功", extra={"mbid": mbid})
-            return cast(bytes, r4.content)
+            return r4.content

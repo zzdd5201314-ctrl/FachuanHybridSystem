@@ -10,34 +10,19 @@ check: lint typecheck ## 运行所有检查
 ci-check: ## 模拟 GitHub backend (3.12) job 的核心检查（changed-files 模式）
 	@echo "$(GREEN)=== GitHub CI 预检 (changed-files 模式) ===$(NC)"
 	@echo ""
-	@if [ -n "$$CI_CHECK_BASE" ]; then \
-		BASE="$$CI_CHECK_BASE"; \
-	else \
-		UPSTREAM=$$(git rev-parse --abbrev-ref @{u} 2>/dev/null | sed 's|origin/||' || true); \
-		if [ -n "$$UPSTREAM" ]; then \
-			BASE="$$UPSTREAM"; \
-		else \
-			BASE="main"; \
-		fi; \
-	fi; \
-	if ! git rev-parse "$$BASE" &>/dev/null 2>&1; then \
-		echo "⚠️  基准 '$$BASE' 不存在，尝试 merge-base..."; \
-		BASE=$$(git merge-base HEAD HEAD~1 2>/dev/null || echo ""); \
-	fi; \
-	echo "📋 基准: $(YELLOW)$$BASE$(NC) → $(YELLOW)HEAD$(NC)"; \
-	CHANGED=$$(git diff --name-only --diff-filter=ACMRT $$BASE HEAD 2>/dev/null | grep -E '^apps/.*\.py$$' | sed 's|^apps/||' || true); \
+	@CHANGED=$$(bash devtools/changed_files.sh); \
 	if [ -z "$$CHANGED" ]; then \
 		echo "✅ 无变更 Python 文件"; \
 	else \
 		echo "🔍 [1/3] Ruff (changed files): $$CHANGED"; \
 		$(PYTHON) -m ruff check $$CHANGED --config ruff.toml; \
 		echo ""; \
-		echo "🔍 [2/3] Mypy (changed files, follow-imports=skip): $$CHANGED"; \
-		PYTHONPATH=apiSystem:. $(PYTHON) -m mypy --config-file mypy.ini --follow-imports=skip $$CHANGED; \
+		echo "🔍 [2/3] Mypy (changed files, follow-imports=silent): $$CHANGED"; \
+		PYTHONPATH=apiSystem:. $(PYTHON) -m mypy --config-file mypy.ini --follow-imports=silent $$CHANGED; \
 		echo ""; \
 	fi
-	@echo "🔍 [3/3] 测试收集 (structure smoke):"
-	$(TEST_ENV) $(PYTEST) tests/ci/structure/ --co -q 2>&1 | tail -3
+	@echo "🔍 [3/3] 结构测试 (ratchet guard):"
+	$(TEST_ENV) $(PYTEST) tests/ci/structure/ -q --no-header $(ARGS)
 	@echo ""
 	@echo "$(GREEN)✅ GitHub CI 预检通过! 可以放心推送了$(NC)"
 
@@ -48,7 +33,7 @@ ci-check-full: ## 完整 CI 预检 (含 unit/integration/property smoke)
 	$(TEST_ENV) $(PYTEST) tests/ci/integration/ -q $(ARGS)
 	$(TEST_ENV) HYPOTHESIS_PROFILE=default $(PYTEST) tests/ci/property/ -q $(ARGS)
 
-.PHONY: help install run test migrate shell lint clean ci-check ci-check-full qcluster-dev
+.PHONY: help install run test migrate shell lint clean ci-check ci-check-full qcluster-dev redis-cli redis-status redis-reset
 
 # 默认 Python 和虚拟环境
 VENV_DIR ?= .venv
@@ -168,28 +153,28 @@ superuser: ## 创建超级用户
 # ============================================================
 
 test: ## 运行测试
-	$(TEST_ENV) $(PYTEST) tests -v --tb=short $(ARGS)
+	$(TEST_ENV) $(PYTEST) tests/ci -v --tb=short $(ARGS)
 
 test-cov: ## 运行测试 (带覆盖率)
-	$(TEST_ENV) $(PYTEST) tests -v --tb=short --cov=apps --cov-report=html --cov-report=term
+	$(TEST_ENV) $(PYTEST) tests/ci -v --tb=short --cov=apps --cov-report=html --cov-report=term
 
 test-fast: ## 快速测试 (不显示详情)
-	$(TEST_ENV) $(PYTEST) tests -q
+	$(TEST_ENV) $(PYTEST) tests/ci -q
 
 test-unit: ## 运行单元测试
-	$(TEST_ENV) $(PYTEST) tests/unit -v --tb=short $(ARGS)
+	$(TEST_ENV) $(PYTEST) tests/ci/unit -v --tb=short $(ARGS)
 
 test-integration: ## 运行集成测试
-	$(TEST_ENV) $(PYTEST) tests/integration -v --tb=short $(ARGS)
+	$(TEST_ENV) $(PYTEST) tests/ci/integration -v --tb=short $(ARGS)
 
 test-property: ## 运行 Property-Based Tests
-	$(TEST_ENV) $(PYTEST) tests/property -v --tb=short $(ARGS)
+	$(TEST_ENV) $(PYTEST) tests/ci/property -v --tb=short $(ARGS)
 
 test-structure: ## 运行结构验证测试
-	$(TEST_ENV) $(PYTEST) tests/structure -v --tb=short --no-cov $(ARGS)
+	$(TEST_ENV) $(PYTEST) tests/ci/structure -v --tb=short --no-cov $(ARGS)
 
 test-admin: ## 运行 Admin 测试
-	$(TEST_ENV) $(PYTEST) tests/admin -v --tb=short $(ARGS)
+	$(TEST_ENV) $(PYTEST) tests/ci/unit -v --tb=short -k "admin" $(ARGS)
 
 # ============================================================
 # 代码质量
@@ -233,7 +218,7 @@ format: ## 格式化代码
 	$(PYTHON) -m isort apps
 
 typecheck-ratchet: ## 类型检查（仅棘轮路径）
-	$(PYTHON) -m mypy \
+	PYTHONPATH=apiSystem:. $(PYTHON) -m mypy \
 		apps/core/infrastructure/throttling.py \
 		apps/core/middleware_request_id.py \
 		apps/core/exceptions_handlers.py \
@@ -257,11 +242,11 @@ typecheck-ratchet: ## 类型检查（仅棘轮路径）
 		apps/contracts/services/contract/contract_service_adapter.py \
 		apps/organization/services/org_access_computation_service.py \
 		apps/organization/services/wiring.py \
-		--follow-imports=skip \
+		--follow-imports=silent \
 		--config-file mypy.ini
 
 typecheck: ## 全量类型检查 apps/
-	$(PYTHON) -m mypy apps --config-file mypy.ini
+	PYTHONPATH=apiSystem:. $(PYTHON) -m mypy apps --config-file mypy.ini
 
 typecheck-full: typecheck ## 全量类型检查（typecheck 别名）
 
@@ -362,6 +347,26 @@ docker-build: ## 构建 Docker 镜像
 
 docker-run: ## 运行 Docker 容器
 	docker run -p 8000:8000 lawfirm-backend
+
+# ============================================================
+# Redis（本地开发需要 Redis 时使用）
+# ============================================================
+
+REDIS_HOST ?= 127.0.0.1
+REDIS_PORT ?= 6379
+
+redis-cli: ## 连接 Redis CLI
+	redis-cli -h $(REDIS_HOST) -p $(REDIS_PORT)
+
+redis-status: ## 检查 Redis 连通性和信息
+	@redis-cli -h $(REDIS_HOST) -p $(REDIS_PORT) ping 2>/dev/null && echo "Redis OK" || echo "Redis 不可达"
+	@redis-cli -h $(REDIS_HOST) -p $(REDIS_PORT) info memory 2>/dev/null | grep used_memory_human || true
+
+redis-reset: ## 清除 Redis 中本项目的缓存键（仅开发用！）
+	@echo "$(YELLOW)警告: 这将清除 lawfirm:* 前缀的所有缓存键$(NC)"
+	@read -p "确认继续? [y/N] " confirm && [ "$$confirm" = "y" ]
+	redis-cli -h $(REDIS_HOST) -p $(REDIS_PORT) --scan --pattern "lawfirm:*" | xargs -r redis-cli -h $(REDIS_HOST) -p $(REDIS_PORT) del
+	@echo "$(GREEN)lawfirm:* 缓存键已清除$(NC)"
 
 # ============================================================
 # 健康检查

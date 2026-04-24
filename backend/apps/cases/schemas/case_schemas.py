@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
 from typing import ClassVar
 
 from .assignment_schemas import CaseAssignmentCreate, CaseAssignmentOut
@@ -19,9 +18,8 @@ class CaseIn(ModelSchema):
         fields: ClassVar = [
             "name",
             "status",
-            "is_archived",
+            "is_filed",
             "case_type",
-            "start_date",
             "target_amount",
             "preservation_amount",
             "cause_of_action",
@@ -44,7 +42,7 @@ class CaseOut(ModelSchema):
             "id",
             "name",
             "status",
-            "is_archived",
+            "is_filed",
             "case_type",
             "start_date",
             "effective_date",
@@ -64,7 +62,7 @@ class CaseOut(ModelSchema):
 
     @staticmethod
     def resolve_logs(obj: Case) -> list[CaseLog]:
-        return list(obj.logs.order_by("-is_pinned", "-created_at"))
+        return list(obj.logs.all())
 
     @staticmethod
     def resolve_status(obj: Case) -> str | None:
@@ -80,19 +78,18 @@ class CaseOut(ModelSchema):
 
     @staticmethod
     def resolve_case_numbers(obj: Case) -> list[CaseNumberOut]:
-        return list(obj.case_numbers.all())
+        return list(obj.case_numbers.all())  # type: ignore[arg-type]
 
     @staticmethod
     def resolve_supervising_authorities(obj: Case) -> list[SupervisingAuthorityOut]:
-        return list(obj.supervising_authorities.all())
+        return list(obj.supervising_authorities.all())  # type: ignore[arg-type]
 
 
 class CaseUpdate(Schema):
     name: str | None = None
     status: str | None = None
-    is_archived: bool | None = None
+    is_filed: bool | None = None
     case_type: str | None = None
-    start_date: date | None = None
     target_amount: float | None = None
     preservation_amount: float | None = None
     cause_of_action: str | None = None
