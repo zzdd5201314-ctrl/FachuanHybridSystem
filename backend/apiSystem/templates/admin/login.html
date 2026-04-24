@@ -191,9 +191,11 @@
         .auth-section {
             width: 100%;
             opacity: 0;
-            transform: translateX(30px);
-            transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(40px) scale(0.98);
+            filter: blur(4px);
+            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                        transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+                        filter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
             position: absolute;
             top: 0;
             left: 0;
@@ -202,14 +204,16 @@
 
         .auth-section.active {
             opacity: 1;
-            transform: translateX(0);
+            transform: translateX(0) scale(1);
+            filter: blur(0);
             position: relative;
             pointer-events: auto;
         }
 
         .auth-section.exit-left {
             opacity: 0;
-            transform: translateX(-20px);
+            transform: translateX(-30px) scale(0.98);
+            filter: blur(4px);
         }
 
         /* 表单头部 */
