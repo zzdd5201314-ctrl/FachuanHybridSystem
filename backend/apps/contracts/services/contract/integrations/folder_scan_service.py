@@ -440,10 +440,14 @@ class ContractFolderScanService:
 
     @staticmethod
     def _relative_path_str(*, source_path: str, scan_root: Path) -> str:
-        """计算文件相对扫描根目录的路径，失败返回空字符串。"""
+        """计算文件父目录相对扫描根目录的路径，失败返回空字符串。"""
         try:
             file_path = Path(source_path).expanduser().resolve()
-            return file_path.relative_to(scan_root).as_posix()
+            parent_rel = file_path.parent.relative_to(scan_root)
+            # 文件直接在根目录下时返回空
+            if str(parent_rel) == ".":
+                return ""
+            return parent_rel.as_posix()
         except (ValueError, RuntimeError):
             return ""
 
