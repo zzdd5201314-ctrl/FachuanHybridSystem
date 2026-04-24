@@ -483,11 +483,12 @@ class ContractFolderScanService:
                     candidate["confidence"] = result["confidence"]
                     candidate["reason"] = result["reason"]
                 else:
-                    # 未匹配，保留但标记
+                    # 未匹配，保留但标记，默认取消勾选
                     candidate["suggested_category"] = "case_material"
                     candidate["archive_item_code"] = ""
                     candidate["archive_item_name"] = "未匹配"
                     candidate["reason"] = result["reason"]
+                    candidate["selected"] = False
 
             elif suggested_category == "authorization_material":
                 # 授权委托材料归入案件材料（兼容旧缓存），并尝试匹配归档清单项
@@ -505,6 +506,7 @@ class ContractFolderScanService:
                 else:
                     candidate["archive_item_code"] = ""
                     candidate["archive_item_name"] = "未匹配"
+                    candidate["selected"] = False
 
             elif suggested_category == "case_material":
                 # 案件材料 — 尝试匹配归档清单项
@@ -521,6 +523,7 @@ class ContractFolderScanService:
                 else:
                     candidate["archive_item_code"] = ""
                     candidate["archive_item_name"] = "未匹配"
+                    candidate["selected"] = False
 
             # 案件材料的 reason 统一替换为相对路径，方便用户定位文件
             if candidate.get("suggested_category") == "case_material":
