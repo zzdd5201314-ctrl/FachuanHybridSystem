@@ -97,67 +97,6 @@
     transition: all 0.3s ease;
 }
 
-/* 解析对话框样式优化 */
-#parse-text-dialog h3 {
-    margin-top: 0;
-    color: #333;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-}
-
-#parse-text-dialog ul {
-    background: #f8f9fa;
-    padding: 10px 15px;
-    border-radius: 4px;
-    border-left: 4px solid #007cba;
-}
-
-#parse-text-dialog textarea {
-    font-size: 13px;
-    line-height: 1.4;
-    resize: vertical;
-}
-
-#parse-text-dialog button.default {
-    background-color: #007cba;
-    border-color: #007cba;
-    color: white;
-    padding: 8px 16px;
-}
-
-#parse-text-dialog button.default:hover {
-    background-color: #005a87;
-    border-color: #005a87;
-}
-
-/* 多个结果对话框样式 */
-#multiple-results-dialog .client-item {
-    border-radius: 4px;
-    transition: all 0.2s ease;
-}
-
-#multiple-results-dialog .client-item:hover {
-    background-color: #f0f8ff !important;
-    border-color: #007cba !important;
-}
-
-/* 成功消息样式 */
-.success-message {
-    font-weight: bold;
-    animation: slideInRight 0.3s ease;
-}
-
-@keyframes slideInRight {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
 /* 表单字段高亮效果 */
 .form-row .field-box input[type="text"].highlight,
 .form-row .field-box select.highlight,
