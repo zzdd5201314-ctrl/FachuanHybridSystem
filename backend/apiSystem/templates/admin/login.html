@@ -178,19 +178,39 @@
             background: var(--bg-panel);
             border-left: 1px solid var(--border-subtle);
             position: relative;
-            overflow-y: auto;
+            overflow: hidden;
         }
 
         .form-container {
             width: 100%;
             max-width: 400px;
+            position: relative;
         }
 
-        /* ====== Alpine.js 过渡动画 ====== */
-        .auth-enter-from { opacity: 0; transform: translateX(30px); }
-        .auth-enter-to   { opacity: 1; transform: translateX(0); }
-        .auth-leave-from { opacity: 1; transform: translateX(0); }
-        .auth-leave-to   { opacity: 0; transform: translateX(-20px); }
+        /* ====== 表单切换动画 ====== */
+        .auth-section {
+            width: 100%;
+            opacity: 0;
+            transform: translateX(30px);
+            transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .auth-section.active {
+            opacity: 1;
+            transform: translateX(0);
+            position: relative;
+            pointer-events: auto;
+        }
+
+        .auth-section.exit-left {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
 
         /* 表单头部 */
         .form-header {
@@ -597,14 +617,7 @@
             <div class="form-container">
 
                 <!-- ====== 登录表单 ====== -->
-                <div x-show="mode === 'login'"
-                     x-cloak
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="auth-enter-from"
-                     x-transition:enter-end="auth-enter-to"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="auth-leave-from"
-                     x-transition:leave-end="auth-leave-to">
+                <div id="login-section" class="auth-section" :class="{ 'active': mode === 'login', 'exit-left': mode === 'register' }">
 
                     <div class="form-header">
                         <h2>{% trans "欢迎回来" %}</h2>
@@ -669,14 +682,7 @@
                 </div>
 
                 <!-- ====== 注册表单 ====== -->
-                <div x-show="mode === 'register'"
-                     x-cloak
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="auth-enter-from"
-                     x-transition:enter-end="auth-enter-to"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="auth-leave-from"
-                     x-transition:leave-end="auth-leave-to">
+                <div id="register-section" class="auth-section" :class="{ 'active': mode === 'register', 'exit-left': mode === 'login' }">
 
                     <div class="form-header">
                         <h2>{% trans "创建账号" %}</h2>
@@ -795,7 +801,7 @@
                     {% if show_register %}
                     this.mode = 'register';
                     {% endif %}
-                    // 2. URL hash 优先级最高，覆盖 Django 默认
+                    // 2. URL hash 优先级最高
                     var hash = window.location.hash;
                     if (hash === '#register') {
                         this.mode = 'register';
