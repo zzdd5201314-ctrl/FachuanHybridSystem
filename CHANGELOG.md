@@ -2,6 +2,570 @@
 
 本项目的所有重要更改都将记录在此文件中。
 
+## [26.37.17] - 2026-04-24
+
+### 变更
+
+- **Dockerfile 添加 OpenCV 系统依赖**：在 `apt-get install` 中新增 `libgl1` 和 `libglib2.0-0t64`，解决 ddddocr 因缺少 `libGL.so.1` 导致导入失败的问题（Debian Trixie 已将 `libgl1-mesa-glx` 替换为 `libgl1`）。
+- **INSTALL.md 补充 Linux 系统依赖说明**：本地开发（Linux）章节新增系统依赖安装步骤，提示 Ubuntu/Debian 需安装 `libgl1` 和 `libglib2.0-0t64`，CentOS/RHEL 需安装 `mesa-libGL` 和 `glib2`。
+
+## [26.37.16] - 2026-04-24
+
+### 变更
+
+- **Playwright 改为可选依赖**：`playwright` 从硬性依赖降级为可选依赖，未安装时系统仅发出 Warning 而非阻断启动。一张网（法院执行网）支持纯 API 模式下载文书，无需 Playwright；其他平台（广东电子送达、简易送达、司法送达网）仍需 Playwright 浏览器支持。
+- **Playwright 缺失时优雅降级**：`BrowserManager` / `BrowserService` 改为延迟导入 Playwright，未安装时不再 ImportError 崩溃。`SMSDownloadMixin` 在创建下载任务前检测目标平台是否需要 Playwright，若需要但未安装则直接创建 FAILED 状态任务并提示安装命令。
+- **Django system check 降级**：`automation.E001`（Error）改为 `automation.W002`（Warning），提示一张网可通过纯 API 正常工作。
+
+## [26.37.15] - 2026-04-24
+
+### 变更
+
+- **OpenCV 依赖切换为 headless 版本**：`opencv-python` 替换为 `opencv-python-headless`，解决 Linux 服务器缺少 `libGL.so.1` 导致 ddddocr 导入失败的问题，同时减少无用的 GUI 系统依赖。
+- **隐藏系统配置页的系统更新状态与立即更新按钮**：系统配置页面不再显示"系统更新状态"区块和"立即更新系统"按钮，简化界面。
+
+### 修复
+
+- **短信列表"手动关联"按钮文案优化**：将"🔗 去详情页绑定案件"简化为"手动关联"。
+
+## [26.37.14] - 2026-04-24
+
+### 新增
+
+- **归档检查清单一键清空**：归档材料列表右侧增加垃圾桶图标按钮，一键清空全部归档材料（含物理文件删除）。
+- **合同文件夹扫描：路径优先分类策略**：材料分类改用文件夹路径作为主信号——仅"合同发票"文件夹内按文件名区分合同正本/补充协议/发票/监督卡，其余路径一律归为案件材料，解决起诉状等诉讼文书被误分类为合同正本的问题。
+- **合同文件夹扫描：保单/保函文件默认不勾选**：文件名含"保单""保函"的材料默认取消勾选，避免保险类文件被误导入。
+- **合同文件夹扫描：无关联案件的工作日志支持**：合同无关联案件时，归档文书从扫描会话 JSON 读取已确认的工作日志建议，补全数据链路。
+- **合同文件夹扫描：案件材料分类匹配归档清单项**：案件材料类文件尝试匹配归档清单编号，匹配成功自动填充 archive_item_code，未匹配则默认不勾选。
+- **归档生成：5-Final案卷材料PDF合并**：归档文件夹生成新增第5步，将1-3号模板文书 docx 转 PDF 后与4号案卷材料 PDF 合并为"5-Final案卷材料"完整卷宗，合并后自动清理中间 PDF 文件。
+
+### 修复
+
+- **合同文件夹扫描：分类误判**："合同纠纷""协议纠纷"等案由描述中的"合同"关键词不再触发合同正本分类；诉讼文书关键词（起诉状、判决书等）不再被错误识别。
+- **合同文件夹扫描：重复导入**：确认导入增加三层去重——会话状态守卫（已导入拒绝）、材料文件名+分类唯一性、工作日志内容唯一性。
+- **合同文件夹扫描：工作日志确认后未写入**：confirm_import 仅写入 JSON 字段未创建 CaseLog 记录，已修复为双路径写入（有关联案件写 CaseLog，无关联案件存扫描会话 JSON）。
+
+### 变更
+
+- **材料分类精简为5项**：前端显示类别从7项（含归档文书、授权委托材料）精简为5项：合同正本、补充协议、发票、监督卡、案件材料。旧类别 archive_document/authorization_material 自动映射为案件材料。
+- **合同文件夹扫描：隐藏"扫描全部内容"按钮**：默认使用子文件夹选择模式，减少无关文件干扰。
+- **合同文件夹扫描：分类原因显示优化**：案件材料的分类原因从"文件夹路径关键词命中：xxx"改为显示文件所在父目录的相对路径，便于用户定位文件。
+
+## [26.37.13] - 2026-04-24
+
+### 修复
+
+- **合同文件夹扫描前端不显示结果**：页面刷新后 Alpine.js 组件的 `scanSessionId` 重置为空，导致打开弹窗时无法加载已有扫描结果。新增 `/folder-scan/latest` API 和前端 `loadLatestSession()` 方法，弹窗打开时自动恢复最近一次扫描会话状态。
+
+### 新增
+
+- **文件夹扫描会话复用**：`start_scan()` 现在会复用同子文件夹的已完成会话，避免重复扫描。
+
+### 移除
+
+- **移除"确认归档"按钮及后端视图**：清理已废弃的 `confirm_archive_view`、`can_archive` 上下文变量及前端 JS/CSS 死代码。
+
+## [26.37.12] - 2026-04-24
+
+### 修复
+
+- **短信匹配阶段因 OCR OOM 导致的无限重试循环**：当 qcluster worker 因 OCR（PP-OCRv5 server）内存不足被 OOM Kill 时，短信状态永久停留在 MATCHING，Django-Q 每 20 分钟重试一次形成无限循环（OCR → OOM Kill → 重试 → OCR → OOM Kill → ...）。修复方式：① 不再在 `_process_matching()` 入口无意义地重写已有的 MATCHING 状态（避免刷新 `updated_at` 导致卡住检测失效）；② 当短信已是 MATCHING 状态再次进入时递增 `retry_count`；③ 重试次数超过 3 次后标记为 `PENDING_MANUAL` 终止循环；④ `TaskRecoveryService` 同步增加匹配重试保护。
+
+### 变更
+
+- **统一 OCR 路由至 OCRService**：将 `SupervisionCardExtractor` 和 `RenameOCRChannel` 中绕过 `OCR_PROVIDER` 配置的直接 OCR 调用，统一改为通过 `OCRService` 路由。现在所有 OCR 调用均受系统配置 `OCR_PROVIDER`（`local` / `paddleocr_api`）控制，切换云端 API 后全项目生效。
+
+## [26.37.11] - 2026-04-24
+
+### 新增
+
+- **案件编辑页关联合同改为下拉+搜索**：CaseAdmin 的合同字段添加 `autocomplete_fields`，使用 Django 内置 Select2 实现搜索选择，解决下拉菜单超出屏幕右边界的问题。
+
+### 变更
+
+- **移除合同"已结案"状态**：合同状态只保留"未签约""在办""已归档"三种，"已结案"状态仅属于案件。已有 `closed` 合同数据自动迁移为 `archived`。归档前置条件从"已结案"改为"在办"。
+
+### 移除
+
+- **客户编辑页移除冗余"粘贴文本自动填充"按钮**：该功能已由 Alpine.js `textParserApp()` 实现，旧版 jQuery `initTextParsing()` 及相关 CSS 样式一并清理。
+
+## [26.37.10] - 2026-04-23
+
+### 修复
+
+- **Playwright 浏览器二进制缺失时自动安装**：Playwright Python 包升级后新版期望的 chromium 路径变化（如 `chromium_headless_shell-1208`），但旧镜像中只有旧版浏览器路径，导致 `BrowserType.launch` 报 `Executable doesn't exist` 错误。新增 `_ensure_browser_installed()` 函数在启动浏览器前检测并自动安装，`start_browser()` 中增加双重保障：启动前预检 + 启动失败后自动安装重试。
+- **AccountCredential Admin 隐藏增加按钮**：账号凭证列表页右上角"增加账号密码"按钮已隐藏，凭证应通过系统自动创建或特定流程添加。
+
+## [26.37.9] - 2026-04-23
+
+### 新增
+
+- **财产保全申请书模板**：文档模板默认数据新增财产保全申请书模板，归类于起诉材料下的财产保全材料子目录。
+- **财产保全材料文件夹节点**：归档文件夹模板新增财产保全材料子目录节点。
+
+### 修复
+
+- **要素式文书下载文件名不规范**：要素式转换工作台下载文件名将原文件名中的"传统"替换为"要素式"（如 `1-传统起诉状…docx` → `1-要素式起诉状…docx`），而非之前拼凑式命名。
+- **LPR同步服务 Playwright 资源泄漏**：修复 LPR 同步服务中 Playwright browser/context 未正确关闭导致资源泄漏的问题，同时清理冗余注释和简化代码。
+
+## [26.37.8] - 2026-04-23
+
+### 新增
+
+- **合同文件夹扫描支持归档清单项匹配**：扫描结果自动关联归档检查清单项（`archive_item_code`），用户可在扫描面板中查看和手动修改匹配结果。
+- **合同文件夹扫描支持 docx 转 PDF**：扫描到 docx 文件时自动标记，确认扫描后自动将 docx 转为 PDF 再入库。
+- **合同文件夹扫描支持工作日志建议**：扫描常法合同时，自动从子文件夹名（格式 `YYYY.MM.DD-事项名`）解析律师工作日志建议，确认扫描后一并提交。
+- **归档分类器（ArchiveClassifier）**：新增 `archive_classifier.py`，基于归档清单关键词映射自动将文件分类到对应清单项。
+- **lt_11 清单项扩展关键词**：查封清单、缴费通知、诉前调解告知书、受理通知书、交费通知、交费清单可自动匹配到 lt_11；开户许可证和银行卡自动跳过。
+
+### 优化
+
+- **归档清单项下拉始终显示**：清单项匹配下拉菜单改为始终显示全部清单项，不再仅限 `source=case`，允许用户手动修改自动匹配结果。
+- **扫描 modal 样式作用域隔离**：所有 `.fm-scan-modal` 相关样式加上作用域前缀，修复 modal 样式全局污染导致归档工具栏按钮变窄的问题。
+
+### 修复
+
+- **归档文件夹生成遗漏监督卡**：`checklist_service` 新增 `_map_supervision_card_materials` 方法，将 `SUPERVISION_CARD` 类别但无 `archive_item_code` 的材料正确映射到监督卡清单项。
+- **归档文件夹生成遗漏授权委托材料**：`_compile_case_materials_pdf` 重构为直接复用 `ArchiveChecklistService.get_checklist_with_status()` 结果，确保"归档检查清单"显示的子项与"4-案卷材料"PDF 内容完全一致。
+- **循环导入**：`contracts.services.archive.constants` 顶层导入改为方法内懒加载，修复循环导入问题。
+- **归档材料上传大小限制**：归档材料上传限制从 20MB 调整为 100MB，支持较大文件上传。
+
+## [26.37.7] - 2026-04-23
+
+### 新增
+
+- **材料分类新增监督卡和授权委托类别**：`MaterialClassificationService` 新增 `supervision_card`（监督卡）和 `authorization_material`（授权委托书/所函/律师函）关键词规则分类，提升文件夹扫描自动分类准确度。
+- **合同状态变更自动结案关联案件**：合同状态变更为"已结案"或"已归档"时，自动将关联案件状态设为已结案并记录结案日期。
+- **文件夹扫描后自动打开扫描面板**：扫描任务完成后跳转材料页自动展开扫描结果面板，无需手动点击。
+
+### 优化
+
+- **文书转换改名为要素式转换**：`doc_convert` 模块在 API 标签、Admin 面包屑、MCP 工具注释、Settings 配置中统一从"文书转换"更名为"要素式转换"，更准确描述功能。
+- **材料默认分类从 invoice 改为 archive_document**：`FinalizedMaterial.default_category` 和 `MaterialClassificationService` 兜底分类从 `invoice` 改为 `archive_document`，更符合实际扫描场景。
+- **CourtSMS 列表页隐藏短信类型列**：CourtSMS Admin 列表页移除 `sms_type_display` 列，减少信息噪音。
+
+### 修复
+
+- **飞书文件上传 400 错误**：修复飞书文件上传因请求参数格式问题导致的 400 错误。
+- **关联文书重复显示**：修复法院短信关联文书重复出现的显示问题。
+- **当事人/案号 br 标签不换行**：修复 CourtSMS 列表页当事人和案号字段 `<br>` 标签未正确渲染为换行的问题。
+- **归档案卷目录遗漏律师工作日志和办案小结**：生成归档文件夹时案卷目录补充律师工作日志和办案小结条目。
+- **文件夹扫描材料页默认类别**：支持通过 URL 参数 `category` 默认切换到"当事人材料"或"非当事人材料"标签页。
+
+## [26.37.6] - 2026-04-22
+
+### 新增
+
+- **归档检查清单非模板项上传/删除**：非模板归档项支持直接上传文件，子项支持删除，新增 `upload_archive_item_view` 和 `delete_archive_material_view` Admin 视图。
+- **归档材料 `archive_upload` 类别**：`FinalizedMaterial.category` 新增 `archive_upload` 选项，用于标记手动上传的归档材料。
+
+### 优化
+
+- **归档检查清单展开/收起动画**：子项展开收起改用 CSS Grid `grid-template-rows: 0fr/1fr` 过渡，动画丝滑无卡顿；收起状态无留白；页面宽度不再因展开/收起抖动（`scrollbar-gutter: stable`）。
+- **归档检查清单主项按钮精简**：操作按钮改为 SVG 图标，删除展开箭头，状态徽章右对齐，模板/非模板项按钮位置统一。
+- **归档预览对话框**：修复 textarea 高度和滚动问题，修复编辑区域右侧留白。
+
+### 修复
+
+- **归档文书替换词修改后刷新丢失**：修复预览弹窗编辑替换词后刷新页面丢失修改的问题。
+- **文档生成 API 类型安全**：`save_archive_overrides` 接口参数从 `dict` 改为 `ArchiveOverridesPayload` Schema。
+- **当事人列表页 `check-oa-credential` 接口调用两次**：Alpine.js 的 `x-init` 和组件 `init()` 方法双重调用，移除冗余的 `x-init="init()"`。
+- **客户编辑页 AttributeError**：`GsxtReportTaskInline` 的 `model` 为 `None` 导致 `_meta` 访问失败，改为在类定义时直接设置 `model`。
+
+## [26.37.5] - 2026-04-22
+
+### 新增
+
+- **归档材料重置同步**：全部已同步时提供"重置并重新同步"选项，删除旧案件同步材料（含物理文件）后重新同步，手动上传的材料不受影响。
+- **归档预览撤销修改**：预览弹窗新增「撤销修改」按钮，支持恢复为自动提取的值；新增 `has_overrides` 标记提示用户已手动修改过替换词。
+
+### 修复
+
+- **案件文件夹扫描路径修复**：文件夹扫描任务在绑定路径不可访问时自动修复合同路径，避免扫描失败。
+- **归档同步关键词映射补全**：
+  - 补充"证据材料"→调查材料等案件关联材料（lt_10/cr_8/nl_9），修复"主要证据材料"无法同步的问题。
+  - 补充"材料清单"→同上，修复"材料清单"无法同步的问题。
+  - 补充"委托材料"→授权委托证明材料（lt_20/cr_18/nl_12），修复分类服务生成的"委托材料"无法同步的问题。
+  - 补充"受理通知"→同上，修复"立案受理通知书/案件受理通知书"无法同步的问题。
+  - 补充"传票"→出庭通知书（lt_14/cr_13）。
+
+## [26.37.4] - 2026-04-22
+
+### 新增
+
+- **文件夹绑定自动追踪（inode 机制）**：
+  - 合同文件夹绑定时自动记录 `folder_inode` + `folder_device`，用于路径自动修复。
+  - 合同/案件 Admin 详情页访问时自动检测路径可达性，若不可达则通过 inode BFS 搜索新路径并自动修复。
+  - 案件详情页自动先修复合同路径，再计算案件 `resolved_folder_path`。
+  - BFS 搜索策略：优先从旧路径父目录开始逐步回退（最多 5 层），最终 fallback 到全局 browse roots（深度 6）。
+  - 案件文件夹绑定新增 `relative_path` 字段，存储相对合同文件夹的路径，合同路径修复后案件路径自动生效。
+  - 数据迁移：已有案件绑定自动计算 `relative_path`（使用 PurePosixPath 纯字符串操作，无需文件系统访问）。
+  - API 返回 `path_auto_repaired` 标记，告知前端路径是否被自动修复。
+
+- **合同状态新增"未签约"**：`ContractStatus` 新增 `unsigned` 选项，对应 CSS 样式 `.status-unsigned`。
+
+### 修复
+
+- **CaseFolderBinding 绑定报错**：`CaseFolderBinding` 无 `folder_inode`/`folder_device` 字段时跳过 inode 写入，避免 `Invalid field name` 错误。
+- **BFS 搜索深度不足**：从 `max_depth=3` 改为从旧路径父目录回退搜索 + 全局 fallback 深度 6，修复深层目录搜索失败。
+- **`_` 变量覆盖 gettext**：Admin 详情页中 `_, auto_repaired = ...` 解包覆盖了 Django `_()` 翻译函数，改为显式变量名。
+- **路径修复后 inode 更新**：跨分区 mv 后 inode 会变，修复后同步更新 `folder_inode`/`folder_device`。
+
+### 变更
+
+- **删除按钮样式**：案件材料"删除全部"按钮改为 SVG 图标样式，更紧凑。
+- **Alpine.js 清理**：移除 `courtFilingApp`、`courtGuaranteeApp`、`filingApp` 中冗余的 `x-init="init()"`。
+- **lxml 依赖**：升级到 >=6.1.0。
+
+## [26.37.3] - 2026-04-22
+
+### 新增
+
+- **归档检查清单大幅增强**：
+  - 子项展示：每个清单项下显示对应归档材料子项（文件名、来源、排序）。
+  - 拖拽排序：子项支持拖拽调整顺序，自动持久化 `order` 字段。
+  - 跨项移动：子项可跨清单项移动（`move-archive-material` 接口）。
+  - 单项预览：子项预览按钮改为 SVG 图标，点击可预览对应材料。
+  - 收起/展开全部按钮：清单顶部增加收起/展开全部切换。
+  - 子项默认全部展开 + 默认排序规则（委托合同/授权委托/起诉书等关键词优先）。
+  - 新增 `to_json` 模板过滤器，供 Alpine.js 消费清单数据。
+  - 新增 `reorder-archive-materials`、`move-archive-material`、`preview-archive-material`、`open-folder` 四个 Admin 视图。
+  - 收费凭证/授权委托等清单项无专属材料时自动匹配发票/授权委托材料。
+  - 委托合同/收费凭证等清单项无子项详情时正确展示。
+
+- **案件日志删除按钮**：案件进展时间线中增加删除按钮，仅管理员可见。
+
+- **案件进展-从邮件往来同步**：案件详情页"案件进展"增加"从邮件往来同步"按钮，列出邮件子文件夹供用户选择后导入。
+
+- **文件夹浏览器增强**：
+  - 打开浏览器时优先定位到关联合同文件夹（案件已绑定 > 合同已绑定 > 根目录），新增 `contract-folder-path` API。
+  - 文件夹扫描弹窗增加"在 Finder 中打开"按钮。
+  - 案件编辑页案号区域增加"在 Finder 中打开案件文件夹"按钮。
+  - 合同详情页增加 `open-folder` 视图，支持跨平台打开文件夹（macOS/Windows/Linux）。
+
+- **合同和案件列表默认筛选**：进入列表页自动筛选 status=active，避免无限重定向。
+
+### 修复
+
+- **归档子项排序**：同步导入时按关键词规则（如传统→要素式）设置初始 `order`，用户手动调整后不再被覆盖；预览/下载/文件夹生成时对 `order=0` 的材料兜底排序。
+- **归档同步-证据清单导入**：证据清单及明细材料也导入到"调查材料等案件关联材料"清单项。
+- **归档占位符-案件案号**：`_get_case_number` 支持多案号逗号分隔；`_get_trial_result` 从所有案号中取有内容的执行依据主文，换行分隔。
+- **裁判文书解析**：`JudgmentPdfExtractor` 支持裁定类文书（撤诉裁定等），新增"裁定如下"、"如不服本裁定"等关键词。
+- **案件进展页面**：修复 `progress.html` 模板中文引号导致 `TemplateSyntaxError`。
+- **案件当事人下拉框**：`CasePartyInline` 的 client 下拉框只显示关联合同/补充协议的当事人，新增 `CasePartyInlineForm`。
+- **合同和案件列表页**：修复默认筛选参数 key 为 `status__exact` 避免无限重定向。
+- **归档清单子项展开/收起时表格宽度抖动**。
+- **归档清单收起按钮箭头不显示 + 按钮靠右对齐**。
+
+### 变更
+
+- **文件夹同步功能**：改为列出第一层级所有子文件夹让用户自选。
+- **合同/案件编辑页 UI**：简化"打开文件夹"按钮为纯图标样式。
+- **案件详情页 CSS**：时间线和附件区域增加 `overflow-wrap`/`word-break`/`min-width`/`overflow` 样式，防止长文本溢出。
+
+## [26.37.2] - 2026-04-21
+
+### 修复
+
+- **Docker Playwright 依赖缺失**：Dockerfile 改用 `playwright install-deps chromium` 自动安装系统依赖，替代手动维护依赖列表，修复容器内法院短信任务因缺少 `libxfixes3` 等库无法启动浏览器的问题。
+
+### 变更
+
+- **归档检查清单 UI 重构**：
+  - "自动捕获"按钮重命名为"从合同文件夹同步"，语义更清晰。
+  - 同步按钮移至工具栏右侧，与操作按钮视觉区分。
+  - "按实归档"重命名为"精简视图"，改为标题行右侧图标按钮，工具栏更简洁。
+  - "检测监督卡"从工具栏按钮移至清单行内🔍徽章点击触发。
+  - 按钮颜色统一：主操作蓝色实心，次要操作描边，确认归档橙色警示。
+  - 移除清单下方的独立材料列表区域（监督卡、发票、合同正本等），检查清单内的预览/下载已覆盖。
+  - 暂时隐藏"按照A4裁切"按钮。
+- **合同详情 Tab 调整**：
+  - "立案"tab 移至"文档与提醒"左边。
+  - "归档材料"tab 重命名为"归档"。
+
+## [26.37.1] - 2026-04-21
+
+### 新增
+
+- **邮件往来文件夹扫描导入**：
+  - 新增 `EmailFolderScanService`：扫描案件绑定文件夹下"邮件往来"子目录，将每个子文件夹批量导入为独立案件日志及附件。
+  - 自动从子文件夹名提取日期（如 `2026.04.16-收到判决书`），日志内容使用日期后的描述部分，`created_at` 回写为该日期。
+  - `CaseLog` 模型新增 `source_subfolder` 字段（迁移 `0012`），记录来源子文件夹路径，支持重复导入时自动去重跳过。
+  - 路径安全校验：仅允许相对路径，禁止 `..` 和隐藏目录遍历。
+
+- **消息源管理列表样式优化**：新增 `message_source_admin.css`，窄屏适配表格列宽，防止徽章和按钮换行。
+
+## [26.37.0] - 2026-04-21
+
+### 新增
+
+- **归档功能完整上线**：
+  - 归档检查清单支持占位符覆盖值（`ArchiveOverride` 模型），用户可在后台为每个检查清单项指定自定义替换词内容，无需修改模板即可灵活调整归档文书输出。
+  - 归档检查清单新增"按实归档"模式：仅生成实际已有材料的归档文书，跳过空缺项。
+  - 归档检查清单支持单个生成和下载：每个清单项旁新增"生成"按钮，可单独生成并下载对应归档文书。
+  - 归档检查清单拆分"委托合同+风险告知书"和"授权委托证明材料"为两项独立清单项，归档时分别校验和生成。
+  - 新增 `{{律师工作日志内容}}` 占位符：自动从案件日志中筛选"收到法院短信"类型日志，排除"自动捕获材料"日志，生成结构化工作日志文本。
+  - 新增 `{{办案小结内容}}` 占位符：为办案小结归档模板提供内容填充。
+  - `{{结案归档材料}}` 占位符实时生成材料目录：结案归档登记表占位符从归档材料列表动态生成材料目录文本。
+  - `{{卷内目录}}` 占位符动态生成表格：按归档材料列表自动生成序号/材料名称/页码表格行。
+  - 新增 `ArchiveOverride` 模型及迁移（`0018_archive_override`）：存储每个合同每个清单项的占位符覆盖值。
+  - 新增"精简归档"合同状态（`COMPACT_ARCHIVE`）及迁移（`0019_add_compact_archive`）：合同新增"精简归档"状态流转。
+
+- **归档文书生成增强**：
+  - 归档模板优先使用数据库中的私有模板文件（如有），而非仅使用默认模板目录中的文件。
+  - 1-3号归档模板（案卷封面、结案归档登记表、卷内目录）只生成 docx 不生成 PDF；新增 A4 裁切功能确保页面尺寸标准。
+  - 预览服务支持中文变量名和 Jinja2 `for` 循环列表变量，归档模板中使用 `{% for %}` 语法的占位符可正确渲染预览。
+  - 占位符空值兜底逻辑覆盖空字符串（`""`），预览与生成保持一致。
+
+### 修复
+
+- **归档文书生成与预览修复**：
+  - 修复案卷封面占位符渲染为 `/` 的问题：部分占位符取值链路遗漏导致空值。
+  - 修复归档文书预览与下载内容不一致及 RichText 渲染失败问题。
+  - 修复归档文件夹生成中 `convert_docx_to_pdf` 返回值处理错误。
+  - 修复收费凭证缺发票场景：归档检查清单中发票类材料校验逻辑优化。
+  - 修复 docx 转 PDF 中文乱码问题：`convert_docx_to_pdf` 优先使用本机 LibreOffice headless 转换。
+  - 修复结案归档材料占位符硬换行渲染问题：使用 `{{r}}` 语法正确渲染换行。
+  - 修复归档预览开始日期和案件案号取值问题。
+  - 修复归档预览多个占位符取值问题。
+  - 修复归档材料预览时主办律师姓名无法生成的问题。
+  - 归档材料区域排除归档文书本身，下载按钮自带生成逻辑。
+
+- **监督卡检测修复**：
+  - 监督卡自动检测支持图片型 PDF（OCR 回退）：纯扫描件无法提取文本时，自动 OCR 识别。
+  - 监督卡检测统一使用 OCR，移除不可靠的 `get_text` 路径。
+
+- **快递查询修复**：
+  - EMS/SF 快递查询增加"展开全部"按钮点击，确保物流轨迹完整展示。
+  - 修复快递查询连续执行失败：重置失效的浏览器全局状态 + 清理端口占用。
+
+- **其他修复**：
+  - 修复 Playwright asyncio `Event loop is closed` 错误。
+
+### 优化
+
+- 移除归档检查清单中独立的"修改"按钮，统一在预览弹窗内触发修改，简化操作路径。
+- `DatePlaceholderService` 增强日期格式化灵活性，支持归档场景的日期格式需求。
+
+## [26.36.4] - 2026-04-21
+
+### 后端
+
+- **法院短信 API 修复**：
+  - `CourtSMSService` 补充缺失的 `get_sms_detail` 方法，修复 `GET /api/v1/automation/court-sms/{sms_id}` 返回 500 错误。
+  - `CourtSMSDetailOut.from_model` 中 `case` 字段从硬编码空字典 `{}` 修复为：有案件时返回 `{"id", "name"}`，无案件时返回 `null`。
+  - 移除 `submit_sms` / `submit_sms_form` API 端点中多余的 `sender` 参数，修复调用时 TypeError。
+
+- **法院短信 Admin 修复**：
+  - 通知状态展示中 `format_html` 嵌套使用导致的转义问题，改用 `mark_safe` 修复 `format_html` 报错。
+
+- **Contracts 迁移补充**：
+  - 新增迁移 `0016_alter_finalizedmaterial_archive_item_code.py`，补充缺失的 `archive_item_code` 字段变更。
+
+## [26.36.3] - 2026-04-20
+
+### 后端
+
+- **归档文书预览功能**：
+  - 新增 API 端点 `GET /api/v1/documents/contracts/{contract_id}/archive-preview`，支持归档文书占位符替换词预览。
+  - `finalized_materials.html` 归档检查清单表格新增"预览"按钮，可查看每个归档模板的替换词填充情况。
+  - `contract_detail.js` 新增 `previewArchiveTemplate()` 函数，通过 Alpine.js 自定义事件 `archive-preview-open` 触发预览弹窗。
+  - `display_mixin.py` 模板上下文新增 `archive_code_to_template` 映射，供前端预览按钮获取模板信息。
+
+- **归档检查清单自动序号**：
+  - `constants.py` 归档项 code 从 `4.x.x` 格式迁移为 `nl_/lt_/cr_` 稳定标识符格式（如 `4.2.1` → `lt_1`），前端序号由 CSS counter 自动生成。
+  - `finalized_material.py` 的 `archive_item_code` 默认值从 `"4.1.1"` 更新为 `"nl_1"`。
+  - 新增迁移 `0015_migrate_archive_item_code_format.py`：批量将数据库中旧格式 code 转换为新格式。
+
+- **Docker 部署静态文件修复**：
+  - `docker-entrypoint.sh` 的 `runserver` 命令添加 `--insecure` 标志，修复 `DEBUG=False` 时 CSS/JS 等静态文件 404 的问题。
+
+## [26.36.2] - 2026-04-20
+
+### 后端
+
+- **引入 django-lifecycle，将 signal handler 和自定义 save() 迁移为声明式 @hook**：
+  - 新增依赖 `django-lifecycle==1.2.7`，Model 继承 `LifecycleModel` 使用 `@hook` 装饰器声明生命周期回调。
+  - `automation` 模块：`PreservationQuote` 创建时自动提交询价任务、`ScraperTask` 状态变更时触发 SMS 后续流程、`TokenAcquisitionHistory` 保存前脱敏，均从 `post_save` signal / 自定义 `save()` 迁移至 `@hook`。
+  - `chat_records` 模块：`ChatRecordRecording`/`ChatRecordScreenshot`/`ChatRecordExportTask` 文件字段变更时删除旧文件，从 `pre_save` signal（需额外查询旧记录）迁移至 `@hook(BEFORE_UPDATE, has_changed=True)` + `initial_value()`，消除竞态和冗余查询。
+  - `documents` 模块：`DocumentTemplate`/`FolderTemplate`/`Placeholder` 审计日志和缓存失效，从 `post_save` signal（依赖 `threading.local` 追踪旧值）迁移至 `@hook(AFTER_CREATE/AFTER_UPDATE)` + `_get_changes_from_lifecycle()`，移除 `threading.local` 模式。
+  - `enterprise_data` 模块：`McpWorkbenchExecution` 保存前 JSON 清洗和脱敏，从自定义 `save()` 迁移至 `@hook(BEFORE_CREATE/BEFORE_UPDATE)`。
+  - `ScraperTask` 的 SMS 状态流转业务逻辑遵循四层架构，从 Model 层提取至 `SMSDownloadMixin.handle_scraper_task_status_change()`，Model 层 `@hook` 仅做薄调用委托 Service 层。
+  - 清理各模块 `signals.py` 中已迁移的 signal handler，仅保留 `post_delete` 相关（物理文件清理）。
+
+- **数据库索引修复**：`Case.is_archived` → `is_filed` 重命名后残留索引清理，新增迁移 `0011_remove_case_cases_case_is_arch_591fe0_idx_and_more.py`。
+
+## [26.36.1] - 2026-04-20
+
+### 后端
+
+- **JWT Token 有效期延长**：`ACCESS_TOKEN_LIFETIME` 和 `REFRESH_TOKEN_LIFETIME` 从默认值（5 分钟 / 1 天）延长至 30 天，减少频繁重新登录。
+
+## [26.36.0] - 2026-04-20
+
+### 后端
+
+- **`is_archived` → `is_filed` 重命名，分离"建档"与"归档"概念**：
+  - `Case` 模型：`is_archived` 重命名为 `is_filed`，新增迁移 `0010_rename_is_archived_to_is_filed.py`。
+  - `Contract` 模型：`is_archived` 重命名为 `is_filed`，新增迁移 `0012_rename_is_archived_to_is_filed.py`。
+  - 同步更新 cases/contracts 模块的 admin、schemas、services、DTO、protocols、前端类型定义等全链路引用。
+  - `contract_admin_mutation_service.py` 修正残留的 `"is_archived"` 键名为 `"is_filed"`。
+
+- **归档检查清单数据结构与 `ArchiveChecklistService`**：
+  - 新增 `apps/contracts/services/archive/constants.py`：定义 3 类检查清单（法律顾问 11 项、诉讼/仲裁 19 项、刑事 17 项），每项包含 code、name、source 材料类型。
+  - 新增 `apps/contracts/services/archive/checklist_service.py`：`ArchiveChecklistService` 负责检查清单计算、必选项校验、缺失项返回。
+  - 新增 `apps/contracts/services/archive/category_mapping.py`：`FinalizedMaterial` 类别到检查清单 source 的映射逻辑。
+  - 新增迁移 `0013_finalizedmaterial_archive_item_code.py`：`FinalizedMaterial` 新增 `archive_item_code` 字段。
+
+- **归档文书生成服务和监督卡自动检测**：
+  - 新增 `apps/contracts/services/archive/generation_service.py`：`ArchiveGenerationService` 根据合同类型匹配归档模板，批量生成归档文书。
+  - 新增 `apps/contracts/services/archive/supervision_card_extractor.py`：`SupervisionCardExtractorService` 从结案卷宗自动提取监督卡信息。
+  - `FinalizedMaterial.MaterialCategory` 新增 `ARCHIVE_DOCUMENT`（归档文书）和 `SUPERVISION_CARD`（监督卡）两个枚举值。
+  - 新增迁移 `0014_material_category_archive_additions.py`。
+  - `folder_scan_service.py` 默认类别从 `invoice` 改为 `archive_document`，白名单新增 `ARCHIVE_DOCUMENT` 和 `SUPERVISION_CARD`。
+
+- **归档材料 Tab UI 改造**：
+  - `finalized_materials.html` 大幅重构：新增归档检查清单表格、归档进度统计、操作按钮区域。
+  - 新增"确认归档"按钮（橙色，`ac-btn-archive` 样式），仅当 `can_archive=True` 时显示。
+  - 模板条件从硬编码 `contract.status == 'closed'` 改为后端计算的 `can_archive` 布尔变量。
+  - `contract_admin_service.py` 新增 `can_archive` 计算（`contract.status == ContractStatus.CLOSED`），注入到模板上下文。
+
+- **归档工作流 — 确认归档 AJAX 端点**：
+  - `display_mixin.py` 新增 `confirm_archive_view` AJAX 端点：POST 方法、权限校验、状态校验、必选项完成校验。
+  - 新增 URL 路由 `<int:object_id>/confirm-archive/`。
+  - `generate_archive_docs_view` 和 `detect_supervision_card_view` 添加 POST 方法限制。
+  - 移除 `action_mixin.py` 中已废弃的 `_handle_confirm_archive` 方法和 `_ACTION_HANDLERS` 注册。
+
+- **依赖注入一致性修复**：
+  - `display_mixin.py` 和 `contract_admin_service.py` 中 `ArchiveChecklistService()` 直接实例化改为 `build_archive_checklist_service()` 工厂函数。
+
+- **检查清单关键词匹配修复**：
+  - `checklist_service.py` 的 `_find_code_by_source` 方法：`"委托合同" in item["name"]` 改为 `"委托" in item["name"]`，修复刑事类目"委托代理合同"匹配失败问题。
+
+- **文档生成上下文扩展**：
+  - `context_builder.py` 新增 `archive_item_code` 字段到 `PlaceholderContextData`，支持归档文书模板的占位符渲染。
+
+## [26.35.7] - 2026-04-20
+
+### 后端
+
+- **任务调度抽象层完善**：
+  - 新增 `apps/core/tasking/exceptions.py`：定义 `TaskTimeoutError`，封装 `django_q.exceptions.TimeoutException`，业务层不再需要直接导入 django_q。
+  - 迁移 `apps/oa_filing/tasks.py`：`TimeoutException` → `TaskTimeoutError`，消除业务层对 django_q 的直连依赖。
+- **文件系统治理**：
+  - 新增 `apps/core/tasking/cleanup_tasks.py`：`cleanup_temp_files`（24h TTL）、`cleanup_export_files`（7d TTL）、`check_disk_space`。
+  - `smoke_check` 管理命令新增磁盘空间检查（`--skip-disk`、`--disk-warning-pct`、`--disk-critical-pct`）。
+- **CI/本地对齐**：
+  - 新增 `devtools/changed_files.sh`：CI 和 Makefile 共享的 base-ref 计算脚本。
+  - Makefile `ci-check` 使用共享脚本，运行结构测试（不再只 `--co` 收集）。
+  - Makefile 测试目标统一使用 `tests/ci/` 路径（与 `pytest.ini` 的 `testpaths` 对齐）。
+  - `mypy.ini` 删除重复的 `[mypy-*.tests.*]` section。
+- **异常体系扩展**：
+  - 新增 `BrowserAutomationError`：浏览器自动化操作失败（Playwright 页面操作/启动/连接/超时）。
+  - 新增 `ImapConnectionError`：IMAP 连接/认证/选择邮箱/超时失败。
+- **结构测试守卫**：
+  - 新增 `test_four_layer_architecture.py`：API 层禁止 Model.objects 调用、Service 层 @staticmethod 棘轮。
+  - 新增 `test_exception_ratchet.py`：`except Exception` 使用量棘轮测试。
+  - 新增 `test_internal_ratchet.py`：`_internal()` 调用量棘轮测试。
+  - 新增 `test_mypy_ratchet.py`：`ignore_errors = True` 条目数棘轮测试。
+  - 新增 `test_no_django_q_leak.py`：业务层禁止直接导入 django_q。
+- **测试目录迁移**：
+  - 将 `tests/unit/` 和 `tests/integration/` 下的测试迁移到 `tests/ci/unit/` 和 `tests/ci/integration/`，与 `pytest.ini` 的 `testpaths = tests/ci` 对齐。
+  - Makefile `test-admin` 目标适配新路径。
+
+## [26.35.6] - 2026-04-20
+
+### 后端
+
+- **可观测性增强 Phase 1 — Sentry 集成升级**：
+  - 新增 `HttpxIntegration`，自动追踪出站 HTTP 请求（法院系统/LLM 接口等）。
+  - 新增 `LoggingIntegration`，INFO 及以上作为 breadcrumb、ERROR 及以上作为事件上报。
+  - 新增 `_sentry_before_send` 钩子，自动注入 `request_id`、`trace_id`、`span_id`、`task_name` 到 Sentry tags 和 contexts。
+  - APM 采样率：开发默认 0（避免噪音），生产默认 0.1（10%），可通过 `SENTRY_TRACES_SAMPLE_RATE` 环境变量覆盖。
+- **结构化日志增强**：
+  - 新增 `RequestContextFilter`：自动注入 request_id / trace_id / span_id / task_name 到 LogRecord。
+  - 新增 `SensitiveDataFilter`：自动脱敏日志中的 token、密码、API Key 等敏感信息。
+  - 新增 `JsonFormatter`：JSON 格式化器用于结构化日志输出（Docker 环境专用）。
+  - verbose 日志格式增加 `[request_id]` 占位，便于追踪请求链路。
+  - `request_context.py` 新增 `get_trace_ids()` 和 `get_task_name()` 函数。
+- **Django-Q Redis broker 支持**：
+  - `django_runtime.py` 新增 `resolve_redis_url()`、`resolve_cache_redis_url()`、`resolve_channel_redis_url()` 统一 Redis URL 解析。
+  - 引入 `REDIS_URL` 基础环境变量，一处配置即可覆盖 cache / channel / q_cluster；专用变量（`DJANGO_CACHE_REDIS_URL`、`DJANGO_CHANNEL_REDIS_URL`）优先级更高。
+  - `resolve_q_cluster()` 当 `REDIS_URL` 存在时自动使用 Redis broker（入队/出队更快），否则回退 ORM broker。
+  - 生产环境校验：Redis cache / channel layer 配置不当时报错提示设置 `REDIS_URL`。
+- **Django-Q 调用收拢到 `core/tasking` 抽象层**（40+ 业务文件迁移）：
+  - 新增 `submit_task()` 模块级便捷函数（`core/tasking/convenience.py`），替代直接调用 `async_task()`。
+  - 新增 `TaskQueryService`（`core/tasking/query.py`）：`get_failed_task_info()`、`get_task_status()`、`cancel_task()`，替代直接查询 `Task.objects` / `OrmQ.objects`。
+  - 新增 `ScheduleQueryService`（`core/tasking/query.py`）：`create_once_schedule()`、`create_interval_schedule()`、`create_monthly_schedule()`、`delete_schedules()`、`schedule_exists()`、`get_schedule_by_name()`，替代直接操作 `Schedule.objects`。
+  - `django_q_tasks.py` 改为向后兼容委托层，`submit_q_task()` / `get_q_task_status()` 委托到新抽象层。
+  - `legal_research/services/task_state_sync.py` 迁移到 `TaskQueryService`。
+  - 涉及迁移的业务模块：automation（短信/文书送达/工商/管理命令）、contract_review、document_recognition、evidence、express_query、finance、message_hub、oa_filing。
+- **Docker 部署增强**：
+  - `docker-compose.yml` 新增 Redis 服务，供 cache / channel / q_cluster 共用。
+  - 新增 `docker-entrypoint.sh` 入口脚本。
+  - `.env.example` 补充 Redis 相关环境变量说明。
+
+## [26.35.5] - 2026-04-20
+
+### 后端
+
+- **启用 mypy_django_plugin**：升级 `django-stubs` 从 6.0.2 到 6.0.3，修复了之前的 INTERNAL ERROR bug（`AssertionError: Must not defer during final iteration in request.pyi`），重新启用 `mypy_django_plugin`，mypy 错误从 1883 降至 675（减少 64%）。
+  - `mypy.ini` 中取消 `plugins = mypy_django_plugin.main` 的注释。
+  - Makefile 的 `typecheck` 和 `typecheck-ratchet` 命令添加 `PYTHONPATH=apiSystem:.` 以支持 plugin 初始化。
+- **新增类型 stubs 依赖**：`types-python-dateutil`、`types-requests`，消除 `import-untyped` 错误。
+- **修复 mypy 错误**（167 个文件，涵盖以下错误类别）：
+  - `import-untyped`(3)：安装第三方 stubs 包。
+  - `name-defined`(10)：补充缺失的 `admin`、`os`、`_`、`NotFoundError` 等导入。
+  - `no-redef`(4)：删除 `execute_document_delivery_schedules.py` 重复的 `handle` 方法；移除 except 分支冗余类型注解。
+  - `return`(10)：在 `_raise_not_implemented` / `_raise_all_unavailable` 后补 `raise AssertionError`，标注不可达。
+  - `valid-type`(38)：`docx.api.Document` → `docx.document.Document as DocumentType`；Evidence 模型改从 `apps.evidence.models` 导入。
+  - `used-before-def`(2)：`doc, _` → `doc, _created` 避免遮蔽 `gettext_lazy` 的 `_`。
+  - `typeddict-unknown-key`(2)：`PlaceholderContextData` 新增 `case`、`case_id`、`split_fee` 字段。
+  - `no-untyped-def`(53)：为 Admin 方法、Management Command、API 函数补充 `request: Any`、`obj: Any`、`**kwargs: Any` 等类型注解。
+  - `var-annotated`(2)：`case_log_ids`、`role_map` 补充类型注解。
+  - `unused-ignore`(6)：移除因 plugin 启用后不再需要的 `# type: ignore` 注释。
+  - `literal-required`(2)：为 `_CONTRACT_FIELDS` / `_CASE_FIELDS` 添加 `# type: ignore[literal-required]`。
+  - `func-returns-value`(1)：`build_folder_template_service` 返回类型从 `None` 改为 `Any`。
+  - `index`(1)：`gsxt_email_service.py` 的 IMAP fetch 结果添加 `# type: ignore[index]`。
+
+## [26.35.4] - 2026-04-19
+
+### 后端
+
+- 归档文书占位符服务：新增 `ArchivePlaceholderService` 和 `ArchiveContractTypeService`，为6个归档模板（案卷封面、结案归档登记表、卷内目录、律师工作日志、服务质量监督卡、办案小结）提供自动数据填充能力。
+  - `ArchivePlaceholderService`（`archive/` 目录）：覆盖10个占位符——主办律师姓名、合同名称、合同我方/对方当事人名称、合同类型、律所OA案件编号、案件案号、管辖法院、归档日期、生成日期。
+  - `ArchiveContractTypeService`（`contract/` 目录）：将合同类型映射为归档分类占位符 `{{归档合同类型}}`（民商事/行政/劳动仲裁/商事仲裁→诉讼仲裁，刑事→刑事诉讼，专项服务→非诉，常法顾问→常年法律顾问）。
+  - 与已有 `YearPlaceholderService`、`DatePlaceholderService`、`CaseCommonPlaceholderService` 协同，14/18个归档占位符可自动生成。
+  - 剩余4个占位符（办案小结内容、律师工作日志内容、案件审理结果、结案归档材料）需AI或人工填写。
+- 更新案卷封面模板。
+
+## [26.35.3] - 2026-04-19
+
+### 后端
+
+- 群聊平台扩展：新增钉钉（DingtalkProvider）和 Telegram（TelegramProvider）两个 ChatProvider 实现，法院短信通知的一案一群功能从飞书+企业微信扩展至4个平台。
+  - 钉钉：使用会话2.0 API（api.dingtalk.com）创建群聊，oapi 获取 access_token，机器人发送群聊消息，文件通过 media 上传+发送。
+  - Telegram：采用超级群组论坛（Topic）模式实现一案一群——管理员预建开启论坛功能的超级群组，每个案件创建一个 ForumTopic 等同于一个群聊。chat_id 格式为 `{supergroup_id}:{thread_id}`，消息/文件自动携带话题 ID。
+  - 新增 `_dingtalk_token_mixin.py`、`_dingtalk_file_mixin.py`、`dingtalk_provider.py`、`_telegram_token_mixin.py`、`_telegram_file_mixin.py`、`telegram_provider.py`。
+  - `ChatProviderFactory` 自动注册钉钉和 Telegram Provider。
+  - `ChatRecreatePolicy` 补充钉钉和 Telegram 群聊不存在的错误码与关键词。
+  - `SystemConfig.Category` 枚举新增 `telegram` 分类，Admin 分类标签颜色新增 Telegram 品牌蓝（#0088cc）。
+  - 系统配置初始化新增钉钉配置项（APP_KEY / APP_SECRET / AGENT_ID / DEFAULT_OWNER_ID）和 Telegram 配置项（BOT_TOKEN / SUPERGROUP_ID），TIMEOUT 由代码兜底无需用户配置。
+  - 配置注册、环境变量映射、配置工具函数同步补充钉钉和 Telegram 支持。
+
+### 测试
+
+- 新增 `test_dingtalk_provider.py` 和 `test_telegram_provider.py`，覆盖平台属性、配置完整性、建群/发消息/发文件/获取信息、chat_id 解析（Telegram Topic）、工厂注册等 29 个测试用例。
+
+## [26.35.2] - 2026-04-18
+
+### 后端
+
+- 完善 API 文档 OpenAPI schema：添加 73 个顶级标签定义（含中文描述，按业务模块排序）与 servers 配置，Swagger UI 标签从无序变为有序分组展示。
+- 统一子路由 tags 为中文命名：`Document Processor`→文档处理、`Auto Namer`→自动命名、`Main API`→AI工具、`Client`→客户管理、`PropertyClue`→财产线索、`证据清单`→证据管理、`AI 诉讼文书生成`→诉讼文书生成、`OA案件导入`→案件导入、`组织管理辅助`→认证登录。
+- 补全 automation 子路由遗漏的 tags 参数（验证码识别、财产保全询价、法院短信处理、文书送达自动下载）。
+- 注册遗漏的 API 路由：`litigation_ai`（诉讼文书生成 + 模拟庭审，8 个端点）和 `evidence_sorting`（案件材料整理，5 个端点）此前未挂载到 api_v1。
+
 ## [26.35.1] - 2026-04-17
 
 ### 后端
