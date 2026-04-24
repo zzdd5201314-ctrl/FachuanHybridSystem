@@ -235,9 +235,10 @@
             transform: translateY(-50%);
             width: 16px;
             height: 16px;
-            color: var(--text-tertiary);
+            color: rgba(160, 170, 200, 0.6);
             pointer-events: none;
             transition: color 0.2s;
+            z-index: 1;
         }
 
         .form-input {
@@ -268,7 +269,7 @@
         }
 
         .form-input:focus ~ .input-icon {
-            color: var(--accent-light);
+            color: var(--accent);
         }
 
         /* 密码可见切换 */
