@@ -2,12 +2,18 @@
         // Three.js Particle Background
         (function() {
             const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            let renderer;
+            try {
+                renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            } catch(e) {
+                // WebGL not supported, skip particle background
+                return;
+            }
 
             // Create particles
             const particlesGeometry = new THREE.BufferGeometry();
@@ -57,6 +63,7 @@
 
             // Resize handler
             window.addEventListener('resize', () => {
+                if (!renderer) return;
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1354,9 +1361,10 @@
 
         function startTrialAnimation() {
             if (trialAnimationRunning) return;
+            const playBtn = document.getElementById('trialPlayBtn');
+            if (!playBtn) return;
             trialAnimationRunning = true;
 
-            const playBtn = document.getElementById('trialPlayBtn');
             playBtn.disabled = true;
             playBtn.innerHTML = '<span>⏸</span> 演示中...';
 
