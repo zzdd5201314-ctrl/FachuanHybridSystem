@@ -150,9 +150,34 @@ _DEFAULT_FAV_URLS = [
 
 # "办案"聚合页应用列表
 _CASE_HANDLING_APPS = [
-    {"app_label": "client", "name": _("当事人管理"), "url": "/admin/client/"},
-    {"app_label": "contracts", "name": _("合同管理"), "url": "/admin/contracts/"},
-    {"app_label": "cases", "name": _("案件管理"), "url": "/admin/cases/"},
+    {
+        "app_label": "client",
+        "name": _("当事人管理"),
+        "url": "/admin/client/",
+        "children": [
+            {"name": _("当事人"), "url": "/admin/client/client/"},
+        ],
+    },
+    {
+        "app_label": "contracts",
+        "name": _("合同管理"),
+        "url": "/admin/contracts/",
+        "children": [
+            {"name": _("合同"), "url": "/admin/contracts/contract/"},
+            {"name": _("补充协议"), "url": "/admin/contracts/supplementaryagreement/"},
+            {"name": _("律师费收款"), "url": "/admin/contracts/contractpayment/"},
+        ],
+    },
+    {
+        "app_label": "cases",
+        "name": _("案件管理"),
+        "url": "/admin/cases/",
+        "children": [
+            {"name": _("案件"), "url": "/admin/cases/case/"},
+            {"name": _("日志"), "url": "/admin/cases/caselog/"},
+            {"name": _("群聊"), "url": "/admin/cases/casechat/"},
+        ],
+    },
 ]
 
 # 侧边栏「办案」组固定显示的3个入口 URL（其他子入口需到 Hub 页查找）
@@ -300,6 +325,25 @@ def lpr_calculator_view(request: HttpRequest) -> HttpResponse:
     return render(request, "admin/finance/lpr/calculator.html", context)
 
 
+def _get_admin_model_links(
+    request: HttpRequest, app_label: str, default_url: str
+) -> tuple[str, list[dict[str, str]]]:
+    app_entries = admin.site.get_app_list(request, app_label=app_label)
+    app_url = default_url
+    model_links: list[dict[str, str]] = []
+
+    if app_entries:
+        first_app = app_entries[0]
+        app_url = str(first_app.get("app_url") or app_url)
+        for model in first_app.get("models", []):
+            name = str(model.get("name", "")).strip()
+            url = str(model.get("admin_url") or "").strip()
+            if name and url:
+                model_links.append({"name": name, "url": url})
+
+    return app_url, model_links
+
+
 def case_handling_hub_view(request: HttpRequest) -> TemplateResponse:
     """办案聚合页。"""
     sections: list[dict[str, Any]] = []
@@ -309,16 +353,22 @@ def case_handling_hub_view(request: HttpRequest) -> TemplateResponse:
         app_url = str(item.get("url", ""))
         app_name = item.get("name", app_label)
         model_links: list[dict[str, str]] = []
+        manual_children = item.get("children")
+        app_url, available_links = _get_admin_model_links(request, app_label=app_label, default_url=app_url)
 
-        app_entries = admin.site.get_app_list(request, app_label=app_label)
-        if app_entries:
-            first_app = app_entries[0]
-            app_url = str(first_app.get("app_url") or app_url)
-            for model in first_app.get("models", []):
-                name = str(model.get("name", "")).strip()
-                url = str(model.get("admin_url") or "").strip()
-                if name and url:
-                    model_links.append({"name": name, "url": url})
+        if manual_children:
+            available_by_url = {link["url"]: link for link in available_links}
+            for child in manual_children:  # type: ignore[assignment]
+                child_url = str(child.get("url", "")).strip()
+                if not child_url or child_url not in available_by_url:
+                    continue
+                child_name = str(child.get("name", "")).strip() or available_by_url[child_url]["name"]
+                model_links.append({"name": child_name, "url": child_url})
+        else:
+            model_links = available_links
+
+        if not model_links:
+            continue
 
         sections.append(
             {

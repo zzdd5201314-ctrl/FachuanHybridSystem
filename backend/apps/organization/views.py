@@ -5,6 +5,7 @@ from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from apps.organization.services.auth_service import AUTO_REGISTER_BOOTSTRAP_USERNAME, AuthService
@@ -18,6 +19,9 @@ class AuthLoginView(LoginView):
     """自定义登录视图，向模板注入注册所需的上下文。"""
 
     template_name = "admin/login.html"
+
+    def get_default_redirect_url(self) -> str:
+        return reverse("admin:index")
 
     def get_context_data(self, **kwargs: object) -> dict:
         ctx = super().get_context_data(**kwargs)
