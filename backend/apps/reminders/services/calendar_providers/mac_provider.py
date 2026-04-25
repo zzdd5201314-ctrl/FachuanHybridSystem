@@ -230,7 +230,8 @@ tell application "Calendar"
                 set output to output & evUID & "||" & evSummary & "||" & evStart & "||" & evEnd & "||" & evLocation & "||" & evDescription & "||" & calName & "||" & evAllDay & linefeed
             end try
         end repeat
-    end repeat{cal_filter_end}
+{cal_filter_end}
+    end repeat
     return output
 end tell'''
 
