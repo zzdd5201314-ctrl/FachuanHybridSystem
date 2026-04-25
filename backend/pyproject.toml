@@ -67,6 +67,9 @@ dependencies = [
     "gmssl==3.2.2",
     "daphne>=4.2.1",
     "python-multipart==0.0.26",
+    # --- 日历同步 ---
+    "icalendar>=6.0.0",
+    "pyobjc-framework-EventKit>=12.0;sys_platform=='darwin'",
 ]
 
 [dependency-groups]
