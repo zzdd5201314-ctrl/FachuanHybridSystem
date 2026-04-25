@@ -1,12 +1,8 @@
-FROM m.daocloud.io/docker.io/library/python:3.12-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple/ \
-    UV_HTTP_TIMEOUT=300 \
-    UV_HTTP_RETRIES=5 \
-    UV_CONCURRENT_DOWNLOADS=1 \
-    UV_CONCURRENT_INSTALLS=1 \
     TZ=Asia/Shanghai
 
 WORKDIR /app
@@ -32,9 +28,9 @@ RUN pip install --no-cache-dir uv -i https://mirrors.cloud.tencent.com/pypi/simp
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-# 依赖已在 .venv 中安装完成，这里直接复用虚拟环境，避免 uv run 再次触发同步
-RUN .venv/bin/playwright install chromium \
-    && .venv/bin/playwright install-deps chromium
+# 安装 Playwright chromium 及其系统依赖（用 install-deps 自动补全，避免手动维护依赖列表）
+RUN uv run playwright install chromium \
+    && uv run playwright install-deps chromium
 
 # 复制项目代码
 COPY . .
