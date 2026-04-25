@@ -148,6 +148,41 @@ class ReminderAdmin(admin.ModelAdmin[Reminder]):
                 self.admin_site.admin_view(self.calendar_target_options_view),
                 name="reminders_reminder_calendar_target_options",
             ),
+            path(
+                "calendar/sync/providers/",
+                self.admin_site.admin_view(self.calendar_sync_providers_view),
+                name="reminders_reminder_calendar_sync_providers",
+            ),
+            path(
+                "calendar/sync/preview/",
+                self.admin_site.admin_view(self.calendar_sync_preview_view),
+                name="reminders_reminder_calendar_sync_preview",
+            ),
+            path(
+                "calendar/sync/import/",
+                self.admin_site.admin_view(self.calendar_sync_import_view),
+                name="reminders_reminder_calendar_sync_import",
+            ),
+            path(
+                "calendar/sync/open-privacy/",
+                self.admin_site.admin_view(self.calendar_sync_open_privacy_view),
+                name="reminders_reminder_calendar_sync_open_privacy",
+            ),
+            path(
+                "calendar/sync/clear/",
+                self.admin_site.admin_view(self.calendar_sync_clear_view),
+                name="reminders_reminder_calendar_sync_clear",
+            ),
+            path(
+                "calendar/sync/calendars/",
+                self.admin_site.admin_view(self.calendar_sync_calendars_view),
+                name="reminders_reminder_calendar_sync_calendars",
+            ),
+            path(
+                "calendar/export/",
+                self.admin_site.admin_view(self.calendar_export_view),
+                name="reminders_reminder_calendar_export",
+            ),
         ]
         return custom_urls + urls
 
@@ -216,6 +251,10 @@ class ReminderAdmin(admin.ModelAdmin[Reminder]):
             "changelist_url": reverse(f"admin:{self.model._meta.app_label}_{self.model._meta.model_name}_changelist"),
             "calendar_create_url": reverse("admin:reminders_reminder_calendar_create"),
             "target_options_url": reverse("admin:reminders_reminder_calendar_target_options"),
+            "sync_providers_url": reverse("admin:reminders_reminder_calendar_sync_providers"),
+            "sync_preview_url": reverse("admin:reminders_reminder_calendar_sync_preview"),
+            "sync_import_url": reverse("admin:reminders_reminder_calendar_sync_import"),
+            "export_url": reverse("admin:reminders_reminder_calendar_export"),
             "current_calendar_url": request.get_full_path(),
         }
         return TemplateResponse(request, "admin/reminders/reminder/calendar.html", context)
@@ -391,6 +430,235 @@ class ReminderAdmin(admin.ModelAdmin[Reminder]):
 
         return JsonResponse({"items": merged_items, "groups": groups})
 
+    def calendar_sync_providers_view(self, request: HttpRequest) -> JsonResponse:
+        """GET: Return available calendar sync providers as JSON."""
+        if not self.has_add_permission(request):
+            return JsonResponse({"providers": []}, status=403)
+
+        from apps.reminders.services.wiring import get_calendar_sync_service
+
+        sync_service = get_calendar_sync_service()
+        providers = sync_service.get_available_providers()
+
+        # Include macOS Calendar authorization status
+        calendar_auth_status = ""
+        calendar_auth_code = -1
+        local_providers = [p for p in providers if p["name"] in ("mac", "windows")]
+        if any(p["name"] == "mac" for p in local_providers):
+            try:
+                from apps.reminders.services.calendar_providers.mac_provider import MacCalendarProvider
+
+                auth_code = MacCalendarProvider.get_auth_status()
+                calendar_auth_code = auth_code
+                if auth_code == 0:
+                    calendar_auth_status = "not_determined"
+                elif auth_code == 1:
+                    calendar_auth_status = "restricted"
+                elif auth_code == 2:
+                    calendar_auth_status = "denied"
+                elif auth_code == 3:
+                    calendar_auth_status = "authorized"
+            except Exception:
+                calendar_auth_status = "unknown"
+
+        return JsonResponse({
+            "providers": providers,
+            "calendar_auth_status": calendar_auth_status,
+            "calendar_auth_code": calendar_auth_code,
+        })
+
+    def calendar_sync_preview_view(self, request: HttpRequest) -> JsonResponse:
+        """POST: Preview calendar events from .ics file, URL, or local provider."""
+        if not self.has_add_permission(request):
+            return JsonResponse({"events": [], "error": "无权限"}, status=403)
+
+        from apps.reminders.services.wiring import get_calendar_sync_service
+
+        sync_service = get_calendar_sync_service()
+
+        source = request.POST.get("source", "").strip()
+
+        if source == "ics_file":
+            uploaded_file = request.FILES.get("ics_file")
+            if not uploaded_file:
+                return JsonResponse({"events": [], "error": "未选择文件"}, status=400)
+            if not uploaded_file.name.lower().endswith(".ics"):
+                return JsonResponse({"events": [], "error": "仅支持 .ics 文件"}, status=400)
+            if uploaded_file.size > 5 * 1024 * 1024:
+                return JsonResponse({"events": [], "error": "文件大小超过 5MB 限制"}, status=400)
+            ics_content = uploaded_file.read()
+            events = sync_service.preview_from_ics(ics_content)
+        elif source == "ics_url":
+            url = request.POST.get("url", "").strip()
+            if not url:
+                return JsonResponse({"events": [], "error": "URL 不能为空"}, status=400)
+            events = sync_service.preview_from_url(url)
+        elif source in ("mac", "windows"):
+            from datetime import datetime as dt
+
+            kwargs: dict[str, object] = {}
+            start_date_str = request.POST.get("start_date", "").strip()
+            end_date_str = request.POST.get("end_date", "").strip()
+            if start_date_str:
+                try:
+                    kwargs["start_date"] = timezone.make_aware(
+                        dt.fromisoformat(start_date_str), timezone.get_current_timezone()
+                    )
+                except ValueError:
+                    pass
+            if end_date_str:
+                try:
+                    kwargs["end_date"] = timezone.make_aware(
+                        dt.fromisoformat(end_date_str) + timezone.timedelta(days=1),
+                        timezone.get_current_timezone(),
+                    )
+                except ValueError:
+                    pass
+            # Parse included calendars (preferred) or excluded calendars (legacy)
+            import json as json_mod
+
+            included_calendars_raw = request.POST.get("included_calendars", "").strip()
+            excluded_calendars_raw = request.POST.get("excluded_calendars", "").strip()
+            if included_calendars_raw:
+                try:
+                    included_calendars = json_mod.loads(included_calendars_raw)
+                    if isinstance(included_calendars, list):
+                        kwargs["included_calendars"] = included_calendars
+                except (json_mod.JSONDecodeError, TypeError):
+                    pass
+            if "included_calendars" not in kwargs and excluded_calendars_raw:
+                try:
+                    excluded_calendars = json_mod.loads(excluded_calendars_raw)
+                    if isinstance(excluded_calendars, list):
+                        kwargs["excluded_calendars"] = excluded_calendars
+                except (json_mod.JSONDecodeError, TypeError):
+                    pass
+            events = sync_service.preview_from_local(source, **kwargs)
+        else:
+            return JsonResponse({"events": [], "error": f"不支持的来源: {source}"}, status=400)
+
+        return JsonResponse({"events": events, "error": ""})
+
+    def calendar_sync_import_view(self, request: HttpRequest) -> JsonResponse:
+        """POST: Import selected calendar events as Reminders."""
+        if not self.has_add_permission(request):
+            return JsonResponse({"created": 0, "skipped": 0, "error": "无权限"}, status=403)
+
+        from apps.reminders.services.wiring import get_calendar_sync_service
+
+        sync_service = get_calendar_sync_service()
+
+        import json as json_mod
+
+        events_json = request.POST.get("events", "[]")
+        try:
+            events = json_mod.loads(events_json)
+        except (json_mod.JSONDecodeError, TypeError):
+            return JsonResponse({"created": 0, "skipped": 0, "error": "事件数据格式错误"}, status=400)
+
+        if not isinstance(events, list):
+            return JsonResponse({"created": 0, "skipped": 0, "error": "事件数据格式错误"}, status=400)
+
+        created, skipped = sync_service.import_events(events)
+        return JsonResponse({"created": created, "skipped": skipped, "error": ""})
+
+    def calendar_sync_open_privacy_view(self, request: HttpRequest) -> JsonResponse:
+        """POST: Open macOS System Settings → Privacy → Calendars."""
+        import platform
+        import subprocess
+
+        if platform.system() == "Darwin":
+            try:
+                # Open System Settings → Privacy & Security → Calendars
+                subprocess.Popen(
+                    ["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                return JsonResponse({"ok": True})
+            except Exception:
+                return JsonResponse({"ok": False, "error": "无法打开系统设置"})
+        return JsonResponse({"ok": False, "error": "仅支持 macOS"})
+
+    def calendar_sync_calendars_view(self, request: HttpRequest) -> JsonResponse:
+        """GET: Return available local calendars for selection."""
+        if not self.has_add_permission(request):
+            return JsonResponse({"calendars": []}, status=403)
+
+        provider_name = request.GET.get("provider", "").strip()
+        if provider_name not in ("mac", "windows"):
+            return JsonResponse({"calendars": []}, status=400)
+
+        try:
+            if provider_name == "mac":
+                from apps.reminders.services.calendar_providers.mac_provider import MacCalendarProvider
+
+                provider = MacCalendarProvider()
+                calendars = provider.list_calendars()
+                # Mark default-excluded calendars
+                excluded_set = set(MacCalendarProvider.DEFAULT_EXCLUDED_CALENDARS)
+                for cal in calendars:
+                    cal["default_excluded"] = cal["name"] in excluded_set
+                return JsonResponse({"calendars": calendars})
+        except Exception as exc:
+            return JsonResponse({"calendars": [], "error": str(exc)})
+
+        return JsonResponse({"calendars": []})
+
+    def calendar_sync_clear_view(self, request: HttpRequest) -> JsonResponse:
+        """POST: Delete all Reminders that were imported from calendar sync."""
+        if not self.has_delete_permission(request, obj=None):
+            return JsonResponse({"deleted": 0, "error": "无权限"}, status=403)
+
+        from apps.reminders.models import Reminder
+
+        deleted_count, _ = Reminder.objects.filter(
+            metadata__source="local_calendar_sync"
+        ).delete()
+        import logging
+
+        logging.getLogger(__name__).info("Cleared %d synced calendar reminders", deleted_count)
+        return JsonResponse({"deleted": deleted_count, "error": ""})
+
+    def calendar_export_view(self, request: HttpRequest) -> HttpResponse:
+        """GET: Export filtered Reminders as .ics file download."""
+        if not self.has_view_permission(request):
+            return HttpResponse("无权限", status=403)
+
+        year, month = self._parse_year_month(request)
+        reminder_type = request.GET.get("reminder_type", "").strip()
+        scope = request.GET.get("scope", "all").strip()
+        status = request.GET.get("status", "all").strip()
+
+        from apps.reminders.services.wiring import get_calendar_export_service
+
+        export_service = get_calendar_export_service()
+        ics_bytes = export_service.export_reminders(
+            year=year,
+            month=month,
+            reminder_type=reminder_type,
+            scope=scope,
+            status=status,
+        )
+
+        filter_parts: list[str] = []
+        if reminder_type:
+            type_label = dict(ReminderType.choices).get(reminder_type, reminder_type)
+            filter_parts.append(str(type_label))
+        if scope != "all":
+            scope_labels = {"contract": "合同", "case": "案件", "case_log": "案件日志"}
+            filter_parts.append(scope_labels.get(scope, scope))
+        if status != "all":
+            status_labels = {"overdue": "已逾期", "upcoming": "未到期"}
+            filter_parts.append(status_labels.get(status, status))
+
+        filter_str = "-".join(filter_parts) if filter_parts else "全部"
+        filename = f"法穿提醒-{year}年{month}月-{filter_str}.ics"
+
+        response = HttpResponse(ics_bytes, content_type="text/calendar; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
     def _safe_return_url(self, *, request: HttpRequest) -> str:
         fallback = reverse("admin:reminders_reminder_calendar")
         return_url = request.POST.get("return_url", "").strip()
@@ -494,6 +762,8 @@ class ReminderAdmin(admin.ModelAdmin[Reminder]):
             metadata = reminder.metadata if isinstance(reminder.metadata, dict) else {}
             courtroom = str(metadata.get("courtroom", "")).strip()
             lawyer_name = str(metadata.get("lawyer_name", "")).strip()
+            # For synced calendar events, use "location" instead of "courtroom"
+            location = str(metadata.get("location", "")).strip()
 
             # 一张网庭审日程同事件合并展示：同 source_id 显示一条，律师姓名聚合
             merge_key: tuple[object, ...] | None = None
@@ -531,6 +801,7 @@ class ReminderAdmin(admin.ModelAdmin[Reminder]):
                 "target_type": target_type,
                 "target_name": target_name,
                 "courtroom": courtroom,
+                "location": location,
                 "lawyer_name": lawyer_name,
                 "lawyer_names": [lawyer_name] if lawyer_name else [],
                 "url": event_url,

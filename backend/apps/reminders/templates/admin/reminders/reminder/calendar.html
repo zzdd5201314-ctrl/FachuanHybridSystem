@@ -42,6 +42,40 @@
         color: #0f172a;
         margin: 0 8px;
     }
+    .reminder-calendar-actions {
+        display: flex;
+        gap: 8px;
+    }
+    .reminder-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        border: none;
+        text-decoration: none !important;
+    }
+    .reminder-action-btn.import-btn {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #fff !important;
+        box-shadow: 0 6px 14px rgba(37, 99, 235, 0.2);
+    }
+    .reminder-action-btn.import-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
+    }
+    .reminder-action-btn.export-btn {
+        border: 1px solid #93c5fd;
+        background: #eff6ff;
+        color: #1d4ed8 !important;
+    }
+    .reminder-action-btn.export-btn:hover {
+        background: #dbeafe;
+    }
     .reminder-calendar-filters {
         display: flex;
         gap: 10px;
@@ -423,6 +457,218 @@
         font-weight: 600;
         word-break: break-word;
     }
+    /* ---- Sync Modal Styles ---- */
+    .reminder-sync-tabs {
+        display: flex;
+        gap: 2px;
+        background: #f1f5f9;
+        border-radius: 8px;
+        padding: 3px;
+        margin-bottom: 14px;
+    }
+    .reminder-sync-tab {
+        flex: 1;
+        padding: 8px 12px;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .reminder-sync-tab.active {
+        background: #fff;
+        color: #1d4ed8;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .reminder-sync-panel {
+        display: none;
+    }
+    .reminder-sync-panel.active {
+        display: block;
+    }
+    .reminder-dropzone {
+        border: 2px dashed #93c5fd;
+        border-radius: 10px;
+        padding: 28px 16px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        background: #f8faff;
+    }
+    .reminder-dropzone:hover,
+    .reminder-dropzone.dragover {
+        border-color: #2563eb;
+        background: #eff6ff;
+    }
+    .reminder-dropzone-icon {
+        font-size: 28px;
+        margin-bottom: 8px;
+    }
+    .reminder-dropzone-text {
+        font-size: 13px;
+        color: #64748b;
+    }
+    .reminder-url-input {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 8px 10px;
+        box-sizing: border-box;
+        background: #fff;
+        color: #0f172a;
+        font-size: 13px;
+    }
+    .reminder-url-input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+    .reminder-url-hint {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 6px;
+    }
+    .reminder-sync-provider-info {
+        padding: 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #475569;
+        line-height: 1.6;
+    }
+    .reminder-preview-list {
+        max-height: 280px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin-top: 12px;
+    }
+    .reminder-preview-empty {
+        padding: 24px;
+        text-align: center;
+        font-size: 13px;
+        color: #94a3b8;
+    }
+    .reminder-preview-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 13px;
+    }
+    .reminder-preview-item:last-child {
+        border-bottom: none;
+    }
+    .reminder-preview-item input[type="checkbox"] {
+        flex: none;
+        width: 16px;
+        height: 16px;
+        accent-color: #2563eb;
+    }
+    .reminder-preview-item.is-existing {
+        opacity: 0.5;
+    }
+    .reminder-preview-time {
+        flex: none;
+        color: #64748b;
+        font-size: 12px;
+        min-width: 90px;
+    }
+    .reminder-preview-title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #0f172a;
+        font-weight: 600;
+    }
+    .reminder-preview-source {
+        flex: none;
+        font-size: 11px;
+        color: #64748b;
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    .reminder-preview-status {
+        flex: none;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    .reminder-preview-status.importable {
+        background: #dcfce7;
+        color: #166534;
+    }
+    .reminder-preview-status.existing {
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+    .reminder-sync-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 14px;
+    }
+    .reminder-sync-count {
+        font-size: 13px;
+        color: #64748b;
+    }
+    .reminder-sync-actions {
+        display: flex;
+        gap: 8px;
+    }
+    .reminder-sync-result {
+        text-align: center;
+        padding: 20px;
+        font-size: 14px;
+        color: #166534;
+        font-weight: 600;
+    }
+    .sync-calendar-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 16px;
+        font-size: 12px;
+        color: #64748b;
+        background: #f8fafc;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+    .sync-calendar-chip.selected {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-weight: 600;
+    }
+    .sync-calendar-chip:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    }
+    .sync-calendar-chip-tag {
+        font-size: 10px;
+        color: #94a3b8;
+        background: #f1f5f9;
+        padding: 0 4px;
+        border-radius: 3px;
+    }
+    .sync-calendar-chip.selected .sync-calendar-chip-tag {
+        color: #60a5fa;
+        background: #dbeafe;
+    }
     @media (max-width: 960px) {
         .reminder-calendar-day {
             min-height: 116px;
@@ -444,6 +690,16 @@
             <span class="reminder-calendar-title">{{ month_title }}</span>
         </div>
 
+        <div class="reminder-calendar-actions">
+            <button type="button" class="reminder-action-btn import-btn" id="btn-calendar-import" title="{% trans '从外部日历导入或同步本机日历事件' %}">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M6 1v4M10 1v4M8 9v4M6 11l2 2 2-2"/></svg>
+                {% trans "导入/同步" %}
+            </button>
+            <a class="reminder-action-btn export-btn" id="btn-calendar-export" title="{% trans '导出为 .ics 文件' %}">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M6 1v4M10 1v4M8 13V9M6 11l2-2 2 2"/></svg>
+                {% trans "导出" %}
+            </a>
+        </div>
     </div>
 
     <form method="get" class="reminder-calendar-filters">
@@ -521,6 +777,7 @@
                         data-event-target-type="{{ event.target_type|escape }}"
                         data-event-target-name="{{ event.target_name|escape }}"
                         data-event-courtroom="{{ event.courtroom|escape }}"
+                        data-event-location="{{ event.location|escape }}"
                         data-event-lawyer-name="{{ event.lawyer_name|escape }}"
                         data-event-url="{{ event.url }}"
                         data-event-open-label="{{ event.open_label|escape }}"
@@ -529,8 +786,8 @@
                             <span class="reminder-event-time">{{ event.time }}</span>
                             <span class="reminder-event-title">{{ event.title }}</span>
                         </span>
-                        {% if event.lawyer_name or event.courtroom %}
-                        <span class="reminder-event-meta">{% if event.lawyer_name %}{{ event.lawyer_name }}{% if event.courtroom %} · {% endif %}{% endif %}{% if event.courtroom %}{{ event.courtroom }}{% endif %}</span>
+                        {% if event.lawyer_name or event.courtroom or event.location %}
+                        <span class="reminder-event-meta">{% if event.lawyer_name %}{{ event.lawyer_name }}{% if event.courtroom or event.location %} · {% endif %}{% endif %}{% if event.courtroom %}{{ event.courtroom }}{% elif event.location %}{{ event.location }}{% endif %}</span>
                         {% else %}
                         <span class="reminder-event-meta">{{ event.target_type }} · {{ event.target_name }}</span>
                         {% endif %}
@@ -632,6 +889,10 @@
             <div class="reminder-detail-key">{% trans "开庭地点" %}</div>
             <div class="reminder-detail-value" id="detail-courtroom"></div>
         </div>
+        <div class="reminder-detail-item" id="detail-location-item" style="display:none">
+            <div class="reminder-detail-key">{% trans "地点" %}</div>
+            <div class="reminder-detail-value" id="detail-location"></div>
+        </div>
         <div class="reminder-detail-item">
             <div class="reminder-detail-key">{% trans "关联对象" %}</div>
             <div class="reminder-detail-value" id="detail-target"></div>
@@ -639,6 +900,82 @@
         <div class="reminder-modal-actions">
             <button type="button" class="reminder-btn-secondary" id="reminder-detail-close">{% trans "关闭" %}</button>
             <a class="reminder-btn-primary" id="detail-open-link" href="#">{% trans "详情" %}</a>
+        </div>
+    </div>
+</div>
+
+<div id="reminder-sync-modal" class="reminder-modal" aria-hidden="true">
+    <div class="reminder-modal-card" style="width:min(640px,calc(100vw - 24px))">
+        <h3 class="reminder-modal-title">{% trans "导入日历事件" %}</h3>
+
+        <div class="reminder-sync-tabs" id="sync-tabs">
+            <button type="button" class="reminder-sync-tab active" data-tab="ics_file">{% trans "上传文件" %}</button>
+            <button type="button" class="reminder-sync-tab" data-tab="ics_url">{% trans "URL 导入" %}</button>
+            <button type="button" class="reminder-sync-tab" data-tab="local" id="sync-tab-local">{% trans "同步本机" %}</button>
+        </div>
+
+        <div class="reminder-sync-panel active" id="panel-ics_file">
+            <div class="reminder-dropzone" id="sync-dropzone">
+                <div class="reminder-dropzone-icon">📅</div>
+                <div class="reminder-dropzone-text">{% trans "点击或拖拽 .ics 文件到此处" %}</div>
+                <input type="file" id="sync-file-input" accept=".ics" style="display:none">
+            </div>
+        </div>
+
+        <div class="reminder-sync-panel" id="panel-ics_url">
+            <input type="text" class="reminder-url-input" id="sync-url-input" placeholder="{% trans '粘贴 .ics 订阅地址，如 Google Calendar 私有链接' %}">
+            <div class="reminder-url-hint">{% trans "支持 Google Calendar、Outlook.com 等提供的 .ics 私有链接，仅限 https 协议" %}</div>
+        </div>
+
+        <div class="reminder-sync-panel" id="panel-local">
+            <div class="reminder-sync-provider-info" id="sync-local-info">
+                {% trans "正在检测本机日历…" %}
+            </div>
+            <div id="sync-local-date-range" style="display:none;margin-top:12px;">
+                <div style="display:flex;gap:10px;align-items:end;">
+                    <div style="flex:1;">
+                        <label style="font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:4px;">{% trans "开始日期" %}</label>
+                        <input type="date" id="sync-start-date" class="reminder-url-input" style="min-height:34px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:4px;">{% trans "结束日期" %}</label>
+                        <input type="date" id="sync-end-date" class="reminder-url-input" style="min-height:34px;">
+                    </div>
+                </div>
+                <div style="font-size:11px;color:#64748b;margin-top:4px;">{% trans "默认同步最近3个月至未来6个月的事件" %}</div>
+
+                <div id="sync-calendar-selector" style="display:none;margin-top:10px;">
+                    <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;">{% trans "选择要同步的日历" %}</div>
+                    <div id="sync-calendar-list" style="display:flex;flex-wrap:wrap;gap:6px;border:1px solid #e2e8f0;border-radius:8px;padding:8px;"></div>
+                    <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+                        <button type="button" id="sync-clear-btn" style="padding:5px 10px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;">{% trans "清空已同步日历" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sync-preview-area" style="display:none">
+            <div class="reminder-preview-list" id="sync-preview-list">
+                <div class="reminder-preview-empty">{% trans "暂无事件" %}</div>
+            </div>
+            <div class="reminder-sync-footer">
+                <div class="reminder-sync-count" id="sync-count"></div>
+                <div class="reminder-sync-actions">
+                    <button type="button" class="reminder-btn-secondary" id="sync-cancel-btn">{% trans "取消" %}</button>
+                    <button type="button" class="reminder-btn-primary" id="sync-import-btn">{% trans "确认导入" %}</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sync-loading" style="display:none;text-align:center;padding:24px;">
+            <div style="font-size:14px;color:#64748b;">{% trans "正在解析日历事件…" %}</div>
+        </div>
+
+        <div id="sync-result" style="display:none"></div>
+
+        <div id="sync-actions-initial" class="reminder-modal-actions" style="margin-top:14px;">
+            <button type="button" class="reminder-btn-secondary" id="sync-close-btn">{% trans "关闭" %}</button>
+            <button type="button" class="reminder-btn-primary" id="sync-preview-btn">{% trans "预览事件" %}</button>
         </div>
     </div>
 </div>
@@ -668,6 +1005,8 @@
     const detailLawyer = document.getElementById('detail-lawyer');
     const detailCourtroomItem = document.getElementById('detail-courtroom-item');
     const detailCourtroom = document.getElementById('detail-courtroom');
+    const detailLocationItem = document.getElementById('detail-location-item');
+    const detailLocation = document.getElementById('detail-location');
     const detailTarget = document.getElementById('detail-target');
     const detailOpenLink = document.getElementById('detail-open-link');
 
@@ -906,6 +1245,14 @@
                 detailCourtroom.textContent = '';
                 detailCourtroomItem.style.display = 'none';
             }
+            const locationVal = card.dataset.eventLocation || '';
+            if (locationVal && !courtroom) {
+                detailLocation.textContent = locationVal;
+                detailLocationItem.style.display = '';
+            } else {
+                detailLocation.textContent = '';
+                detailLocationItem.style.display = 'none';
+            }
             detailTarget.textContent = (card.dataset.eventTargetType || '') + ' · ' + (card.dataset.eventTargetName || '');
             detailOpenLink.href = card.dataset.eventUrl || '#';
             detailOpenLink.textContent = card.dataset.eventOpenLabel || '详情';
@@ -925,8 +1272,465 @@
         if (event.key === 'Escape') {
             closeModal(createModal);
             closeModal(detailModal);
+            closeModal(syncModal);
         }
     });
+
+    // ===== Calendar Sync (Import) =====
+    const openCalendarPrivacy = () => {
+        // Open macOS System Settings → Privacy → Calendars via a backend endpoint
+        fetch(syncProvidersUrl.replace('/sync/providers/', '/sync/open-privacy/'), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' },
+        }).catch(() => {});
+    };
+    const syncModal = document.getElementById('reminder-sync-modal');
+    const syncTabs = document.querySelectorAll('#sync-tabs .reminder-sync-tab');
+    const syncPanels = document.querySelectorAll('.reminder-sync-panel');
+    const syncTabLocal = document.getElementById('sync-tab-local');
+    const syncDropzone = document.getElementById('sync-dropzone');
+    const syncFileInput = document.getElementById('sync-file-input');
+    const syncUrlInput = document.getElementById('sync-url-input');
+    const syncLocalInfo = document.getElementById('sync-local-info');
+    const syncLocalDateRange = document.getElementById('sync-local-date-range');
+    const syncStartDate = document.getElementById('sync-start-date');
+    const syncEndDate = document.getElementById('sync-end-date');
+    const syncCalendarSelector = document.getElementById('sync-calendar-selector');
+    const syncCalendarList = document.getElementById('sync-calendar-list');
+    const syncPreviewArea = document.getElementById('sync-preview-area');
+    const syncPreviewList = document.getElementById('sync-preview-list');
+    const syncCount = document.getElementById('sync-count');
+    const syncLoading = document.getElementById('sync-loading');
+    const syncResult = document.getElementById('sync-result');
+    const syncActionsInitial = document.getElementById('sync-actions-initial');
+    const syncPreviewBtn = document.getElementById('sync-preview-btn');
+    const syncImportBtn = document.getElementById('sync-import-btn');
+    const syncCancelBtn = document.getElementById('sync-cancel-btn');
+    const syncCloseBtn = document.getElementById('sync-close-btn');
+
+    const syncProvidersUrl = '{{ sync_providers_url|escapejs }}';
+    const syncPreviewUrl = '{{ sync_preview_url|escapejs }}';
+    const syncImportUrl = '{{ sync_import_url|escapejs }}';
+    const exportUrl = '{{ export_url|escapejs }}';
+
+    let currentSyncTab = 'ics_file';
+    let previewEvents = [];
+    let selectedFile = null;
+    let localProviderName = '';
+
+    const loadCalendarList = () => {
+        const calendarsUrl = syncProvidersUrl.replace('/sync/providers/', '/sync/calendars/') + '?provider=' + encodeURIComponent(localProviderName);
+        fetch(calendarsUrl, { method: 'GET', credentials: 'same-origin' })
+            .then((resp) => resp.json())
+            .then((data) => {
+                const calendars = data.calendars || [];
+                if (calendars.length === 0) {
+                    syncCalendarSelector.style.display = 'none';
+                    return;
+                }
+                syncCalendarSelector.style.display = '';
+                syncCalendarList.innerHTML = '';
+                calendars.forEach((cal) => {
+                    const chip = document.createElement('div');
+                    const isDefaultExcluded = cal.default_excluded;
+                    const isSelected = !isDefaultExcluded;
+                    chip.className = 'sync-calendar-chip' + (isSelected ? ' selected' : '');
+                    chip.dataset.calendarName = cal.name;
+                    chip.dataset.selected = isSelected ? '1' : '0';
+                    chip.textContent = cal.name;
+                    if (isDefaultExcluded) {
+                        const tag = document.createElement('span');
+                        tag.className = 'sync-calendar-chip-tag';
+                        tag.textContent = '{% trans "节假日" %}';
+                        chip.appendChild(tag);
+                    }
+                    chip.addEventListener('click', () => {
+                        const wasSelected = chip.dataset.selected === '1';
+                        chip.dataset.selected = wasSelected ? '0' : '1';
+                        chip.classList.toggle('selected', !wasSelected);
+                        // Update hidden checkbox
+                        const cb = chip.querySelector('.sync-calendar-cb');
+                        if (cb) cb.checked = !wasSelected;
+                    });
+                    // Hidden checkbox for form data collection
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.className = 'sync-calendar-cb';
+                    cb.value = cal.name;
+                    cb.checked = isSelected;
+                    cb.style.display = 'none';
+                    chip.appendChild(cb);
+
+                    syncCalendarList.appendChild(chip);
+                });
+            })
+            .catch(() => {
+                syncCalendarSelector.style.display = 'none';
+            });
+    };
+
+    const openSyncModal = () => {
+        currentSyncTab = 'ics_file';
+        selectedFile = null;
+        previewEvents = [];
+        syncFileInput.value = '';
+        syncUrlInput.value = '';
+        syncPreviewArea.style.display = 'none';
+        syncLoading.style.display = 'none';
+        syncResult.style.display = 'none';
+        syncActionsInitial.style.display = '';
+        activateSyncTab('ics_file');
+
+        // Set default date range: 3 months ago to 6 months ahead
+        const today = new Date();
+        const startDefault = new Date(today);
+        startDefault.setMonth(startDefault.getMonth() - 3);
+        const endDefault = new Date(today);
+        endDefault.setMonth(endDefault.getMonth() + 6);
+        syncStartDate.value = startDefault.toISOString().split('T')[0];
+        syncEndDate.value = endDefault.toISOString().split('T')[0];
+
+        checkLocalProviders();
+        openModal(syncModal);
+    };
+
+    const activateSyncTab = (tabName) => {
+        currentSyncTab = tabName;
+        syncTabs.forEach((tab) => {
+            tab.classList.toggle('active', tab.getAttribute('data-tab') === tabName);
+        });
+        syncPanels.forEach((panel) => {
+            panel.classList.toggle('active', panel.id === 'panel-' + tabName);
+        });
+    };
+
+    const checkLocalProviders = () => {
+        fetch(syncProvidersUrl, { method: 'GET', credentials: 'same-origin' })
+            .then((resp) => resp.json())
+            .then((data) => {
+                const providers = data.providers || [];
+                const localProviders = providers.filter((p) => p.name === 'mac' || p.name === 'windows');
+                const authStatus = data.calendar_auth_status || '';
+
+                if (localProviders.length > 0) {
+                    localProviderName = localProviders[0].name;
+                    const label = localProviders.map((p) => p.label).join(' / ');
+
+                    if (authStatus === 'authorized') {
+                        syncLocalInfo.innerHTML = '✅ ' + label + '<br><span style="color:#166534;font-size:12px">日历访问已授权，设置日期范围和日历后点击「预览事件」即可读取。</span>';
+                        syncLocalDateRange.style.display = '';
+                        loadCalendarList();
+                    } else if (authStatus === 'not_determined') {
+                        syncLocalInfo.innerHTML = '🔔 ' + label + ' — <span style="color:#92400e;font-weight:600">需要授权日历访问</span><br>' +
+                            '<span style="font-size:12px;color:#64748b">点击下方按钮打开系统设置，在「日历」中找到 <b>Python</b> 或 <b>终端</b> 并开启权限，然后回到此页面点击「预览事件」。</span><br>' +
+                            '<button type="button" onclick="openCalendarPrivacy()" style="margin-top:8px;padding:6px 14px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">打开系统设置 → 隐私与安全性 → 日历</button>';
+                        syncLocalDateRange.style.display = '';
+                        syncCalendarSelector.style.display = 'none';
+                    } else if (authStatus === 'denied') {
+                        syncLocalInfo.innerHTML = '🚫 ' + label + ' — <span style="color:#991b1b;font-weight:600">日历访问被拒绝</span><br>' +
+                            '<span style="font-size:12px;color:#64748b">请在系统设置中开启日历权限：找到 <b>Python</b> 或 <b>终端</b>，开启日历访问后重试。</span><br>' +
+                            '<button type="button" onclick="openCalendarPrivacy()" style="margin-top:8px;padding:6px 14px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">打开系统设置 → 隐私与安全性 → 日历</button>';
+                        syncLocalDateRange.style.display = 'none';
+                    } else {
+                        syncLocalInfo.innerHTML = '✅ ' + label + '<br><span style="color:#166534;font-size:12px">设置日期范围后点击「预览事件」即可读取近期日历事件。</span>';
+                        syncLocalDateRange.style.display = '';
+                    }
+                } else {
+                    localProviderName = '';
+                    syncLocalDateRange.style.display = 'none';
+                    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                    const isWin = navigator.platform.toUpperCase().indexOf('WIN') >= 0;
+                    let hint = '⚠️ 未检测到可用的本机日历应用。<br>';
+                    if (isMac) {
+                        hint += '<span style="font-size:12px;color:#64748b">macOS 需要安装依赖：<code style="background:#f1f5f9;padding:2px 4px;border-radius:3px">uv pip install pyobjc-framework-EventKit</code></span>';
+                    } else if (isWin) {
+                        hint += '<span style="font-size:12px;color:#64748b">Windows 需要安装依赖：<code style="background:#f1f5f9;padding:2px 4px;border-radius:3px">uv pip install pywin32</code>，并确保已安装 Outlook 桌面版</span>';
+                    } else {
+                        hint += '<span style="font-size:12px;color:#64748b">Linux 建议使用「上传文件」方式导入 .ics 文件</span>';
+                    }
+                    syncLocalInfo.innerHTML = hint;
+                }
+            })
+            .catch(() => {
+                localProviderName = '';
+                syncLocalInfo.innerHTML = '⚠️ 检测本机日历失败，请使用「上传文件」或「URL 导入」方式。';
+            });
+    };
+
+    syncTabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+            activateSyncTab(tab.getAttribute('data-tab'));
+        });
+    });
+
+    syncDropzone.addEventListener('click', () => syncFileInput.click());
+    syncDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        syncDropzone.classList.add('dragover');
+    });
+    syncDropzone.addEventListener('dragleave', () => {
+        syncDropzone.classList.remove('dragover');
+    });
+    syncDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        syncDropzone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].name.toLowerCase().endsWith('.ics')) {
+            selectedFile = files[0];
+            syncDropzone.querySelector('.reminder-dropzone-text').textContent = '已选择: ' + files[0].name;
+        }
+    });
+    syncFileInput.addEventListener('change', () => {
+        if (syncFileInput.files.length > 0) {
+            selectedFile = syncFileInput.files[0];
+            syncDropzone.querySelector('.reminder-dropzone-text').textContent = '已选择: ' + selectedFile.name;
+        }
+    });
+
+    syncPreviewBtn.addEventListener('click', () => {
+        syncLoading.style.display = '';
+        syncActionsInitial.style.display = 'none';
+        syncPreviewArea.style.display = 'none';
+        syncResult.style.display = 'none';
+
+        const formData = new FormData();
+        if (currentSyncTab === 'ics_file') {
+            if (!selectedFile) {
+                syncLoading.style.display = 'none';
+                syncActionsInitial.style.display = '';
+                alert('请先选择 .ics 文件');
+                return;
+            }
+            formData.append('source', 'ics_file');
+            formData.append('ics_file', selectedFile);
+        } else if (currentSyncTab === 'ics_url') {
+            const url = syncUrlInput.value.trim();
+            if (!url) {
+                syncLoading.style.display = 'none';
+                syncActionsInitial.style.display = '';
+                alert('请输入 .ics 订阅地址');
+                return;
+            }
+            formData.append('source', 'ics_url');
+            formData.append('url', url);
+        } else if (currentSyncTab === 'local') {
+            if (!localProviderName) {
+                syncLoading.style.display = 'none';
+                syncActionsInitial.style.display = '';
+                alert('当前无可用的本机日历应用，请先安装对应依赖');
+                return;
+            }
+            formData.append('source', localProviderName);
+            const startDateVal = syncStartDate.value;
+            const endDateVal = syncEndDate.value;
+            if (startDateVal) formData.append('start_date', startDateVal);
+            if (endDateVal) formData.append('end_date', endDateVal);
+
+            // Collect included calendars (selected/checked ones)
+            const includedCals = [];
+            syncCalendarList.querySelectorAll('.sync-calendar-cb').forEach((cb) => {
+                if (cb.checked) includedCals.push(cb.value);
+            });
+            formData.append('included_calendars', JSON.stringify(includedCals));
+        }
+
+        fetch(syncPreviewUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' },
+            body: formData,
+        })
+            .then((resp) => resp.json())
+            .then((data) => {
+                syncLoading.style.display = 'none';
+                if (data.error) {
+                    syncActionsInitial.style.display = '';
+                    alert(data.error);
+                    return;
+                }
+                previewEvents = data.events || [];
+                renderPreviewList();
+                syncPreviewArea.style.display = '';
+                syncActionsInitial.style.display = 'none';
+            })
+            .catch(() => {
+                syncLoading.style.display = 'none';
+                syncActionsInitial.style.display = '';
+                alert('预览失败，请重试');
+            });
+    });
+
+    const renderPreviewList = () => {
+        syncPreviewList.innerHTML = '';
+        if (previewEvents.length === 0) {
+            syncPreviewList.innerHTML = '<div class="reminder-preview-empty">未找到可导入的事件</div>';
+            syncCount.textContent = '';
+            return;
+        }
+
+        const selectAllId = 'sync-select-all';
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'reminder-preview-item';
+        headerDiv.style.background = '#f8fafc';
+        headerDiv.style.fontWeight = '600';
+        headerDiv.innerHTML = '<input type="checkbox" id="' + selectAllId + '" checked><label for="' + selectAllId + '" style="cursor:pointer;flex:1;color:#334155">全选</label><span style="flex:none;font-size:12px;color:#64748b">' + String(previewEvents.length) + ' 条事件</span>';
+        syncPreviewList.appendChild(headerDiv);
+
+        const selectAllCb = headerDiv.querySelector('#' + selectAllId);
+
+        previewEvents.forEach((event, idx) => {
+            const item = document.createElement('div');
+            item.className = 'reminder-preview-item' + (event.is_existing ? ' is-existing' : '');
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !event.is_existing;
+            cb.disabled = event.is_existing;
+            cb.dataset.index = String(idx);
+            cb.className = 'sync-event-cb';
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'reminder-preview-time';
+            timeSpan.textContent = event.start_dt || '—';
+
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'reminder-preview-title';
+            titleSpan.textContent = event.title || '（无标题）';
+
+            const sourceSpan = document.createElement('span');
+            sourceSpan.className = 'reminder-preview-source';
+            sourceSpan.textContent = event.calendar_name || '';
+
+            const statusSpan = document.createElement('span');
+            statusSpan.className = 'reminder-preview-status ' + (event.is_existing ? 'existing' : 'importable');
+            statusSpan.textContent = event.is_existing ? '已存在' : '可导入';
+
+            item.appendChild(cb);
+            item.appendChild(timeSpan);
+            item.appendChild(titleSpan);
+            item.appendChild(sourceSpan);
+            item.appendChild(statusSpan);
+            syncPreviewList.appendChild(item);
+        });
+
+        const updateCount = () => {
+            const checked = syncPreviewList.querySelectorAll('.sync-event-cb:checked').length;
+            const importable = previewEvents.filter((e) => !e.is_existing).length;
+            syncCount.textContent = '已选 ' + String(checked) + ' 条（可导入 ' + String(importable) + ' 条）';
+        };
+
+        selectAllCb.addEventListener('change', () => {
+            const cbs = syncPreviewList.querySelectorAll('.sync-event-cb:not(:disabled)');
+            cbs.forEach((c) => { c.checked = selectAllCb.checked; });
+            updateCount();
+        });
+
+        syncPreviewList.querySelectorAll('.sync-event-cb').forEach((cb) => {
+            cb.addEventListener('change', updateCount);
+        });
+
+        updateCount();
+    };
+
+    syncImportBtn.addEventListener('click', () => {
+        const selected = [];
+        syncPreviewList.querySelectorAll('.sync-event-cb').forEach((cb) => {
+            const idx = parseInt(cb.dataset.index, 10);
+            if (cb.checked && previewEvents[idx]) {
+                selected.push({ ...previewEvents[idx], selected: true });
+            }
+        });
+
+        if (selected.length === 0) {
+            alert('请至少选择一条事件');
+            return;
+        }
+
+        syncImportBtn.disabled = true;
+        syncImportBtn.textContent = '{% trans "处理中…" %}';
+
+        const formData = new FormData();
+        formData.append('events', JSON.stringify(selected));
+
+        fetch(syncImportUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' },
+            body: formData,
+        })
+            .then((resp) => resp.json())
+            .then((data) => {
+                syncPreviewArea.style.display = 'none';
+                syncResult.style.display = '';
+                syncResult.className = 'reminder-sync-result';
+                syncResult.textContent = '{% trans "导入/同步完成！" %}' + '{% trans "成功" %} ' + String(data.created) + ' {% trans "条" %}，{% trans "跳过" %} ' + String(data.skipped) + ' {% trans "条" %}';
+                if (data.created > 0) {
+                    setTimeout(() => { window.location.reload(); }, 1200);
+                }
+            })
+            .catch(() => {
+                alert('{% trans "操作失败，请重试" %}');
+            })
+            .finally(() => {
+                syncImportBtn.disabled = false;
+                syncImportBtn.textContent = '{% trans "确认导入/同步" %}';
+            });
+    });
+
+    syncCancelBtn.addEventListener('click', () => {
+        syncPreviewArea.style.display = 'none';
+        syncActionsInitial.style.display = '';
+        previewEvents = [];
+    });
+
+    syncCloseBtn.addEventListener('click', () => closeModal(syncModal));
+
+    syncModal.addEventListener('click', (event) => {
+        if (event.target === syncModal) closeModal(syncModal);
+    });
+
+    const btnImport = document.getElementById('btn-calendar-import');
+    if (btnImport) {
+        btnImport.addEventListener('click', openSyncModal);
+    }
+
+    // ===== Calendar Sync Clear =====
+    const syncClearBtn = document.getElementById('sync-clear-btn');
+    if (syncClearBtn) {
+        syncClearBtn.addEventListener('click', () => {
+            if (!confirm('{% trans "确定要清空所有从本机日历同步的提醒吗？此操作不可恢复。" %}')) return;
+            const clearUrl = syncProvidersUrl.replace('/sync/providers/', '/sync/clear/');
+            fetch(clearUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' },
+            })
+                .then((resp) => resp.json())
+                .then((data) => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        alert('{% trans "已清空" %} ' + String(data.deleted) + ' {% trans "条同步提醒" %}');
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {
+                    alert('{% trans "操作失败，请重试" %}');
+                });
+        });
+    }
+
+    // ===== Calendar Export =====
+    const btnExport = document.getElementById('btn-calendar-export');
+    if (btnExport) {
+        btnExport.addEventListener('click', (e) => {
+            e.preventDefault();
+            const params = new URLSearchParams(window.location.search);
+            const url = exportUrl + '?' + params.toString();
+            window.location.href = url;
+        });
+    }
 })();
 </script>
 {% endblock %}
