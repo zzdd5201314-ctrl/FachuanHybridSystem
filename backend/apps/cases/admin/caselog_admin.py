@@ -561,9 +561,9 @@ class CaseLogAdmin(BaseModelAdmin):
         if current_stage_filter:
             queryset = queryset.filter(current_stage=current_stage_filter)
         if archive_filter == "active":
-            queryset = queryset.filter(is_archived=False)
+            queryset = queryset.filter(is_filed=False)
         elif archive_filter == "archived":
-            queryset = queryset.filter(is_archived=True)
+            queryset = queryset.filter(is_filed=True)
         if lawyer_filter:
             queryset = queryset.filter(assignments__lawyer_id=lawyer_filter).distinct()
 
@@ -587,7 +587,7 @@ class CaseLogAdmin(BaseModelAdmin):
                 "status_key": case_obj.status or "",
                 "start_date_text": _format_date(case_obj.start_date),
                 "ledger_url": reverse("admin:cases_caselog_ledger", args=[case_obj.pk]),
-                "is_archived": case_obj.is_archived,
+                "is_filed": case_obj.is_filed,
             }
             for case_obj in page_obj.object_list
         ]

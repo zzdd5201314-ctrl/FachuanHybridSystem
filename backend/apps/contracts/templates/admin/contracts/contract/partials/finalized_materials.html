@@ -52,7 +52,7 @@
                 <div class="ac-progress-track">
                     <div class="ac-progress-bar" style="width: {{ archive_checklist.completion_percentage }}%"></div>
                 </div>
-            <!--
+            {% comment %}
             <div class="fm-list" data-contract-id="{{ contract.pk }}">
                 {% for material in materials %}
                 <div class="fm-item" data-id="{{ material.pk }}">
@@ -61,7 +61,7 @@
                     <a class="fm-name" href="{% url 'admin:contracts_contract_material_file' material.pk %}" target="_blank">{{ material.original_filename }}</a>
                     <span class="fm-date">{{ material.uploaded_at|date:"Y-m-d" }}</span>
                 </div>
-                -->
+                {% endcomment %}
                 <span class="ac-progress-text">
                     {{ archive_checklist.completed_count }}/{{ archive_checklist.total_count }}
                     {% if archive_checklist.required_completed_count < archive_checklist.required_total_count %}
