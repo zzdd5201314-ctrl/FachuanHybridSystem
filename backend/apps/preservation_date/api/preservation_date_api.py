@@ -65,3 +65,15 @@ def extract_preservation_date(
     service = PreservationDateExtractionService()
     result = service.extract_from_uploaded_file(file.chunks(), file.name)
     return _serialize_result(result)
+
+
+@router.post("/extract-text")
+@rate_limit_from_settings("UPLOAD", by_user=False)
+def extract_preservation_date_from_text(
+    request: HttpRequest,
+    text: str,
+) -> dict[str, Any]:
+    """Extract asset preservation measures from raw text content."""
+    service = PreservationDateExtractionService()
+    result = service.extract_from_text(text)
+    return _serialize_result(result)
