@@ -836,7 +836,7 @@ class ContractFolderScanService:
             from apps.contracts.services.archive.category_mapping import get_archive_category
             from apps.contracts.services.archive.learning_service import (
                 _contains_document_keyword,
-                _extract_keywords,
+                extract_keywords,
                 _strip_non_keyword_parts,
             )
 
@@ -847,7 +847,7 @@ class ContractFolderScanService:
             if not archive_category:
                 return
 
-            keywords = _extract_keywords(filename)
+            keywords = extract_keywords(filename)
             for kw in keywords:
                 # 跳过歧义关键词：如果已有规则映射到不同 code，不覆盖
                 existing = (

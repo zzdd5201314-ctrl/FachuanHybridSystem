@@ -60,7 +60,7 @@ class ArchiveLearningService:
             if not archive_category:
                 continue
 
-            keywords = self._extract_keywords(material.original_filename)
+            keywords = extract_keywords(material.original_filename)
             material_keywords[material.id] = keywords
 
             for kw in keywords:
@@ -227,7 +227,7 @@ class ArchiveLearningService:
             "category_count": category_count,
         }
 
-    def _extract_keywords(self, filename: str) -> list[str]:
+def extract_keywords(filename: str) -> list[str]:
         """从文件名中提取关键词。
 
         策略：
