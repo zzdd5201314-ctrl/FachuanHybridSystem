@@ -836,8 +836,8 @@ class ContractFolderScanService:
             from apps.contracts.services.archive.category_mapping import get_archive_category
             from apps.contracts.services.archive.learning_service import (
                 _contains_document_keyword,
-                extract_keywords,
                 _strip_non_keyword_parts,
+                extract_keywords,
             )
 
             contract = Contract.objects.filter(id=contract_id).values_list("case_type", flat=True).first()
