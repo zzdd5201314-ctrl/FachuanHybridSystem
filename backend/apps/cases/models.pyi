@@ -88,6 +88,9 @@ class SupervisingAuthority(models.Model):
     authority_type: str | None
     created_at: datetime
 
+    handler_name: str
+    handler_phone: str
+    remarks: str
     # Meta
     objects: Manager[SupervisingAuthority]
 
