@@ -429,7 +429,7 @@ def _strip_non_keyword_parts(text: str) -> str:
     # 检查文书关键词前面/后面粘着的内容
     idx = text.index(best_match)
     prefix = text[:idx]
-    suffix = text[idx + len(best_match):]
+    suffix = text[idx + len(best_match) :]
 
     # 判断前缀/后缀是否属于"非文书粘着内容"
     # 规则：如果前缀/后缀中所有中文字符都不属于任何文书关键词 → 疑似人名/公司名

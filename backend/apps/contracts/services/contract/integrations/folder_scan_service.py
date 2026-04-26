@@ -834,7 +834,11 @@ class ContractFolderScanService:
         try:
             from apps.contracts.models import ArchiveClassificationRule
             from apps.contracts.services.archive.category_mapping import get_archive_category
-            from apps.contracts.services.archive.learning_service import _extract_keywords, _contains_document_keyword, _strip_non_keyword_parts
+            from apps.contracts.services.archive.learning_service import (
+                _contains_document_keyword,
+                _extract_keywords,
+                _strip_non_keyword_parts,
+            )
 
             contract = Contract.objects.filter(id=contract_id).values_list("case_type", flat=True).first()
             if not contract:
@@ -846,10 +850,14 @@ class ContractFolderScanService:
             keywords = _extract_keywords(filename)
             for kw in keywords:
                 # 跳过歧义关键词：如果已有规则映射到不同 code，不覆盖
-                existing = ArchiveClassificationRule.objects.filter(
-                    archive_category=archive_category,
-                    filename_keyword=kw,
-                ).exclude(archive_item_code=actual_archive_item_code).first()
+                existing = (
+                    ArchiveClassificationRule.objects.filter(
+                        archive_category=archive_category,
+                        filename_keyword=kw,
+                    )
+                    .exclude(archive_item_code=actual_archive_item_code)
+                    .first()
+                )
                 if existing:
                     continue
 
