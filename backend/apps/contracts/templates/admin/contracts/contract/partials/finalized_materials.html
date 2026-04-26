@@ -778,6 +778,7 @@ function archiveChecklistApp(initialCompact, checklistItems) {
         },
 
         onDragOver(event, code) {
+            if (this._isFileDrag(event)) return;
             event.preventDefault();
             event.dataTransfer.dropEffect = 'move';
             // 计算插入位置
@@ -801,6 +802,7 @@ function archiveChecklistApp(initialCompact, checklistItems) {
         },
 
         onDrop(event, targetCode) {
+            if (this._isFileDrag(event)) return;
             // 清除样式
             document.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(function(el) {
                 el.classList.remove('drag-over-top', 'drag-over-bottom');
@@ -1288,6 +1290,10 @@ function archiveChecklistApp(initialCompact, checklistItems) {
         initSubitemSortable();
     });
 
+    function _isFileDragEvent(e) {
+        return e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.indexOf('Files') !== -1;
+    }
+
     function initSubitemSortable() {
         // 为每个子项列表添加拖拽排序
         document.querySelectorAll('.ac-subitems-list').forEach(function(listEl) {
@@ -1296,6 +1302,8 @@ function archiveChecklistApp(initialCompact, checklistItems) {
 
             subitems.forEach(function(item) {
                 item.addEventListener('dragover', function(e) {
+                    // 文件拖放不拦截，让事件冒泡到父级 ac-item 的 Alpine 处理器
+                    if (_isFileDragEvent(e)) return;
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
                     // 高亮插入位置
@@ -1312,6 +1320,8 @@ function archiveChecklistApp(initialCompact, checklistItems) {
                 });
 
                 item.addEventListener('drop', function(e) {
+                    // 文件拖放不拦截，让事件冒泡到父级 ac-item 的 Alpine 处理器
+                    if (_isFileDragEvent(e)) return;
                     e.preventDefault();
                     e.stopPropagation();
                     document.querySelectorAll('.ac-subitem').forEach(function(el) {
