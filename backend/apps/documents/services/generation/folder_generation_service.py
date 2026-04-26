@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, cast
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.exceptions import NotFoundError, ValidationException
+from apps.core.models.enums import CaseType
 
 if TYPE_CHECKING:
     from apps.core.interfaces import IContractService
