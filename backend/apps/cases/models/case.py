@@ -228,6 +228,23 @@ class SupervisingAuthority(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("创建时间"))
 
+    handler_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name=_("\u627f\u529e\u4eba"),
+    )
+    handler_phone = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        verbose_name=_("\u8054\u7cfb\u7535\u8bdd"),
+    )
+    remarks = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("\u5907\u6ce8"),
+    )
     if TYPE_CHECKING:
         materials: RelatedManager[CaseMaterial]
         material_group_orders: RelatedManager[CaseMaterialGroupOrder]
