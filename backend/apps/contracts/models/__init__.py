@@ -25,6 +25,9 @@ from .archive_override import ArchivePlaceholderOverride
 # finalized_material.py - 结案材料相关模型和枚举
 from .finalized_material import FinalizedMaterial, MaterialCategory
 
+# archive_classification_rule.py - 归档分类学习规则
+from .archive_classification_rule import ArchiveClassificationRule, RuleSource
+
 # finance.py - 财务日志相关模型和枚举
 from .finance import ContractFinanceLog, LogLevel
 
@@ -79,6 +82,9 @@ __all__ = [
     # finalized_material.py
     "FinalizedMaterial",
     "MaterialCategory",
+    # archive_classification_rule.py
+    "ArchiveClassificationRule",
+    "RuleSource",
     # invoice.py
     "Invoice",
     # client_payment.py

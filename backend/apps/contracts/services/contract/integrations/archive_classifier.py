@@ -17,6 +17,14 @@ from apps.contracts.services.archive.constants import ARCHIVE_CHECKLIST
 logger = logging.getLogger(__name__)
 
 # ============================================================
+# 学习规则加载（代码文件中的规则，模块级缓存）
+# ============================================================
+try:
+    from ._learned_rules import LEARNED_FILENAME_KEYWORD_TO_ARCHIVE_CODE as _LEARNED_CODE_RULES
+except ImportError:
+    _LEARNED_CODE_RULES: dict[str, dict[str, list[str]]] = {}
+
+# ============================================================
 # 跳过规则 - 以下关键词命中的文件不导入
 # ============================================================
 _SKIP_KEYWORDS: tuple[str, ...] = (
@@ -220,7 +228,15 @@ def classify_archive_material(
             "is_evidence_folder": True,
         }
 
-    # 3. 文件夹路径关键词匹配（优先级最高）
+    # 3. 学习规则匹配（优先级高于硬编码规则）
+    learned_result = _match_by_learned_rules(normalized_filename, archive_category)
+    if learned_result:
+        return {
+            **learned_result,
+            "is_evidence_folder": False,
+        }
+
+    # 4. 文件夹路径关键词匹配
     folder_result = _match_by_folder_keywords(normalized_path, archive_category)
     if folder_result:
         return {
@@ -228,7 +244,7 @@ def classify_archive_material(
             "is_evidence_folder": False,
         }
 
-    # 4. 文件名关键词匹配
+    # 5. 文件名关键词匹配
     filename_result = _match_by_filename_keywords(normalized_filename, archive_category)
     if filename_result:
         return {
@@ -236,7 +252,7 @@ def classify_archive_material(
             "is_evidence_folder": False,
         }
 
-    # 5. 未匹配
+    # 6. 未匹配
     return {
         "archive_item_code": "",
         "archive_item_name": "未匹配",
@@ -321,6 +337,61 @@ def collect_archive_item_options(archive_category: str) -> list[dict[str, str]]:
 # ============================================================
 # 内部辅助函数
 # ============================================================
+
+
+def _match_by_learned_rules(
+    normalized_filename: str,
+    archive_category: str,
+) -> dict[str, Any] | None:
+    """学习规则匹配（先查代码文件规则，再查DB规则）。"""
+    # 1. 代码文件中的学习规则（模块级缓存，无DB查询）
+    code_mapping = _LEARNED_CODE_RULES.get(archive_category, {})
+    for code, keywords in code_mapping.items():
+        for keyword in keywords:
+            if _normalize_for_match(keyword) in normalized_filename:
+                name = _get_item_name(archive_category, code)
+                return {
+                    "archive_item_code": code,
+                    "archive_item_name": name,
+                    "category": "case_material",
+                    "confidence": 0.95,
+                    "reason": f"学习规则命中：{keyword}",
+                }
+
+    # 2. DB 中的学习规则
+    db_result = _match_by_db_learned_rules(normalized_filename, archive_category)
+    if db_result:
+        return db_result
+
+    return None
+
+
+def _match_by_db_learned_rules(
+    normalized_filename: str,
+    archive_category: str,
+) -> dict[str, Any] | None:
+    """从 DB 查询学习规则匹配。"""
+    try:
+        from apps.contracts.models import ArchiveClassificationRule
+
+        rules = ArchiveClassificationRule.objects.filter(
+            archive_category=archive_category,
+        ).values_list("filename_keyword", "archive_item_code")
+
+        for keyword, code in rules:
+            if _normalize_for_match(keyword) in normalized_filename:
+                name = _get_item_name(archive_category, code)
+                return {
+                    "archive_item_code": code,
+                    "archive_item_name": name,
+                    "category": "case_material",
+                    "confidence": 0.93,
+                    "reason": f"学习规则(DB)命中：{keyword}",
+                }
+    except (OSError, RuntimeError):
+        logger.exception("learned_rules_db_query_failed")
+
+    return None
 
 
 def _normalize_for_match(text: str) -> str:

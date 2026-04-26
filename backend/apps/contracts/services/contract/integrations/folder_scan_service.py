@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import re
@@ -273,15 +274,36 @@ class ContractFolderScanService:
                 if archive_item_code:
                     material_kwargs["archive_item_code"] = archive_item_code
 
-                # 去重：同一合同下相同文件名+分类的材料不重复创建
-                if FinalizedMaterial.objects.filter(
+                # 计算文件内容哈希
+                content_hash = _compute_file_hash(actual_file_path)
+                if content_hash:
+                    material_kwargs["content_hash"] = content_hash
+
+                # 去重：同一合同下内容哈希相同的材料视为重复跳过
+                if content_hash and FinalizedMaterial.objects.filter(
+                    contract_id=contract_id,
+                    content_hash=content_hash,
+                ).exists():
+                    skipped_dupes += 1
+                    logger.info(
+                        "material_hash_duplicate_skipped",
+                        extra={
+                            "contract_id": contract_id,
+                            "filename": display_name,
+                            "content_hash": content_hash[:16],
+                        },
+                    )
+                    continue
+
+                # 向后兼容：无哈希时回退到文件名比较
+                if not content_hash and FinalizedMaterial.objects.filter(
                     contract_id=contract_id,
                     original_filename=display_name,
                     category=category,
                 ).exists():
                     skipped_dupes += 1
                     logger.info(
-                        "material_duplicate_skipped",
+                        "material_name_duplicate_skipped",
                         extra={"contract_id": contract_id, "filename": display_name, "category": category},
                     )
                     continue
@@ -370,6 +392,7 @@ class ContractFolderScanService:
                 candidates=candidates,
                 archive_category=archive_category,
                 scan_folder=scan_scope["scan_folder"],
+                contract_id=session.contract_id,
             )
             result["candidates"] = candidates
 
@@ -540,6 +563,7 @@ class ContractFolderScanService:
         candidates: list[dict[str, Any]],
         archive_category: str,
         scan_folder: str,
+        contract_id: int = 0,
     ) -> list[dict[str, Any]]:
         """扫描后处理：归档清单项匹配 + docx 文件收集 + 跳过项过滤。"""
         processed: list[dict[str, Any]] = []
@@ -632,6 +656,10 @@ class ContractFolderScanService:
         if archive_category == "non_litigation":
             docx_candidates = self._collect_docx_files(scan_folder, archive_category)
             processed.extend(docx_candidates)
+
+        # 标记已导入文件：计算文件哈希并比对已有材料
+        if contract_id:
+            self._mark_already_imported(processed, contract_id=contract_id)
 
         return processed
 
@@ -763,6 +791,48 @@ class ContractFolderScanService:
 
     def _normalize_for_match(self, text: str) -> str:
         return re.sub(r"\s+", "", str(text or "")).lower()
+
+    def _mark_already_imported(
+        self,
+        candidates: list[dict[str, Any]],
+        *,
+        contract_id: int,
+    ) -> None:
+        """标记已导入文件：计算文件哈希，与已有材料比对。"""
+        existing_hashes: set[str] = set(
+            FinalizedMaterial.objects.filter(
+                contract_id=contract_id,
+                content_hash__gt="",
+            ).values_list("content_hash", flat=True)
+        )
+
+        for candidate in candidates:
+            source_path = str(candidate.get("source_path") or "").strip()
+            if not source_path:
+                continue
+            file_path = Path(source_path)
+            if not file_path.exists() or not file_path.is_file():
+                continue
+
+            content_hash = _compute_file_hash(file_path)
+            if content_hash and content_hash in existing_hashes:
+                candidate["already_imported"] = True
+                candidate["selected"] = False
+            else:
+                candidate["already_imported"] = False
+
+
+def _compute_file_hash(file_path: Path) -> str:
+    """计算文件 SHA-256 哈希值。失败返回空字符串。"""
+    try:
+        sha256 = hashlib.sha256()
+        with file_path.open("rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                sha256.update(chunk)
+        return sha256.hexdigest()
+    except (OSError, ValueError):
+        logger.exception("compute_file_hash_failed", extra={"path": file_path.as_posix()})
+        return ""
 
 
 def run_contract_folder_scan_task(session_id: str) -> None:
