@@ -2,6 +2,25 @@
 
 本项目的所有重要更改都将记录在此文件中。
 
+## [26.40.1] - 2026-04-26
+
+### 新增
+
+- **首页归档功能介绍模块**：新增 `_archive_flow.html` 子模板，含 GSAP 滚动动画、10秒倒计时高亮横幅、5步归档文书生成流程演示、三大归档分类标签（非诉12项/诉讼20项/刑事18项），强调"10秒完成归档"。
+- **django-simple-history 变更历史追踪**：为 Case、CaseNumber、Client、Contract、ContractPayment、ClientPayment、Reminder 7个核心业务模型集成 `HistoricalRecords`，所有增删改操作自动记录历史快照。
+- **财产保全规则引擎 fallback**：新增 `rule_engine.py`，当 LLM 提取失败或返回空结果时，使用正则规则引擎从法院文书中提取保全措施信息作为兜底方案。
+- **admin 右上角日志快捷入口**：在"消息来源"与"文件模板"之间添加"日志"链接，直达 CaseLog 列表页。
+
+### 变更
+
+- **财产保全日期识别全面优化**：`extraction_service.py` 增加 LLM→规则引擎双通道 fallback 逻辑；`prompts.py` 扩展提取 prompt 支持更多文书类型；测试页面增加规则引擎结果展示。
+- **首页 JS 安全检查增强**：Three.js 初始化增加 canvas 存在检查和 WebGL try/catch；`startTrialAnimation` 增加 playBtn 空值检查；resize handler 增加 renderer 空值检查。
+
+### 修复
+
+- **首页 `</style>` 闭合标签丢失**：修复添加归档 CSS 时意外覆盖 `</style>` 标签，导致整个 body 被 HTML 解析器归入 head、所有 JS 元素查找返回 null 的严重问题。
+- **Hub 页面冗余标题**：删除其他工具 Hub 和办案 Hub 中无意义的"全部入口"和"常用入口"标题。
+
 ## [26.40.0] - 2026-04-25
 
 ### 新增
@@ -9,6 +28,9 @@
 - **「办案」虚拟菜单聚合页**：新增 `/admin/case-handling/` Hub 页面，将当事人管理、合同管理、案件管理三大核心模块统一收纳到「办案」菜单下，采用靛蓝色卡片网格布局，支持搜索过滤和子菜单直达。
 - **侧边栏「办案」分区**：侧边栏新增「办案」分区，默认显示 3 个核心入口（当事人、合同、案件），其余子入口需到 Hub 页查找。
 - **办案 Hub 模板**：新增 `case_handling_hub.html`，复用其他工具页的卡片网格风格，使用靛蓝/紫色配色体系区分于「其他工具」的蓝色系。
+- **故事动画管理后台全面优化**：Admin 重构 list_display/fieldsets，增加状态徽章、阶段、进度、耗时展示；新增 requeue_selected 批量操作、date_hierarchy、自定义查询集。
+- **故事动画详情页重写**：change_form 改为分区布局（源文本/状态/结构化数据/预览/日志），轮询改用 2.5s 间隔，增加 duration 实时计时。
+- **故事动画 HTML 渲染增强**：html_composer 新增 @keyframes 动画生成，优化场景/旁白/人物渲染；animation_script_service 优化角色提取和旁白生成。
 
 ### 变更
 

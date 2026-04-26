@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, ClassVar
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from simple_history.models import HistoricalRecords
 
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import RelatedManager
@@ -21,9 +22,9 @@ class Client(models.Model):
     LEGAL = "legal"
     NON_LEGAL_ORG = "non_legal_org"
     CLIENT_TYPE_CHOICES: ClassVar[list[tuple[str, str]]] = [
-        (NATURAL, _("自然人")),
-        (LEGAL, _("法人")),
-        (NON_LEGAL_ORG, _("非法人组织")),
+        (NATURAL, _("自然人")),  # type: ignore[list-item]
+        (LEGAL, _("法人")),  # type: ignore[list-item]
+        (NON_LEGAL_ORG, _("非法人组织")),  # type: ignore[list-item]
     ]
 
     name = models.CharField(max_length=255, verbose_name=_("名称"))
@@ -40,6 +41,8 @@ class Client(models.Model):
         max_length=64, blank=True, null=True, verbose_name=_("法定代表人/负责人身份证号码")
     )
     is_our_client = models.BooleanField(default=False, verbose_name=_("是否为我方当事人"))
+
+    history = HistoricalRecords()
 
     if TYPE_CHECKING:
         identity_docs: RelatedManager[ClientIdentityDoc]

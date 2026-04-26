@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from simple_history.models import HistoricalRecords
 
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import RelatedManager
@@ -34,7 +35,7 @@ class ClientPaymentRecord(models.Model):
         related_name="client_payment_records",
         verbose_name=_("关联案件"),
     )
-    amount: Decimal = models.DecimalField(
+    amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
         verbose_name=_("回款金额"),
@@ -54,6 +55,8 @@ class ClientPaymentRecord(models.Model):
         auto_now_add=True,
         verbose_name=_("创建时间"),
     )
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("客户回款")

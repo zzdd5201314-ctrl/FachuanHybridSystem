@@ -51,6 +51,77 @@
         text-decoration: none;
     }
 
+    /* 输入模式标签页 */
+    .input-mode-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 20px;
+        background: #f5f5f5;
+        padding: 4px;
+        border-radius: 8px;
+    }
+    .tab-item {
+        flex: 1;
+        text-align: center;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #666;
+        transition: all 0.2s;
+        user-select: none;
+    }
+    .tab-item:hover {
+        color: #333;
+    }
+    .tab-item.active {
+        background: #fff;
+        color: #417690;
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* 文本输入区域 */
+    .text-input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.6;
+        resize: vertical;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+    .text-input:focus {
+        outline: none;
+        border-color: #417690;
+        box-shadow: 0 0 0 2px rgba(65,118,144,0.1);
+    }
+
+    /* 可靠性标签 */
+    .confidence-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    .confidence-high {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .confidence-medium {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    .confidence-low {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
     /* 上传区域样式 */
     .upload-zone {
         border: 2px dashed #d1d5db;
@@ -405,8 +476,8 @@
     <div class="preservation-card">
         <div class="preservation-header">
             <div>
-                <h1 class="preservation-title">财产保全日期识别Test</h1>
-                <p class="preservation-subtitle">上传法院PDF文书，自动识别财产保全措施的到期时间</p>
+                <h1 class="preservation-title">财产保全日期识别</h1>
+                <p class="preservation-subtitle">上传法院PDF文书或直接粘贴文本，自动识别财产保全措施的到期时间</p>
             </div>
             <a href="{% url 'admin:automation_testtoolshub_changelist' %}" class="back-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -416,35 +487,73 @@
             </a>
         </div>
 
-        <!-- 文件上传区域 -->
-        <div class="upload-zone"
-             :class="{ 'dragover': isDragging }"
-             @click="$refs.fileInput.click()"
-             @dragover.prevent="isDragging = true"
-             @dragleave.prevent="isDragging = false"
-             @drop.prevent="handleDrop($event)">
-            <div class="upload-zone-icon">📄</div>
-            <div class="upload-zone-text">
-                <strong>点击上传</strong> 或将PDF文件拖拽到此处
+        <!-- 输入模式切换 -->
+        <div class="input-mode-tabs">
+            <div class="tab-item"
+                 :class="{ 'active': inputMode === 'file' }"
+                 @click="inputMode = 'file'">
+                📄 文件上传
             </div>
-            <div class="upload-zone-hint">仅支持 PDF 格式文件</div>
-            <input type="file"
-                   x-ref="fileInput"
-                   @change="handleFileSelect($event)"
-                   accept=".pdf"
-                   style="display: none;">
+            <div class="tab-item"
+                 :class="{ 'active': inputMode === 'text' }"
+                 @click="inputMode = 'text'">
+                📝 文本输入
+            </div>
         </div>
 
-        <!-- 已上传文件 -->
-        <div class="file-list" x-show="file">
-            <div class="file-item" x-show="file">
-                <div class="file-item-info">
-                    <span class="file-item-icon">📕</span>
-                    <span class="file-item-name" x-text="file?.name"></span>
-                    <span class="file-item-size" x-text="formatFileSize(file?.size)"></span>
+        <!-- 文件上传区域 -->
+        <div x-show="inputMode === 'file'">
+            <div class="upload-zone"
+                 :class="{ 'dragover': isDragging }"
+                 @click="$refs.fileInput.click()"
+                 @dragover.prevent="isDragging = true"
+                 @dragleave.prevent="isDragging = false"
+                 @drop.prevent="handleDrop($event)">
+                <div class="upload-zone-icon">📄</div>
+                <div class="upload-zone-text">
+                    <strong>点击上传</strong> 或将PDF文件拖拽到此处
                 </div>
-                <button class="file-item-remove" @click="removeFile()" title="移除文件">
-                    ✕
+                <div class="upload-zone-hint">仅支持 PDF 格式文件</div>
+                <input type="file"
+                       x-ref="fileInput"
+                       @change="handleFileSelect($event)"
+                       accept=".pdf"
+                       style="display: none;">
+            </div>
+
+            <!-- 已上传文件 -->
+            <div class="file-list" x-show="file">
+                <div class="file-item" x-show="file">
+                    <div class="file-item-info">
+                        <span class="file-item-icon">📕</span>
+                        <span class="file-item-name" x-text="file?.name"></span>
+                        <span class="file-item-size" x-text="formatFileSize(file?.size)"></span>
+                    </div>
+                    <button class="file-item-remove" @click="removeFile()" title="移除文件">
+                        ✕
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文本输入区域 -->
+        <div x-show="inputMode === 'text'" x-cloak>
+            <textarea class="text-input"
+                      x-model="inputText"
+                      placeholder="请粘贴法院文书文本内容..."
+                      rows="12"></textarea>
+            <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                <button class="btn-small btn-secondary" @click="loadSample('single')">
+                    📝 单一查封
+                </button>
+                <button class="btn-small btn-secondary" @click="loadSample('mixed')">
+                    🔄 轮候+正式混合
+                </button>
+                <button class="btn-small btn-secondary" @click="loadSample('multi')">
+                    📋 多个账户冻结
+                </button>
+                <button class="btn-small btn-secondary" @click="loadSample('renewal')">
+                    🔄 续行查封
                 </button>
             </div>
         </div>
@@ -453,7 +562,8 @@
         <div class="form-actions">
             <button class="btn-primary"
                     @click="submitExtraction()"
-                    :disabled="!file || loading">
+                    :disabled="(!file && !inputText.trim()) || loading"
+                    x-text="inputMode === 'file' ? '开始识别' : '开始识别'">
                 开始识别
             </button>
             <button class="btn-secondary" @click="clearAll()" :disabled="loading">
@@ -511,7 +621,15 @@
                     <tbody>
                         <template x-for="(measure, index) in result?.measures" :key="index">
                             <tr>
-                                <td x-text="measure.measure_type"></td>
+                                <td>
+                                    <div x-text="measure.measure_type"></div>
+                                    <div style="margin-top: 4px;">
+                                        <span class="confidence-badge"
+                                              :class="measure._confidence === 'high' ? 'confidence-high' : (measure._confidence === 'medium' ? 'confidence-medium' : 'confidence-low')"
+                                              x-text="measure._confidence === 'high' ? '✓ 高可靠' : (measure._confidence === 'medium' ? '⚠ 中等可靠' : '✗ 需核实')"
+                                              x-show="measure._confidence"></span>
+                                    </div>
+                                </td>
                                 <td x-text="measure.property_description"></td>
                                 <td x-text="measure.duration || '-'"></td>
                                 <td x-text="measure.start_date || '-'"></td>
@@ -566,10 +684,22 @@
 </div>
 
 <script>
+const SAMPLE_TEXTS = {
+    single: '查封被申请人张某名下位于某市某区某路1号房产一套，查封期限三年，自2024年6月1日起至2027年5月31日止。',
+
+    mixed: '轮候冻结被申请人李某在某银行账号为6222000000000001的存款，冻结被申请人李某在某银行账号为6222000000000002的存款，冻结期限一年，自2025年3月1日起至2026年2月28日止。',
+
+    multi: '冻结被申请人王某在工商银行账号6222000000000001的存款、在建设银行账号6227000000000002的存款、在农业银行账号6228000000000003的存款，冻结期限一年，自2025年1月15日起至2026年1月14日止。',
+
+    renewal: '续行查封被申请人孙某名下位于某市某区某路3号房产一套，续行查封期限三年，自2027年6月1日起至2030年5月31日止。',
+};
+
 function preservationDateApp() {
     return {
         // 状态
+        inputMode: 'file',  // 'file' | 'text'
         file: null,
+        inputText: '',
         isDragging: false,
         loading: false,
         loadingText: '处理中...',
@@ -612,6 +742,12 @@ function preservationDateApp() {
             this.error = null;
         },
 
+        loadSample(type) {
+            this.inputText = SAMPLE_TEXTS[type] || '';
+            this.result = null;
+            this.error = null;
+        },
+
         formatFileSize(bytes) {
             if (!bytes) return '';
             if (bytes < 1024) return bytes + ' B';
@@ -621,6 +757,7 @@ function preservationDateApp() {
 
         clearAll() {
             this.file = null;
+            this.inputText = '';
             this.result = null;
             this.error = null;
             this.copySuccess = false;
@@ -628,32 +765,61 @@ function preservationDateApp() {
 
         // 提交识别请求
         async submitExtraction() {
-            if (!this.file) return;
-
             this.loading = true;
             this.loadingText = '正在识别财产保全日期...';
             this.result = null;
             this.error = null;
 
             try {
-                const formData = new FormData();
-                formData.append('file', this.file);
+                let response, data;
 
-                const response = await fetch('/api/v1/preservation-date/extract', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': this.getCsrfToken(),
-                    },
-                    body: formData,
-                });
+                if (this.inputMode === 'file') {
+                    // 文件模式
+                    if (!this.file) {
+                        this.loading = false;
+                        return;
+                    }
+                    const formData = new FormData();
+                    formData.append('file', this.file);
 
-                const data = await response.json();
+                    response = await fetch('/api/v1/preservation-date/extract', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': this.getCsrfToken(),
+                        },
+                        body: formData,
+                    });
+                } else {
+                    // 文本模式
+                    if (!this.inputText.trim()) {
+                        this.loading = false;
+                        return;
+                    }
+
+                    response = await fetch('/api/v1/preservation-date/extract-text', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': this.getCsrfToken(),
+                        },
+                        body: new URLSearchParams({ text: this.inputText.trim() }),
+                    });
+                }
+
+                data = await response.json();
 
                 if (!response.ok) {
                     throw new Error(data.detail || data.error || '识别请求失败');
                 }
 
                 if (data.success) {
+                    // 计算每条措施的置信度
+                    if (data.measures) {
+                        data.measures = data.measures.map(m => ({
+                            ...m,
+                            _confidence: this.computeConfidence(m),
+                        }));
+                    }
                     this.result = data;
                 } else {
                     this.error = data.error || '识别失败';
@@ -665,6 +831,42 @@ function preservationDateApp() {
             } finally {
                 this.loading = false;
             }
+        },
+
+        // 置信度评估
+        computeConfidence(measure) {
+            let score = 0;
+            let checks = 0;
+
+            // 1. 有 raw_text 引用原始文本 +1
+            checks++;
+            if (measure.raw_text && measure.raw_text.length > 5) score++;
+
+            // 2. property_description 包含财产关键词 +1
+            checks++;
+            const prop = measure.property_description || '';
+            if (/账号|账户|房产|房屋|存款|股权|车辆|土地/.test(prop)) score++;
+
+            // 3. 日期合理性: 非轮候措施必须有 end_date
+            if (!measure.is_pending) {
+                checks++;
+                if (measure.end_date && /\d{4}-\d{2}-\d{2}/.test(measure.end_date)) score++;
+            }
+
+            // 4. 措施类型合法性
+            checks++;
+            const validTypes = ['查封', '冻结', '扣押', '轮候查封', '轮候冻结', '续行查封', '续行冻结'];
+            if (validTypes.some(t => measure.measure_type === t || measure.measure_type?.includes(t))) score++;
+
+            // 5. 轮候状态一致性
+            checks++;
+            if (measure.is_pending && measure.measure_type?.includes('轮候')) score++;
+            if (!measure.is_pending && !measure.measure_type?.includes('轮候')) score++;
+
+            const ratio = checks > 0 ? score / checks : 0;
+            if (ratio >= 0.8) return 'high';
+            if (ratio >= 0.5) return 'medium';
+            return 'low';
         },
 
         getCsrfToken() {

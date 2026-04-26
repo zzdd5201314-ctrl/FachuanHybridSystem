@@ -26,6 +26,9 @@ from .models import PreservationExtractionResult, PreservationMeasure, ReminderD
 from .prompts import DEFAULT_PENDING_NOTE, PENDING_KEYWORDS, PRESERVATION_DATE_EXTRACTION_PROMPT
 from .validators import MeasureValidator
 
+# 规则引擎
+from .rule_engine import PreservationRuleEngine
+
 if TYPE_CHECKING:
     from apps.document_recognition.services import TextExtractionService
 
@@ -130,39 +133,70 @@ class PreservationDateExtractionService:
         text = self._preprocess_text(text)
 
         # 调用大模型
+        llm_response: str = ""
+        model_used: str = ""
+        measures: list[PreservationMeasure] = []
+        use_rule_fallback: bool = False
+        llm_error: str = ""
+
         try:
             llm_response, model_used = self._call_llm(text)
-            logger.info(f"大模型调用成功,模型: {model_used}, 响应长度: {len(llm_response)}")
-            logger.debug(f"大模型原始响应: {llm_response[:1000]}")
-        except Exception as e:
-            logger.error(f"大模型调用失败: {e}", exc_info=True)
-            return PreservationExtractionResult(
-                success=False,
-                error=f"大模型调用失败: {e!s},请检查模型配置",
+            logger.info(
+                "大模型调用成功,模型: %s, 响应长度: %d",
+                model_used,
+                len(llm_response),
             )
+            logger.debug("大模型原始响应: %s", llm_response[:1000])
 
-        # 解析响应
-        try:
-            measures = self._parse_llm_response(llm_response)
-        except Exception as e:
-            logger.warning(f"JSON 解析失败: {e}, 原始响应: {llm_response[:500]}")
-            return PreservationExtractionResult(
-                success=False,
-                error=f"大模型返回格式异常: {e!s}",
-                model_used=model_used,
-                raw_response=llm_response,
-            )
+            # 解析响应
+            try:
+                measures = self._parse_llm_response(llm_response)
+            except Exception as e:
+                logger.warning(
+                    "JSON 解析失败: %s, 原始响应: %s",
+                    e,
+                    llm_response[:500],
+                )
+                use_rule_fallback = True
 
-        # 检查是否找到保全措施
-        if not measures:
-            return PreservationExtractionResult(
-                success=True,
-                measures=[],
-                reminders=[],
-                model_used=model_used,
-                raw_response=llm_response,
-                error="文书中未找到保全措施",
-            )
+            # LLM 未找到措施，尝试规则引擎兜底
+            if not measures:
+                logger.info("LLM 未返回保全措施，启用规则引擎兜底")
+                use_rule_fallback = True
+
+        except Exception as e:
+            logger.error("大模型调用失败: %s", e, exc_info=True)
+            use_rule_fallback = True
+            llm_error = str(e)
+
+        # --- 规则引擎兜底 ---
+        if use_rule_fallback:
+            rule_engine = PreservationRuleEngine()
+            rule_measures = rule_engine.extract(text)
+
+            if rule_measures:
+                logger.info(
+                    "规则引擎提取到 %d 条措施",
+                    len(rule_measures),
+                )
+                measures = rule_measures
+                model_used = f"规则引擎 (LLM {'无结果' if not llm_response else '解析失败'})"
+            elif not llm_response:
+                # LLM 完全失败且规则引擎也没找到
+                return PreservationExtractionResult(
+                    success=False,
+                    error=f"大模型调用失败且规则引擎未命中: {llm_error}",
+                )
+            else:
+                # LLM 返回了但无措施，规则引擎也无措施
+                return PreservationExtractionResult(
+                    success=True,
+                    measures=[],
+                    reminders=[],
+                    model_used=model_used,
+                    raw_response=llm_response,
+                    error="文书中未找到保全措施",
+                )
 
         # 法律约束校验
         measures = self._validator.validate_all(measures)
@@ -599,6 +633,8 @@ class PreservationDateExtractionService:
         - YYYY年MM月DD日（含省略前导零，如 2025年3月5日）
         - YYYY/MM/DD（含省略前导零）
         - YYYY.MM.DD（含省略前导零）
+        - YYYY年MM月DD日至YYYY年MM月DD日（范围格式）
+        - 2025.3.5-2026.3.4（连字符范围格式）
         - 回退：正则提取数字
 
         Args:
@@ -615,6 +651,22 @@ class PreservationDateExtractionService:
         # strip + 移除多余空格（Requirements 2.5）
         date_str = date_str.strip()
         date_str = re.sub(r"\s+", "", date_str)
+
+        # 处理范围格式: YYYY年M月D日至YYYY年M月D日 (只取起始日期)
+        range_cn_match = re.match(
+            r"(\d{4}年\d{1,2}月\d{1,2}日)[至到\-~](\d{4}年\d{1,2}月\d{1,2}日?)",
+            date_str,
+        )
+        if range_cn_match:
+            date_str = range_cn_match.group(1)
+
+        # 处理连字符范围: 2025.3.5-2026.3.4 (只取起始日期)
+        range_dash_match = re.match(
+            r"(\d{4}[\.\-/]\d{1,2}[\.\-/]\d{1,2})[\-~](\d{4}[\.\-/]\d{1,2}[\.\-/]\d{1,2})",
+            date_str,
+        )
+        if range_dash_match:
+            date_str = range_dash_match.group(1)
 
         # 支持的 strptime 格式列表（%m/%d 已支持省略前导零）
         # Requirements: 2.1 (YYYY/MM/DD), 2.2 (YYYY.MM.DD), 2.4 (省略前导零)
@@ -636,13 +688,16 @@ class PreservationDateExtractionService:
         if chinese_result is not None:
             return chinese_result
 
-        # 回退：正则提取数字
+        # 回退：正则提取数字（增强版，处理各种分隔符）
         numbers: list[str] = re.findall(r"\d+", date_str)
         if len(numbers) >= 3:
             try:
                 year = int(numbers[0])
                 month = int(numbers[1])
                 day = int(numbers[2])
+                # 基础日期校验
+                if not (1 <= month <= 12 and 1 <= day <= 31):
+                    return None
                 return datetime(year, month, day)
             except (ValueError, TypeError):
                 pass
