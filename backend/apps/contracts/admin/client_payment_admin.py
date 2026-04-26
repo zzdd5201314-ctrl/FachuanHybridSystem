@@ -41,28 +41,30 @@ class ClientPaymentRecordAdminForm(forms.ModelForm[ClientPaymentRecord]):
         if self.instance and self.instance.pk and self.instance.contract_id:
             from apps.cases.models import Case
 
-            self.fields["case"].queryset = Case.objects.filter(contract_id=self.instance.contract_id)
+            self.fields["case"].queryset = Case.objects.filter(contract_id=self.instance.contract_id)  # type: ignore[attr-defined]
         # 如果是新建模式，但通过 URL 参数传入了 contract_id
         elif "initial" in kwargs and "contract" in kwargs["initial"]:
             from apps.cases.models import Case
 
             contract_id = kwargs["initial"]["contract"]
-            self.fields["case"].queryset = Case.objects.filter(contract_id=contract_id)
+            self.fields["case"].queryset = Case.objects.filter(contract_id=contract_id)  # type: ignore[attr-defined]
         # 如果是新建模式且有 GET 参数 contract
         elif hasattr(self, "data") and self.data and "contract" in self.data:
             from apps.cases.models import Case
 
             contract_id = self.data.get("contract")
             if contract_id:
-                self.fields["case"].queryset = Case.objects.filter(contract_id=contract_id)
+                self.fields["case"].queryset = Case.objects.filter(contract_id=contract_id)  # type: ignore[attr-defined]
         else:
             # 默认为空（用户选择合同后会通过 JS 动态加载）
             from apps.cases.models import Case
 
-            self.fields["case"].queryset = Case.objects.none()
+            self.fields["case"].queryset = Case.objects.none()  # type: ignore[attr-defined]
 
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
+        if not isinstance(cleaned_data, dict):
+            return {}
         contract = cleaned_data.get("contract")
         case = cleaned_data.get("case")
 

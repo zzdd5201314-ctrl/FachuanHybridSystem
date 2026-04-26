@@ -62,6 +62,11 @@ const fragmentPayload = {fragment_json};
 </body>
 </html>"""
 
+    # ── Relationship ────────────────────────────────────────────────────
+    def _relationship_body(self, title: str, payload: dict[str, object]) -> str:
+        """构建关系图 HTML body."""
+        return '<div class="card viz-wrap"><div class="card-inner"><div class="section-title">关系图</div><div id="viz-root"></div></div></div>'
+
     # ── D3 ──────────────────────────────────────────────────────────────
     def _d3_head(self) -> str:
         return '<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>'
@@ -108,10 +113,10 @@ sim.on('tick',()=>{{link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr(
     # ── Timeline ────────────────────────────────────────────────────────
     def _timeline_body(self, title: str, payload: dict[str, object]) -> str:
         nodes = payload.get("nodes", [])
-        annotations = payload.get("annotations", [])
+        annotations: list[object] = payload.get("annotations", []) or []  # type: ignore[assignment]
         anno_html = ""
         if annotations:
-            items = "".join(f'<div class="annotation">• {escape(str(a))}</div>' for a in annotations)
+            items = "".join(f'<div class="annotation">• {escape(str(a))}</div>' for a in annotations if isinstance(a, (str, int, float)))
             anno_html = f'<div class="card" style="margin-bottom:16px"><div class="card-inner"><div class="section-title">关键节点</div>{items}</div></div>'
 
         return f"""

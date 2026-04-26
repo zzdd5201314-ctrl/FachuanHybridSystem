@@ -35,7 +35,7 @@ class ClientPaymentRecord(models.Model):
         related_name="client_payment_records",
         verbose_name=_("关联案件"),
     )
-    amount: Decimal = models.DecimalField(
+    amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
         verbose_name=_("回款金额"),

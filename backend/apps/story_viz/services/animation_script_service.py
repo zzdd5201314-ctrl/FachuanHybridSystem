@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from apps.core.llm.structured_output import json_schema_instructions, parse_model_content
-from apps.story_viz.schemas import AnimationScript, ExtractedFacts
+from apps.story_viz.schemas import AnimationScript, ExtractedFacts, GraphEdge, GraphNode, MotionPlan
 
 logger = logging.getLogger("apps.story_viz")
 

@@ -22,9 +22,9 @@ class Client(models.Model):
     LEGAL = "legal"
     NON_LEGAL_ORG = "non_legal_org"
     CLIENT_TYPE_CHOICES: ClassVar[list[tuple[str, str]]] = [
-        (NATURAL, _("自然人")),
-        (LEGAL, _("法人")),
-        (NON_LEGAL_ORG, _("非法人组织")),
+        (NATURAL, _("自然人")),  # type: ignore[list-item]
+        (LEGAL, _("法人")),  # type: ignore[list-item]
+        (NON_LEGAL_ORG, _("非法人组织")),  # type: ignore[list-item]
     ]
 
     name = models.CharField(max_length=255, verbose_name=_("名称"))

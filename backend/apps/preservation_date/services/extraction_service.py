@@ -137,6 +137,7 @@ class PreservationDateExtractionService:
         model_used: str = ""
         measures: list[PreservationMeasure] = []
         use_rule_fallback: bool = False
+        llm_error: str = ""
 
         try:
             llm_response, model_used = self._call_llm(text)
@@ -166,6 +167,7 @@ class PreservationDateExtractionService:
         except Exception as e:
             logger.error("大模型调用失败: %s", e, exc_info=True)
             use_rule_fallback = True
+            llm_error = str(e)
 
         # --- 规则引擎兜底 ---
         if use_rule_fallback:
@@ -183,7 +185,7 @@ class PreservationDateExtractionService:
                 # LLM 完全失败且规则引擎也没找到
                 return PreservationExtractionResult(
                     success=False,
-                    error=f"大模型调用失败且规则引擎未命中: {e!s}",
+                    error=f"大模型调用失败且规则引擎未命中: {llm_error}",
                 )
             else:
                 # LLM 返回了但无措施，规则引擎也无措施

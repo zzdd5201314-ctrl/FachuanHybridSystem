@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import typing
 from uuid import UUID
 
 from django.db import transaction
@@ -9,6 +10,9 @@ from django.utils import timezone
 from apps.core.dependencies.core import build_task_submission_service
 from apps.core.exceptions import NotFoundError, ValidationException
 from apps.story_viz.models import StoryAnimation, StoryAnimationStage, StoryAnimationStatus
+
+if typing.TYPE_CHECKING:
+    from apps.organization.models import Lawyer
 
 logger = logging.getLogger("apps.story_viz")
 
@@ -21,7 +25,7 @@ class StoryAnimationJobService:
         source_title: str,
         source_text: str,
         viz_type: str,
-        created_by: object | None = None,
+        created_by: typing.Any = None,
     ) -> StoryAnimation:
         source_title = source_title.strip()
         source_text = source_text.strip()

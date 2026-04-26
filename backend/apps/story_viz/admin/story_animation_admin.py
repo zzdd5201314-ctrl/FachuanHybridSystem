@@ -146,12 +146,12 @@ class StoryAnimationAdmin(admin.ModelAdmin[StoryAnimation]):
     def viz_type_display(self, obj: StoryAnimation) -> str:
         return obj.get_viz_type_display()
 
-    viz_type_display.short_description = "类型"
+    viz_type_display.short_description = "类型"  # type: ignore[attr-defined]
 
     def stage_display(self, obj: StoryAnimation) -> str:
         return obj.get_current_stage_display()
 
-    stage_display.short_description = "阶段"
+    stage_display.short_description = "阶段"  # type: ignore[attr-defined]
 
     def progress_display(self, obj: StoryAnimation) -> str:
         pct = obj.progress_percent or 0
@@ -163,12 +163,12 @@ class StoryAnimationAdmin(admin.ModelAdmin[StoryAnimation]):
             width, pct, color
         ) + format_html(' <span style="color:#64748b;font-size:11px;">{}%</span>', pct)
 
-    progress_display.short_description = "进度"
+    progress_display.short_description = "进度"  # type: ignore[attr-defined]
 
     def created_at_display(self, obj: StoryAnimation) -> str:
         return obj.created_at.strftime("%Y-%m-%d %H:%M") if obj.created_at else "-"
 
-    created_at_display.short_description = "创建时间"
+    created_at_display.short_description = "创建时间"  # type: ignore[attr-defined]
 
     @admin.display(description="耗时")
     def duration(self, obj: StoryAnimation) -> str:
