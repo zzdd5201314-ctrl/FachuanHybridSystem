@@ -29,8 +29,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # 安装 Playwright chromium 及其系统依赖（用 install-deps 自动补全，避免手动维护依赖列表）
-RUN uv run playwright install chromium \
-    && uv run playwright install-deps chromium
+RUN uv run --no-sync playwright install chromium \
+    && uv run --no-sync playwright install-deps chromium
 
 # 复制项目代码
 COPY . .
