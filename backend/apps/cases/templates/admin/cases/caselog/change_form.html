@@ -1,0 +1,481 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+/* 解析提醒按钮 */
+.parse-reminder-btn {
+    all: unset;
+    box-sizing: border-box;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    min-width: 100px;
+    padding: 0 14px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    user-select: none;
+    color: #fff;
+    background: #2f6da6;
+    border-color: #2a5f90;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.parse-reminder-btn:hover {
+    background: #285b8c;
+}
+.parse-reminder-btn:disabled {
+    background: #d9dee7;
+    border-color: #c9d0db;
+    color: #8a97a8;
+    cursor: not-allowed;
+}
+/* 解析结果预览区 */
+.parse-reminder-results {
+    margin: 10px 0;
+    padding: 12px;
+    background: #f0f7ff;
+    border: 1px solid #b3d4fc;
+    border-radius: 8px;
+    display: none;
+}
+.parse-reminder-results.has-results {
+    display: block;
+}
+.parse-reminder-results h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #1e40af;
+}
+.parse-reminder-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #dbeafe;
+    font-size: 13px;
+}
+.parse-reminder-item .type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    background: #3b82f6;
+    white-space: nowrap;
+}
+.parse-reminder-item .due-at {
+    color: #dc2626;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.parse-reminder-item .content {
+    flex: 1;
+    color: #334155;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.parse-reminder-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+.parse-reminder-actions button {
+    all: unset;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+.btn-apply-results {
+    color: #fff;
+    background: #16a34a;
+    border-color: #15803d;
+}
+.btn-apply-results:hover {
+    background: #15803d;
+}
+.btn-clear-results {
+    color: #6b7280;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+.btn-clear-results:hover {
+    background: #e5e7eb;
+}
+/* Toast */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+}
+.toast {
+    background-color: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    max-width: 350px;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+.toast.success {
+    background-color: #28a745;
+}
+.toast.error {
+    background-color: #dc3545;
+}
+/* content 字段旁的解析按钮容器 */
+.field-content .parse-reminder-btn-wrapper {
+    display: inline-block;
+    vertical-align: top;
+    margin-top: 4px;
+}
+</style>
+{% endblock %}
+
+{% block field_sets %}
+{{ block.super }}
+
+<!-- 解析结果预览区 -->
+<div id="parse-reminder-results" class="parse-reminder-results">
+    <h4>{% trans "解析结果预览" %}</h4>
+    <div id="parse-reminder-items"></div>
+    <div class="parse-reminder-actions">
+        <button type="button" class="btn-apply-results" onclick="applyParsedReminders()">{% trans "填入下方提醒表单" %}</button>
+        <button type="button" class="btn-clear-results" onclick="clearParsedReminders()">{% trans "清除" %}</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+{{ block.super }}
+
+<script>
+(function() {
+    var parsedResults = [];
+
+    function getCSRFToken() {
+        var name = 'csrftoken';
+        var cookieValue = null;
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+        return cookieValue;
+    }
+
+    function showToast(message, type) {
+        type = type || 'success';
+        var container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        var toast = document.createElement('div');
+        toast.className = 'toast ' + type;
+        toast.textContent = message;
+        container.appendChild(toast);
+        toast.offsetHeight;
+        toast.classList.add('show');
+        setTimeout(function() {
+            toast.classList.remove('show');
+            setTimeout(function() {
+                if (container.contains(toast)) container.removeChild(toast);
+            }, 300);
+        }, 3000);
+    }
+
+    function addParseButton() {
+        var contentField = document.querySelector('.form-row.field-content');
+        if (!contentField) return;
+
+        var textarea = contentField.querySelector('textarea');
+        if (!textarea) return;
+
+        // 避免重复添加
+        if (contentField.querySelector('.parse-reminder-btn')) return;
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'parse-reminder-btn-wrapper';
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'parse-reminder-btn';
+        btn.textContent = '{% trans "解析提醒" %}';
+        btn.title = '{% trans "从日志内容中提取日期，生成提醒事项" %}';
+        btn.onclick = function() { parseReminders(); };
+
+        wrapper.appendChild(btn);
+        textarea.parentNode.insertBefore(wrapper, textarea.nextSibling);
+    }
+
+    function parseReminders() {
+        var btn = document.querySelector('.parse-reminder-btn');
+        var textarea = document.querySelector('.form-row.field-content textarea');
+        if (!textarea) {
+            showToast('{% trans "未找到日志内容" %}', 'error');
+            return;
+        }
+
+        var text = textarea.value.trim();
+        if (!text) {
+            showToast('{% trans "日志内容为空，请先输入内容" %}', 'error');
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '{% trans "解析中..." %}';
+        }
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/v1/reminders/parse', true);
+        xhr.setRequestHeader('X-CSRFToken', getCSRFToken());
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.onload = function() {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '{% trans "解析提醒" %}';
+            }
+
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (Array.isArray(data) && data.length > 0) {
+                        parsedResults = data;
+                        renderParsedResults(data);
+                        showToast('{% trans "解析成功" %}' + '，' + data.length + '{% trans "条提醒" %}', 'success');
+                    } else {
+                        showToast('{% trans "未在内容中发现日期信息" %}', 'error');
+                    }
+                } catch (e) {
+                    showToast('{% trans "解析失败" %}', 'error');
+                }
+            } else {
+                showToast('{% trans "解析失败" %}：HTTP ' + xhr.status, 'error');
+            }
+        };
+
+        xhr.onerror = function() {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '{% trans "解析提醒" %}';
+            }
+            showToast('{% trans "网络错误" %}', 'error');
+        };
+
+        xhr.send(JSON.stringify({ text: text }));
+    }
+
+    function renderParsedResults(results) {
+        var container = document.getElementById('parse-reminder-results');
+        var itemsDiv = document.getElementById('parse-reminder-items');
+
+        if (!container || !itemsDiv) return;
+
+        itemsDiv.innerHTML = '';
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            var item = document.createElement('div');
+            item.className = 'parse-reminder-item';
+            item.innerHTML =
+                '<span class="type-badge">' + escapeHtml(r.reminder_type_label || r.reminder_type) + '</span>' +
+                '<span class="due-at">' + escapeHtml(r.due_at) + '</span>' +
+                '<span class="content" title="' + escapeHtml(r.source_text) + '">' + escapeHtml(r.content) + '</span>';
+            itemsDiv.appendChild(item);
+        }
+        container.classList.add('has-results');
+    }
+
+    function clearParsedReminders() {
+        parsedResults = [];
+        var container = document.getElementById('parse-reminder-results');
+        var itemsDiv = document.getElementById('parse-reminder-items');
+        if (itemsDiv) itemsDiv.innerHTML = '';
+        if (container) container.classList.remove('has-results');
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
+    }
+
+    function applyParsedReminders() {
+        if (!parsedResults || parsedResults.length === 0) {
+            showToast('{% trans "没有可填入的解析结果" %}', 'error');
+            return;
+        }
+
+        // 找到 Reminder inline group
+        var inlineGroup = document.getElementById('reminders-group');
+        if (!inlineGroup) {
+            // 尝试其他可能的 ID 格式
+            inlineGroup = document.querySelector('.inline-group[id$="reminders-group"]');
+        }
+        if (!inlineGroup) {
+            showToast('{% trans "未找到提醒表单区域" %}', 'error');
+            return;
+        }
+
+        var totalFormsInput = inlineGroup.querySelector('input[name$="-TOTAL_FORMS"]');
+        if (!totalFormsInput) {
+            showToast('{% trans "表单结构异常" %}', 'error');
+            return;
+        }
+
+        var currentTotal = parseInt(totalFormsInput.value, 10) || 0;
+        var initialFormsInput = inlineGroup.querySelector('input[name$="-INITIAL_FORMS"]');
+        var prefix = totalFormsInput.name.replace('-TOTAL_FORMS', '');
+
+        // 找到空行模板
+        var emptyRow = inlineGroup.querySelector('.empty-form');
+        var isTabular = Boolean(inlineGroup.querySelector('table'));
+
+        for (var i = 0; i < parsedResults.length; i++) {
+            var r = parsedResults[i];
+            var formIndex = currentTotal + i;
+
+            if (isTabular) {
+                applyToTabularRow(inlineGroup, emptyRow, prefix, formIndex, r);
+            } else {
+                applyToStackedRow(inlineGroup, emptyRow, prefix, formIndex, r);
+            }
+        }
+
+        // 更新 TOTAL_FORMS
+        totalFormsInput.value = currentTotal + parsedResults.length;
+
+        showToast('{% trans "已填入" %}' + parsedResults.length + '{% trans "条提醒，请检查后保存" %}', 'success');
+        clearParsedReminders();
+    }
+
+    function applyToTabularRow(inlineGroup, emptyRow, prefix, formIndex, reminder) {
+        var tbody = inlineGroup.querySelector('tbody');
+        if (!tbody || !emptyRow) return;
+
+        var newRow = emptyRow.cloneNode(true);
+        newRow.classList.remove('empty-form');
+        newRow.style.display = '';
+        newRow.id = '';
+
+        // 更新字段 name/id
+        updateRowFieldNames(newRow, prefix, formIndex);
+
+        // 填入值
+        setFieldValue(newRow, 'reminder_type', reminder.reminder_type);
+        setFieldValue(newRow, 'content', reminder.content);
+        setFieldValue(newRow, 'due_at', reminder.due_at);
+
+        tbody.appendChild(newRow);
+    }
+
+    function applyToStackedRow(inlineGroup, emptyRow, prefix, formIndex, reminder) {
+        if (!emptyRow) return;
+
+        var newRow = emptyRow.cloneNode(true);
+        newRow.classList.remove('empty-form');
+        newRow.style.display = '';
+        newRow.id = '';
+
+        // 更新字段 name/id
+        updateRowFieldNames(newRow, prefix, formIndex);
+
+        // 填入值
+        setFieldValue(newRow, 'reminder_type', reminder.reminder_type);
+        setFieldValue(newRow, 'content', reminder.content);
+        setFieldValue(newRow, 'due_at', reminder.due_at);
+
+        // 插入到 empty-form 之前
+        emptyRow.parentNode.insertBefore(newRow, emptyRow);
+    }
+
+    function updateRowFieldNames(row, prefix, index) {
+        var inputs = row.querySelectorAll('input, select, textarea');
+        for (var j = 0; j < inputs.length; j++) {
+            var input = inputs[j];
+            if (input.name) {
+                input.name = input.name.replace(/__prefix__/g, index);
+            }
+            if (input.id) {
+                input.id = input.id.replace(/__prefix__/g, index);
+            }
+        }
+        // 更新 for 属性
+        var labels = row.querySelectorAll('label');
+        for (var k = 0; k < labels.length; k++) {
+            var label = labels[k];
+            if (label.htmlFor) {
+                label.htmlFor = label.htmlFor.replace(/__prefix__/g, index);
+            }
+        }
+    }
+
+    function setFieldValue(row, fieldName, value) {
+        // 尝试 select
+        var select = row.querySelector('select[name$="-' + fieldName + '"]');
+        if (select) {
+            select.value = value;
+            return;
+        }
+        // 尝试 input
+        var input = row.querySelector('input[name$="-' + fieldName + '"]');
+        if (input) {
+            input.value = value;
+            return;
+        }
+        // 尝试 textarea
+        var textarea = row.querySelector('textarea[name$="-' + fieldName + '"]');
+        if (textarea) {
+            textarea.value = value;
+            return;
+        }
+    }
+
+    // 初始化
+    function init() {
+        addParseButton();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+{% endblock %}
