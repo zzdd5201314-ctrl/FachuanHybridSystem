@@ -397,6 +397,7 @@ class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
 
     readonly_fields = (
         "current_file_display",
+        "placeholder_preview",
         "placeholders_display",
         "undefined_placeholders_display",
     )
@@ -431,6 +432,12 @@ class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
                 "description": _(
                     "三选一:从模板库选择已有文件(不复制)、上传新文件(复制到用户自定义模板目录)、或手动输入路径"
                 ),
+            },
+        ),
+        (
+            _("替换词预览"),
+            {
+                "fields": ("placeholder_preview",),
             },
         ),
         (_("状态"), {"fields": ("is_active",)}),
@@ -500,8 +507,85 @@ class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
                 self.admin_site.admin_view(self.set_docx_root_view),
                 name="documents_documenttemplate_set_docx_root",
             ),
+            path(
+                "extract-placeholders/",
+                self.admin_site.admin_view(self.extract_placeholders_view),
+                name="documents_documenttemplate_extract_placeholders",
+            ),
         ]
         return custom_urls + urls
+
+    def extract_placeholders_view(self, request: Any) -> Any:
+        """
+        从上传的文件或已有模板文件中提取占位符，返回 JSON。
+
+        支持三种方式:
+        1. POST file: 上传一个 docx 文件，提取占位符
+        2. POST existing_file: 从已有模板库中选择文件路径，提取占位符
+        3. POST file_path: 使用模板相对路径，提取占位符
+        """
+        import tempfile
+
+        from django.http import JsonResponse
+
+        if request.method != "POST":
+            return JsonResponse({"error": "仅支持 POST 请求"}, status=405)
+
+        try:
+            placeholders: list[str] = []
+            source_label = ""
+
+            # 方式1：从上传的文件中提取
+            uploaded_file = request.FILES.get("file")
+            if uploaded_file:
+                suffix = Path(str(uploaded_file.name)).suffix or ".docx"
+                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                    for chunk in uploaded_file.chunks():
+                        tmp.write(chunk)
+                    tmp_path = tmp.name
+                try:
+                    from apps.documents.services.document_template.placeholder_extractor import (
+                        extract_placeholders as extract_from_file,
+                    )
+
+                    placeholders = extract_from_file(tmp_path)
+                    source_label = f"上传文件: {uploaded_file.name}"
+                finally:
+                    Path(tmp_path).unlink(missing_ok=True)
+            else:
+                # 方式2/3：从已有模板文件路径或 file_path 提取
+                existing_file = request.POST.get("existing_file", "").strip()
+                file_path = request.POST.get("file_path", "").strip()
+                template_path = existing_file or file_path
+
+                if template_path:
+                    from apps.documents.services.document_template.placeholder_extractor import (
+                        extract_placeholders as extract_from_file,
+                    )
+                    from apps.documents.storage import resolve_docx_template_path
+
+                    resolved = resolve_docx_template_path(template_path)
+                    if resolved.exists():
+                        placeholders = extract_from_file(str(resolved))
+                        source_label = f"模板文件: {template_path}"
+                    else:
+                        return JsonResponse({"error": f"文件不存在: {template_path}"}, status=404)
+                else:
+                    return JsonResponse({"error": "请提供 file、existing_file 或 file_path 参数"}, status=400)
+
+            # 查询哪些占位符已定义
+            from apps.documents.models import Placeholder
+
+            defined_keys = set(Placeholder.objects.filter(is_active=True).values_list("key", flat=True))
+            result = []
+            for p in placeholders:
+                result.append({"key": p, "defined": p in defined_keys})
+
+            return JsonResponse({"placeholders": result, "source": source_label, "count": len(result)})
+
+        except Exception as e:
+            logger.exception("提取占位符失败")
+            return JsonResponse({"error": str(e)}, status=500)
 
     def download_view(self, request: Any, pk: int) -> Any:
         """下载文件视图"""
@@ -674,6 +758,18 @@ class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
                 '<span style="color: #1565c0;" title="{}">📁 {}</span>', obj.absolute_file_path, obj.file_path
             )
         return format_html('<span style="color: #c62828;">{}</span>', "⚠️ 未设置文件")
+
+    @admin.display(description=_("替换词预览"))
+    def placeholder_preview(self, obj: DocumentTemplate) -> Any:
+        """渲染替换词预览容器（由前端 JS 动态填充）"""
+        from django.utils.safestring import mark_safe
+
+        return mark_safe(
+            '<div id="placeholder-preview">'
+            '<div class="preview-empty">选择或上传文件后，自动检测模板中的替换词</div>'
+            "</div>"
+            '<p class="placeholder-preview-hint">点击替换词可复制到剪贴板。仅在保存模板后，替换词状态才会被持久记录。</p>'
+        )
 
     @admin.display(description=_("文件位置"))
     def file_location_display(self, obj: DocumentTemplate) -> Any:

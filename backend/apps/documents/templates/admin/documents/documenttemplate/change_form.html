@@ -35,6 +35,136 @@
 .file-source-disabled {
     opacity: 0.5;
 }
+
+/* 替换词预览区域样式 - 隐藏左侧label，占满宽度 */
+.field-placeholder_preview div label {
+    display: none;
+}
+.field-placeholder_preview div {
+    display: block;
+}
+.field-placeholder_preview .readonly {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#placeholder-preview {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+#placeholder-preview .preview-body {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0;
+}
+
+#placeholder-preview .placeholder-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+
+#placeholder-preview .placeholder-item:hover {
+    background: #f5f8fc;
+}
+
+#placeholder-preview .placeholder-item:last-child {
+    border-bottom: none;
+}
+
+#placeholder-preview .placeholder-item .ph-key code {
+    background: #f5f5f5;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: all;
+}
+
+#placeholder-preview .placeholder-item .ph-key code:hover {
+    background: #e8e8e8;
+}
+
+#placeholder-preview .placeholder-item .ph-key code:active {
+    background: #ddd;
+}
+
+.ph-copy-toast {
+    position: fixed;
+    bottom: 48px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(30, 30, 30, 0.88);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 13px;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    opacity: 0;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: toastFadeInOut 2s ease forwards;
+}
+
+@keyframes toastFadeInOut {
+    0% { opacity: 0; transform: translateX(-50%) translateY(16px); }
+    12% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    65% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+}
+
+#placeholder-preview .preview-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+}
+
+#placeholder-preview .preview-loading {
+    padding: 24px 16px;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+}
+
+#placeholder-preview .preview-loading .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ccc;
+    border-top-color: #1976d2;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+#placeholder-preview .preview-summary {
+    background: #fafbfc;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: #666;
+    border-top: 1px solid #eee;
+}
+
+.placeholder-preview-hint {
+    color: #999;
+    font-size: 12px;
+    margin-top: 6px;
+}
 </style>
 {% endblock %}
 
@@ -45,6 +175,7 @@
 {% block admin_change_form_document_ready %}
 {{ block.super }}
 <script type="text/javascript" src="{% static 'documents/js/folder_binding_inline.js' %}"></script>
+{% verbatim %}
 <script type="text/javascript">
 (function($) {
     $(document).ready(function() {
@@ -52,6 +183,10 @@
         var existingFileSelect = $('#id_existing_file');
         var fileInput = $('#id_file');
         var filePathInput = $('#id_file_path');
+
+        // 替换词预览区域
+        var previewContainer = null;
+        var extractUrl = '/admin/documents/documenttemplate/extract-placeholders/';
 
         function updateFileSourceState() {
             var existingSelected = existingFileSelect.val() !== '';
@@ -79,21 +214,186 @@
             }
         }
 
-        // 当选择已有文件时，清空其他字段
+        // ==================== 替换词预览逻辑 ====================
+
+        var previewContainer = $('#placeholder-preview');
+
+        function renderPreview(data) {
+            if (!data.placeholders || data.placeholders.length === 0) {
+                previewContainer.html(
+                    '<div class="preview-empty">未检测到替换词</div>'
+                );
+                return;
+            }
+
+            var rows = '';
+            data.placeholders.forEach(function(p) {
+                var phDisplay = '{{' + escapeHtml(p.key) + '}}';
+                rows += '<div class="placeholder-item">' +
+                    '<span class="ph-key"><code data-copy="{{' + escapeHtml(p.key) + '}}" title="点击复制">' + phDisplay + '</code></span>' +
+                    '</div>';
+            });
+
+            previewContainer.html(
+                '<div class="preview-body">' + rows + '</div>' +
+                '<div class="preview-summary">共 ' + data.count + ' 个替换词</div>'
+            );
+
+            // 绑定点击复制事件
+            previewContainer.find('code[data-copy]').on('click', function() {
+                var text = $(this).attr('data-copy');
+                copyToClipboard(text);
+            });
+        }
+
+        function renderLoading() {
+            previewContainer.html(
+                '<div class="preview-loading"><span class="spinner"></span>正在提取替换词...</div>'
+            );
+        }
+
+        function renderError(msg) {
+            previewContainer.html(
+                '<div class="preview-empty" style="color: #c62828;">提取失败: ' + escapeHtml(msg) + '</div>'
+            );
+        }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function() {
+                    showToast('已复制 ' + text);
+                }).catch(function() {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('已复制 ' + text);
+            } catch(e) {
+                showToast('复制失败，请手动复制');
+            }
+            document.body.removeChild(ta);
+        }
+
+        function showToast(msg) {
+            var existing = document.querySelector('.ph-copy-toast');
+            if (existing) existing.remove();
+            var toast = $('<div class="ph-copy-toast"></div>').text(msg);
+            $('body').append(toast);
+            setTimeout(function() { toast.remove(); }, 1800);
+        }
+
+        function extractFromExistingFile(filePath) {
+            renderLoading();
+            var csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            $.ajax({
+                url: extractUrl,
+                method: 'POST',
+                data: { existing_file: filePath },
+                headers: { 'X-CSRFToken': csrftoken },
+                success: function(data) {
+                    if (data.error) {
+                        renderError(data.error);
+                    } else {
+                        renderPreview(data);
+                    }
+                },
+                error: function(xhr) {
+                    var msg = '请求失败';
+                    try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+                    renderError(msg);
+                }
+            });
+        }
+
+        function extractFromUploadedFile(file) {
+            renderLoading();
+            var csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            var formData = new FormData();
+            formData.append('file', file);
+            $.ajax({
+                url: extractUrl,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: { 'X-CSRFToken': csrftoken },
+                success: function(data) {
+                    if (data.error) {
+                        renderError(data.error);
+                    } else {
+                        renderPreview(data);
+                    }
+                },
+                error: function(xhr) {
+                    var msg = '请求失败';
+                    try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+                    renderError(msg);
+                }
+            });
+        }
+
+        function extractFromFilePath(filePath) {
+            renderLoading();
+            var csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            $.ajax({
+                url: extractUrl,
+                method: 'POST',
+                data: { file_path: filePath },
+                headers: { 'X-CSRFToken': csrftoken },
+                success: function(data) {
+                    if (data.error) {
+                        renderError(data.error);
+                    } else {
+                        renderPreview(data);
+                    }
+                },
+                error: function(xhr) {
+                    var msg = '请求失败';
+                    try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+                    renderError(msg);
+                }
+            });
+        }
+
+        // 当选择已有文件时，清空其他字段并提取替换词
         existingFileSelect.on('change', function() {
             if ($(this).val() !== '') {
-                // 清空文件上传（需要特殊处理）
                 fileInput.val('');
                 filePathInput.val('');
+                extractFromExistingFile($(this).val());
+            } else {
+                // 清空预览
+                previewContainer.html('<div class="preview-empty">选择或上传文件后，自动检测模板中的替换词</div>');
             }
             updateFileSourceState();
         });
 
-        // 当上传文件时，清空其他字段
+        // 当上传文件时，清空其他字段并提取替换词
         fileInput.on('change', function() {
-            if ($(this).val() !== '') {
+            if ($(this).val() !== '' && this.files && this.files[0]) {
                 existingFileSelect.val('');
                 filePathInput.val('');
+                extractFromUploadedFile(this.files[0]);
+            } else {
+                previewContainer.html('<div class="preview-empty">选择或上传文件后，自动检测模板中的替换词</div>');
             }
             updateFileSourceState();
         });
@@ -109,7 +409,18 @@
 
         // 初始化状态
         updateFileSourceState();
+
+        // 编辑模式：如果已有文件，自动加载替换词
+        var existingVal = existingFileSelect.val();
+        var hasExistingFile = existingVal && existingVal !== '';
+        var hasFilePath = filePathInput.val() && filePathInput.val().trim() !== '';
+        if (hasExistingFile) {
+            extractFromExistingFile(existingVal);
+        } else if (hasFilePath) {
+            extractFromFilePath(filePathInput.val().trim());
+        }
     });
 })(django.jQuery);
 </script>
+{% endverbatim %}
 {% endblock %}
