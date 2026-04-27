@@ -33,32 +33,55 @@ class GsxtLoginError(Exception):
     """登录失败异常。"""
 
 
+def _check_cdp_available() -> bool:
+    """检查 Chrome DevTools Protocol 端点是否可用。
+
+    注意：httpx 默认传输与 Chrome CDP 不兼容（返回 502），
+    必须使用 HTTPTransport(http2=False) 才能正确通信。
+    """
+    try:
+        with httpx.Client(transport=httpx.HTTPTransport(http2=False)) as client:
+            resp = client.get(f"{CDP_URL}/json/version", timeout=2)
+            return resp.status_code == 200
+    except Exception:
+        return False
+
+
 def _ensure_chrome_running() -> None:
     """确保 Chrome 以调试模式运行，如果未运行则自动启动。"""
-    try:
-        resp = httpx.get(f"{CDP_URL}/json/version", timeout=2)
-        if resp.status_code == 200:
-            return
-    except Exception:
-        pass
+    if _check_cdp_available():
+        return
 
     logger.info("启动 Chrome 调试模式...")
-    subprocess.Popen(
+    process = subprocess.Popen(
         [CHROME_PATH, "--remote-debugging-port=9222", f"--user-data-dir={CHROME_USER_DATA_DIR}", "--no-first-run"],
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
     )
-    for _ in range(10):
+    for i in range(15):
         time.sleep(1)
-        try:
-            resp = httpx.get(f"{CDP_URL}/json/version", timeout=2)
-            if resp.status_code == 200:
-                logger.info("Chrome 启动成功")
-                return
-        except Exception:
-            pass
+        if _check_cdp_available():
+            logger.info("Chrome 启动成功")
+            return
+        # Chrome 进程意外退出
+        if process.poll() is not None:
+            stderr_output = process.stderr.read().decode() if process.stderr else ""
+            logger.error("Chrome 进程意外退出, stderr: %s", stderr_output)
+            break
 
-    raise GsxtLoginError("Chrome 启动失败，请手动启动后重试")
+    if process.poll() is not None:
+        raise GsxtLoginError(
+            "Chrome 启动失败：进程意外退出。"
+            f"请在终端手动运行以下命令启动 Chrome 后重试：\n"
+            f'  "{CHROME_PATH}" --remote-debugging-port=9222 --user-data-dir={CHROME_USER_DATA_DIR}'
+        )
+
+    raise GsxtLoginError(
+        "Chrome 调试端口未响应。"
+        "可能是因为已有 Chrome 实例在运行，请先关闭所有 Chrome 窗口后重试。\n"
+        f"或者手动在终端运行以下命令启动 Chrome：\n"
+        f'  "{CHROME_PATH}" --remote-debugging-port=9222 --user-data-dir={CHROME_USER_DATA_DIR}'
+    )
 
 
 async def _do_login_and_wait(credential: GsxtCredentialProtocol, task_id: int) -> None:
