@@ -167,7 +167,6 @@ async def click_company_detail(page: Page, company_name: str, context: BrowserCo
     # 如果新标签页打开了，使用新标签页
     if detail_page and not detail_page.is_closed():
         logger.info("使用新标签页作为详情页")
-        await _apply_stealth(detail_page)
         try:
             await detail_page.wait_for_selector("#btn_send_pdf", timeout=60000)
         except Exception:
