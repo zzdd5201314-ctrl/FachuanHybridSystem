@@ -52,7 +52,7 @@ class GsxtReportTaskInline(admin.TabularInline[Any]):  # type: ignore[type-arg]
     model = _get_gsxt_report_task_model()
     form = GsxtReportTaskInlineForm
     extra = 0
-    can_delete = False
+    can_delete = True
     fields = ("created_at", "status", "error_message", "inbox_link")  # type: ignore[assignment]
     readonly_fields = ("created_at", "status", "error_message", "inbox_link")  # type: ignore[assignment]
     ordering = ("-created_at",)
