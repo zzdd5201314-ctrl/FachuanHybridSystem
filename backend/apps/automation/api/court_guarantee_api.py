@@ -974,7 +974,7 @@ def _build_guarantee_material_paths(case: Any) -> list[str]:
                 continue
             used.add(path)
             selected.append(path)
-            if len(selected) >= 8:
+            if len(selected) >= 12:
                 return selected
 
     return selected

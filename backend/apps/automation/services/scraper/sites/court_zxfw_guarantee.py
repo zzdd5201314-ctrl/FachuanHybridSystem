@@ -804,14 +804,29 @@ class CourtZxfwGuaranteeService:
                 if picked:
                     chosen_files = [picked]
             elif "案件证据" in label_text:
-                picked = _pick_path([["证据"], ["明细", "清单"]])
-                if picked:
-                    chosen_files = [picked]
+                # 证据材料：收集所有可用的证据文件
+                evidence_files: list[str] = []
+                for path in file_paths:
+                    if path in used:
+                        continue
+                    filename = path.rsplit("/", 1)[-1]
+                    if any(kw in filename for kw in ["证据", "明细", "清单"]):
+                        evidence_files.append(path)
+                if not evidence_files:
+                    picked = _pick_path([["证据"], ["明细", "清单"]])
+                    if picked:
+                        evidence_files = [picked]
+                if evidence_files:
+                    chosen_files = evidence_files
             elif "申请人-" in label_text or "被申请人-" in label_text or "身份证明" in label_text:
                 if "申请人-" in label_text and "-法人" in label_text:
                     applicant_license = _pick_path([["营业执照"]])
                     applicant_legal_id = _pick_path([["法定代表人身份证明", "身份证明书", "法人身份证明", "身份证"]])
                     chosen_files = [path for path in [applicant_license, applicant_legal_id] if path]
+                elif "被申请人-" in label_text and "-法人" in label_text:
+                    respondent_license = _pick_path([["营业执照"]])
+                    respondent_legal_id = _pick_path([["法定代表人身份证明", "身份证明书", "法人身份证明", "身份证"]])
+                    chosen_files = [path for path in [respondent_license, respondent_legal_id] if path]
                 elif "被申请人-" in label_text and "-自然人" in label_text:
                     respondent_name = ""
                     match = re.search(r"被申请人-(.*?)-自然人", label_text)
@@ -843,9 +858,20 @@ class CourtZxfwGuaranteeService:
                 if picked:
                     chosen_files = [picked]
             elif "证据" in label_text:
-                picked = _pick_path([["证据"], ["明细", "清单"]])
-                if picked:
-                    chosen_files = [picked]
+                # 证据材料：收集所有可用的证据文件
+                evidence_files2: list[str] = []
+                for path in file_paths:
+                    if path in used:
+                        continue
+                    filename = path.rsplit("/", 1)[-1]
+                    if any(kw in filename for kw in ["证据", "明细", "清单"]):
+                        evidence_files2.append(path)
+                if not evidence_files2:
+                    picked = _pick_path([["证据"], ["明细", "清单"]])
+                    if picked:
+                        evidence_files2 = [picked]
+                if evidence_files2:
+                    chosen_files = evidence_files2
             elif "其他" in label_text:
                 picked = _pick_path([["其他", "保函", "担保函"]])
                 if picked:
@@ -1149,6 +1175,70 @@ class CourtZxfwGuaranteeService:
 
         return uploaded
 
+    def _retry_evidence_material_upload_in_g_three(self) -> bool:
+        """重试上传证据材料到 gThree 页面的证据槽位。"""
+        # 收集所有可用的证据文件
+        evidence_files: list[str] = []
+        for path in self._material_paths:
+            filename = path.rsplit("/", 1)[-1]
+            if any(kw in filename for kw in ["证据", "明细", "清单"]):
+                evidence_files.append(path)
+
+        if not evidence_files:
+            # fallback: 尝试所有未使用的材料
+            for path in self._material_paths:
+                evidence_files.append(path)
+                if len(evidence_files) >= 3:
+                    break
+
+        if not evidence_files:
+            return False
+
+        uploaded = False
+        file_inputs = self.page.locator("input[type='file']")
+        for i in range(file_inputs.count()):
+            candidate = file_inputs.nth(i)
+            try:
+                label_text = str(
+                    self.page.evaluate(
+                        r"""(el) => {
+                            let node = el;
+                            for (let depth = 0; depth < 8 && node; depth += 1) {
+                                const text = (node.innerText || '').replace(/\s+/g, ' ').trim();
+                                if (text) return text;
+                                node = node.parentElement;
+                            }
+                            return '';
+                        }""",
+                        candidate.element_handle(),
+                    )
+                    or ""
+                )
+            except Exception:
+                label_text = ""
+
+            # 只上传到"证据"标签的槽位
+            if "证据" not in label_text:
+                continue
+
+            try:
+                candidate.set_input_files(evidence_files)
+                uploaded = True
+                self._wait_upload_idle(timeout_ms=90000)
+                self._random_wait(2.0, 2.8)
+            except Exception:
+                for single_path in evidence_files:
+                    try:
+                        candidate.set_input_files(single_path)
+                        uploaded = True
+                        self._wait_upload_idle(timeout_ms=90000)
+                        self._random_wait(1.8, 2.4)
+                        break
+                    except Exception:
+                        continue
+
+        return uploaded
+
     def _normalize_party_type(self, raw_party_type: Any) -> str:
         value = str(raw_party_type or "").strip().lower()
         if value in {"natural", "person", "individual"}:
@@ -1250,6 +1340,9 @@ class CourtZxfwGuaranteeService:
                 errors = self._get_visible_form_errors()
                 if any("身份证明材料" in err for err in errors):
                     self._retry_identity_material_upload_in_g_three()
+                    self._random_wait(1.4, 2.0)
+                if any("请上传证据材料" in err or "证据" in err for err in errors):
+                    self._retry_evidence_material_upload_in_g_three()
                     self._random_wait(1.4, 2.0)
 
             self._click_first_enabled_button(["下一步", "保存并下一步", "暂存"])
