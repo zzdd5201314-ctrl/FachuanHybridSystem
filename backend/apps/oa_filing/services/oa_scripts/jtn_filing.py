@@ -371,7 +371,7 @@ class JtnFilingScript:
         for client_info in clients:
             customer = self._search_customer_http(client=client, client_info=client_info)
             if customer is None:
-                raise RuntimeError(f"HTTP 未找到 OA 客户，需回退 Playwright 创建: {client_info.name}")
+                raise RuntimeError(f"OA 系统中未找到客户「{client_info.name}」，HTTP 无法创建新客户")
             resolved.append(customer)
         return resolved
 
