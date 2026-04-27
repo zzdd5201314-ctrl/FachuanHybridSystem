@@ -18,21 +18,12 @@ class CaseLogAttachmentInline(BaseTabularInline):
 
 
 class ReminderInline(BaseTabularInline):
-    model = CaseLog.reminders.rel.related_model  # Reminder
+    model = CaseLog.reminders.rel.related_model  # type: ignore[assignment]  # Reminder
     extra = 0
     fields = ("reminder_type", "content", "due_at")
-    readonly_fields = ()
     verbose_name = "重要日期提醒"
     verbose_name_plural = "重要日期提醒"
-
-    def get_queryset(self, request: HttpRequest) -> object:
-        qs = super().get_queryset(request)
-        return qs.order_by("due_at")
-
-    def formfield_for_foreignkey(
-        self, db_field: object, request: HttpRequest | None = None, **kwargs: object
-    ) -> object:
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    ordering = ("due_at",)
 
 
 @admin.register(CaseLog)
