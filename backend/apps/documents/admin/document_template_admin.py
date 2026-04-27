@@ -397,6 +397,7 @@ class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
 
     readonly_fields = (
         "current_file_display",
+        "placeholder_preview",
         "placeholders_display",
         "undefined_placeholders_display",
     )
@@ -431,6 +432,13 @@ class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
                 "description": _(
                     "三选一:从模板库选择已有文件(不复制)、上传新文件(复制到用户自定义模板目录)、或手动输入路径"
                 ),
+            },
+        ),
+        (
+            _("替换词预览"),
+            {
+                "fields": ("placeholder_preview",),
+                "description": _("选择或上传文件后，自动检测模板中的替换词。点击替换词可复制。"),
             },
         ),
         (_("状态"), {"fields": ("is_active",)}),
@@ -751,6 +759,18 @@ class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
                 '<span style="color: #1565c0;" title="{}">📁 {}</span>', obj.absolute_file_path, obj.file_path
             )
         return format_html('<span style="color: #c62828;">{}</span>', "⚠️ 未设置文件")
+
+    @admin.display(description=_("替换词预览"))
+    def placeholder_preview(self, obj: DocumentTemplate) -> Any:
+        """渲染替换词预览容器（由前端 JS 动态填充）"""
+        from django.utils.safestring import mark_safe
+
+        return mark_safe(
+            '<div id="placeholder-preview">'
+            '<div class="preview-empty">选择或上传文件后，自动检测模板中的替换词</div>'
+            '</div>'
+            '<p class="placeholder-preview-hint">点击替换词可复制到剪贴板。仅在保存模板后，替换词状态才会被持久记录。</p>'
+        )
 
     @admin.display(description=_("文件位置"))
     def file_location_display(self, obj: DocumentTemplate) -> Any:

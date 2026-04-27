@@ -248,32 +248,7 @@
 
         // ==================== 替换词预览逻辑 ====================
 
-        function ensurePreviewContainer() {
-            if (previewContainer && previewContainer.length) return;
-            // 在"文件"fieldset 后面插入预览区域
-            var fileFieldset = $('fieldset').filter(function() {
-                return $(this).find('#id_existing_file').length > 0 ||
-                       $(this).find('#id_file').length > 0;
-            });
-            if (!fileFieldset.length) {
-                // 降级：在 file 字段所在的 form-row 后面
-                var fileRow = $('#id_file').closest('.form-row');
-                if (fileRow.length) {
-                    fileRow.after('<div id="placeholder-preview"></div>');
-                }
-            } else {
-                fileFieldset.after(
-                    '<fieldset><legend>替换词预览</legend>' +
-                    '<div class="inline-group">' +
-                    '<div id="placeholder-preview">' +
-                    '<div class="preview-empty">选择或上传文件后，自动检测模板中的替换词</div>' +
-                    '</div>' +
-                    '<p class="placeholder-preview-hint">仅在保存模板后，替换词状态才会被持久记录。此处为实时预览。</p>' +
-                    '</div></fieldset>'
-                );
-            }
-            previewContainer = $('#placeholder-preview');
-        }
+        var previewContainer = $('#placeholder-preview');
 
         function renderPreview(data) {
             if (!data.placeholders || data.placeholders.length === 0) {
@@ -377,7 +352,6 @@
         }
 
         function extractFromExistingFile(filePath) {
-            ensurePreviewContainer();
             renderLoading();
             var csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             $.ajax({
@@ -401,7 +375,6 @@
         }
 
         function extractFromUploadedFile(file) {
-            ensurePreviewContainer();
             renderLoading();
             var csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             var formData = new FormData();
@@ -429,7 +402,6 @@
         }
 
         function extractFromFilePath(filePath) {
-            ensurePreviewContainer();
             renderLoading();
             var csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             $.ajax({
@@ -460,7 +432,6 @@
                 extractFromExistingFile($(this).val());
             } else {
                 // 清空预览
-                ensurePreviewContainer();
                 previewContainer.html('<div class="preview-empty">选择或上传文件后，自动检测模板中的替换词</div>');
             }
             updateFileSourceState();
@@ -473,7 +444,6 @@
                 filePathInput.val('');
                 extractFromUploadedFile(this.files[0]);
             } else {
-                ensurePreviewContainer();
                 previewContainer.html('<div class="preview-empty">选择或上传文件后，自动检测模板中的替换词</div>');
             }
             updateFileSourceState();
