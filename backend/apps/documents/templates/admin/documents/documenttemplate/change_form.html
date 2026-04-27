@@ -36,130 +36,104 @@
     opacity: 0.5;
 }
 
-/* 替换词预览区域样式 */
+/* 替换词预览区域样式 - 隐藏左侧label，占满宽度 */
+.field-placeholder_preview div label {
+    display: none;
+}
+.field-placeholder_preview div {
+    display: block;
+}
+.field-placeholder_preview .readonly {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 #placeholder-preview {
-    margin-top: 12px;
     border: 1px solid #ddd;
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
-}
-
-#placeholder-preview .preview-header {
-    background: #f5f5f5;
-    padding: 10px 14px;
-    font-weight: bold;
-    font-size: 13px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #ddd;
-}
-
-#placeholder-preview .preview-header .badge {
-    background: #1976d2;
-    color: #fff;
-    border-radius: 10px;
-    padding: 2px 8px;
-    font-size: 11px;
-    font-weight: normal;
+    background: #fff;
 }
 
 #placeholder-preview .preview-body {
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
     padding: 0;
 }
 
 #placeholder-preview .placeholder-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 14px;
-    border-bottom: 1px solid #eee;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f0f0;
     font-size: 13px;
+    transition: background 0.15s;
+}
+
+#placeholder-preview .placeholder-item:hover {
+    background: #f5f8fc;
 }
 
 #placeholder-preview .placeholder-item:last-child {
     border-bottom: none;
 }
 
-#placeholder-preview .placeholder-item .ph-key {
-    font-family: 'Menlo', 'Consolas', monospace;
-    color: #1a1a1a;
-}
-
 #placeholder-preview .placeholder-item .ph-key code {
-    background: #c5cae9;
-    padding: 3px 8px;
+    background: #f5f5f5;
+    padding: 2px 8px;
     border-radius: 4px;
+    font-family: 'Menlo', 'Consolas', monospace;
     font-size: 13px;
-    color: #0d47a1;
+    color: #333;
     cursor: pointer;
-    transition: background 0.15s, box-shadow 0.15s;
-    border: 1px solid #9fa8da;
+    transition: background 0.15s;
     user-select: all;
 }
 
 #placeholder-preview .placeholder-item .ph-key code:hover {
-    background: #9fa8da;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    background: #e8e8e8;
 }
 
 #placeholder-preview .placeholder-item .ph-key code:active {
-    background: #9fa8da;
+    background: #ddd;
 }
 
-#placeholder-preview .ph-copy-toast {
+.ph-copy-toast {
     position: fixed;
-    top: 50%;
+    bottom: 48px;
     left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.75);
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(30, 30, 30, 0.88);
     color: #fff;
-    padding: 8px 20px;
-    border-radius: 6px;
-    font-size: 14px;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 13px;
     z-index: 10000;
     pointer-events: none;
-    animation: toastFade 1.2s ease forwards;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    opacity: 0;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: toastFadeInOut 2s ease forwards;
 }
 
-@keyframes toastFade {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-    15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    70% { opacity: 1; }
-    100% { opacity: 0; }
-}
-
-#placeholder-preview .placeholder-item .ph-status {
-    font-size: 12px;
-    white-space: nowrap;
-}
-
-#placeholder-preview .placeholder-item .ph-status.defined {
-    color: #2e7d32;
-}
-
-#placeholder-preview .placeholder-item .ph-status.undefined {
-    color: #c62828;
-    font-weight: bold;
-}
-
-#placeholder-preview .placeholder-item.undefined-row {
-    background: #fff8e1;
+@keyframes toastFadeInOut {
+    0% { opacity: 0; transform: translateX(-50%) translateY(16px); }
+    12% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    65% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
 }
 
 #placeholder-preview .preview-empty {
-    padding: 20px;
+    padding: 24px 16px;
     text-align: center;
     color: #999;
     font-size: 13px;
 }
 
 #placeholder-preview .preview-loading {
-    padding: 20px;
+    padding: 24px 16px;
     text-align: center;
     color: #666;
+    font-size: 13px;
 }
 
 #placeholder-preview .preview-loading .spinner {
@@ -179,23 +153,17 @@
 }
 
 #placeholder-preview .preview-summary {
-    background: #f5f5f5;
-    padding: 6px 14px;
+    background: #fafbfc;
+    padding: 8px 16px;
     font-size: 12px;
     color: #666;
-    border-top: 1px solid #ddd;
-}
-
-#placeholder-preview .preview-summary .undefined-count {
-    color: #c62828;
-    font-weight: bold;
+    border-top: 1px solid #eee;
 }
 
 .placeholder-preview-hint {
-    color: #888;
+    color: #999;
     font-size: 12px;
     margin-top: 6px;
-    font-style: italic;
 }
 </style>
 {% endblock %}
@@ -253,49 +221,22 @@
         function renderPreview(data) {
             if (!data.placeholders || data.placeholders.length === 0) {
                 previewContainer.html(
-                    '<div class="preview-header">' +
-                    '<span>替换词预览</span>' +
-                    '</div>' +
                     '<div class="preview-empty">未检测到替换词</div>'
                 );
                 return;
             }
 
-            var definedCount = 0;
-            var undefinedCount = 0;
             var rows = '';
-
             data.placeholders.forEach(function(p) {
                 var phDisplay = '{{' + escapeHtml(p.key) + '}}';
-                if (p.defined) {
-                    definedCount++;
-                    rows += '<div class="placeholder-item">' +
-                        '<span class="ph-key"><code data-copy="{{' + escapeHtml(p.key) + '}}" title="点击复制">' + phDisplay + '</code></span>' +
-                        '<span class="ph-status defined">✓ 已定义</span>' +
-                        '</div>';
-                } else {
-                    undefinedCount++;
-                    rows += '<div class="placeholder-item undefined-row">' +
-                        '<span class="ph-key"><code data-copy="{{' + escapeHtml(p.key) + '}}" title="点击复制">' + phDisplay + '</code></span>' +
-                        '<span class="ph-status undefined">⚠ 未定义</span>' +
-                        '</div>';
-                }
+                rows += '<div class="placeholder-item">' +
+                    '<span class="ph-key"><code data-copy="{{' + escapeHtml(p.key) + '}}" title="点击复制">' + phDisplay + '</code></span>' +
+                    '</div>';
             });
 
-            var summaryText = '共 ' + data.count + ' 个替换词';
-            if (undefinedCount > 0) {
-                summaryText += '，<span class="undefined-count">' + undefinedCount + ' 个未定义</span>';
-            } else {
-                summaryText += '，全部已定义 ✓';
-            }
-
             previewContainer.html(
-                '<div class="preview-header">' +
-                '<span>替换词预览' + (data.source ? ' · ' + escapeHtml(data.source) : '') + '</span>' +
-                '<span class="badge">' + data.count + ' 个</span>' +
-                '</div>' +
                 '<div class="preview-body">' + rows + '</div>' +
-                '<div class="preview-summary">' + summaryText + '</div>'
+                '<div class="preview-summary">共 ' + data.count + ' 个替换词</div>'
             );
 
             // 绑定点击复制事件
@@ -307,18 +248,12 @@
 
         function renderLoading() {
             previewContainer.html(
-                '<div class="preview-header">' +
-                '<span>替换词预览</span>' +
-                '</div>' +
                 '<div class="preview-loading"><span class="spinner"></span>正在提取替换词...</div>'
             );
         }
 
         function renderError(msg) {
             previewContainer.html(
-                '<div class="preview-header">' +
-                '<span>替换词预览</span>' +
-                '</div>' +
                 '<div class="preview-empty" style="color: #c62828;">提取失败: ' + escapeHtml(msg) + '</div>'
             );
         }
@@ -331,24 +266,38 @@
 
         function copyToClipboard(text) {
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text);
+                navigator.clipboard.writeText(text).then(function() {
+                    showToast('已复制 ' + text);
+                }).catch(function() {
+                    fallbackCopy(text);
+                });
             } else {
-                var ta = document.createElement('textarea');
-                ta.value = text;
-                ta.style.position = 'fixed';
-                ta.style.left = '-9999px';
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
+                fallbackCopy(text);
             }
-            showToast('已复制: ' + text);
+        }
+
+        function fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('已复制 ' + text);
+            } catch(e) {
+                showToast('复制失败，请手动复制');
+            }
+            document.body.removeChild(ta);
         }
 
         function showToast(msg) {
+            var existing = document.querySelector('.ph-copy-toast');
+            if (existing) existing.remove();
             var toast = $('<div class="ph-copy-toast"></div>').text(msg);
             $('body').append(toast);
-            setTimeout(function() { toast.remove(); }, 1300);
+            setTimeout(function() { toast.remove(); }, 1800);
         }
 
         function extractFromExistingFile(filePath) {

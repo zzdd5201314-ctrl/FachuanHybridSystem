@@ -438,7 +438,6 @@ class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
             _("替换词预览"),
             {
                 "fields": ("placeholder_preview",),
-                "description": _("选择或上传文件后，自动检测模板中的替换词。点击替换词可复制。"),
             },
         ),
         (_("状态"), {"fields": ("is_active",)}),

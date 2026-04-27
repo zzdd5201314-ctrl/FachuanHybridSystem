@@ -3,17 +3,32 @@ from __future__ import annotations
 from django.contrib import admin
 from django.forms import ModelForm
 from django.http import HttpRequest
+from django.urls import reverse
+from django.utils.html import format_html
 
-from apps.cases.admin.base_admin import BaseModelAdmin
+from apps.cases.admin.base_admin import BaseTabularInline, BaseModelAdmin
 from apps.cases.models import CaseLog, CaseLogAttachment
+
+
+class CaseLogAttachmentInline(BaseTabularInline):
+    model = CaseLogAttachment
+    extra = 0
+    readonly_fields = ("uploaded_at",)
+    autocomplete_fields = ("log",)
 
 
 @admin.register(CaseLog)
 class CaseLogAdmin(BaseModelAdmin):
-    list_display = ("id", "case", "actor", "reminder_type", "reminder_time", "created_at", "updated_at")
+    list_display = ("id", "case_link", "actor", "reminder_type", "reminder_time", "created_at", "updated_at")
     search_fields = ("content", "case__name")
     autocomplete_fields = ("case", "actor")
     exclude = ("actor",)
+    inlines = (CaseLogAttachmentInline,)
+
+    @admin.display(description="案件名称", ordering="case__name")
+    def case_link(self, obj: CaseLog) -> str:
+        url = reverse("admin:cases_case_detail", args=[obj.case_id])
+        return format_html('<a href="{}">{}</a>', url, obj.case)
 
     def save_model(
         self,
