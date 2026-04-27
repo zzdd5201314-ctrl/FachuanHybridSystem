@@ -1,0 +1,330 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+/* 解析提醒按钮 */
+.parse-reminder-btn {
+    all: unset;
+    box-sizing: border-box;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    min-width: 100px;
+    padding: 0 14px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    user-select: none;
+    color: #fff;
+    background: #2f6da6;
+    border-color: #2a5f90;
+    margin-left: 8px;
+    vertical-align: middle;
+    transition: background 0.15s ease;
+}
+.parse-reminder-btn:hover {
+    background: #285b8c;
+}
+.parse-reminder-btn:active {
+    background: #1f4d75;
+}
+.parse-reminder-btn:disabled {
+    background: #d9dee7;
+    border-color: #c9d0db;
+    color: #8a97a8;
+    cursor: not-allowed;
+}
+/* Toast */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+}
+.toast {
+    background-color: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    max-width: 350px;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+.toast.success {
+    background-color: #28a745;
+}
+.toast.error {
+    background-color: #dc3545;
+}
+/* content 字段旁的解析按钮容器 */
+.field-content .parse-reminder-btn-wrapper {
+    display: inline-block;
+    vertical-align: top;
+    margin-top: 4px;
+}
+</style>
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+{{ block.super }}
+
+<script>
+function _caselogGetCSRFToken() {
+    var name = 'csrftoken';
+    var cookieValue = null;
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+        }
+    }
+    return cookieValue;
+}
+
+function _caselogShowToast(message, type) {
+    type = type || 'success';
+    var container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    var toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.textContent = message;
+    container.appendChild(toast);
+    toast.offsetHeight;
+    toast.classList.add('show');
+    setTimeout(function() {
+        toast.classList.remove('show');
+        setTimeout(function() {
+            if (container.contains(toast)) container.removeChild(toast);
+        }, 300);
+    }, 3000);
+}
+
+function _caselogAddParseButton() {
+    var contentField = document.querySelector('.form-row.field-content');
+    if (!contentField) return;
+
+    var textarea = contentField.querySelector('textarea');
+    if (!textarea) return;
+
+    if (contentField.querySelector('.parse-reminder-btn')) return;
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'parse-reminder-btn-wrapper';
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'parse-reminder-btn';
+    btn.textContent = '{% trans "解析提醒" %}';
+    btn.title = '{% trans "从日志内容中提取日期，自动填入下方提醒" %}';
+    btn.onclick = function() { _caselogParseReminders(); };
+
+    wrapper.appendChild(btn);
+    textarea.parentNode.insertBefore(wrapper, textarea.nextSibling);
+}
+
+function _caselogParseReminders() {
+    var btn = document.querySelector('.parse-reminder-btn');
+    var textarea = document.querySelector('.form-row.field-content textarea');
+    if (!textarea) {
+        _caselogShowToast('{% trans "未找到日志内容" %}', 'error');
+        return;
+    }
+
+    var text = textarea.value.trim();
+    if (!text) {
+        _caselogShowToast('{% trans "日志内容为空，请先输入内容" %}', 'error');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '{% trans "解析中..." %}';
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/v1/reminders/parse', true);
+    xhr.setRequestHeader('X-CSRFToken', _caselogGetCSRFToken());
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+    xhr.onload = function() {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '{% trans "解析提醒" %}';
+        }
+
+        if (xhr.status === 200) {
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (Array.isArray(data) && data.length > 0) {
+                    _caselogFillInlineRows(data);
+                } else {
+                    _caselogShowToast('{% trans "未在内容中发现日期信息" %}', 'error');
+                }
+            } catch (e) {
+                _caselogShowToast('{% trans "解析失败" %}', 'error');
+            }
+        } else {
+            _caselogShowToast('{% trans "解析失败" %}：HTTP ' + xhr.status, 'error');
+        }
+    };
+
+    xhr.onerror = function() {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '{% trans "解析提醒" %}';
+        }
+        _caselogShowToast('{% trans "网络错误" %}', 'error');
+    };
+
+    xhr.send(JSON.stringify({ text: text }));
+}
+
+function _caselogFillInlineRows(results) {
+    var inlineGroup = document.getElementById('reminders-group');
+    if (!inlineGroup) {
+        inlineGroup = document.querySelector('.inline-group[id$="reminders-group"]');
+    }
+    if (!inlineGroup) {
+        _caselogShowToast('{% trans "未找到提醒表单区域" %}', 'error');
+        return;
+    }
+
+    var totalFormsInput = inlineGroup.querySelector('input[name$="-TOTAL_FORMS"]');
+    if (!totalFormsInput) {
+        _caselogShowToast('{% trans "表单结构异常" %}', 'error');
+        return;
+    }
+
+    var currentTotal = parseInt(totalFormsInput.value, 10) || 0;
+    var prefix = totalFormsInput.name.replace('-TOTAL_FORMS', '');
+
+    // nested_admin: empty-form 是 <tbody class="djn-empty-form empty-form">
+    // 需要克隆其内部的 <tr>，而非 <tbody> 本身
+    var emptyTbody = inlineGroup.querySelector('.empty-form');
+    var emptyRow = null;
+    if (emptyTbody && emptyTbody.tagName === 'TBODY') {
+        // nested_admin tabular: <tbody class="empty-form"><tr>...</tr></tbody>
+        emptyRow = emptyTbody.querySelector('tr');
+    } else if (emptyTbody) {
+        // 标准 Django tabular: <tr class="empty-form">
+        emptyRow = emptyTbody;
+    }
+
+    if (!emptyRow) {
+        _caselogShowToast('{% trans "表单结构异常：找不到空行模板" %}', 'error');
+        return;
+    }
+
+    var tbody = inlineGroup.querySelector('table tbody');
+    // 如果 emptyTbody 和普通 tbody 不是同一个，需要找到实际的数据 tbody
+    // nested_admin 结构: <table><thead>...</thead><tbody class="djn-item ...">已有行</tbody><tbody class="empty-form">空行</tbody></table>
+
+    for (var i = 0; i < results.length; i++) {
+        var r = results[i];
+        var formIndex = currentTotal + i;
+
+        var newRow = emptyRow.cloneNode(true);
+        newRow.classList.remove('empty-form', 'djn-empty-form', 'djn-item-dno', 'row1', 'row2');
+        newRow.style.display = '';
+        newRow.id = '';
+
+        // 更新 __prefix__ → 实际索引
+        _caselogUpdateRowFieldNames(newRow, prefix, formIndex);
+
+        // 填入值
+        _caselogSetFieldValue(newRow, 'reminder_type', r.reminder_type);
+        _caselogSetFieldValue(newRow, 'content', r.content);
+        // due_at 是 SplitDateTimeField，拆分为 due_at_0 (日期) 和 due_at_1 (时间)
+        var dueParts = r.due_at.split('T');
+        _caselogSetFieldValue(newRow, 'due_at_0', dueParts[0] || '');
+        _caselogSetFieldValue(newRow, 'due_at_1', dueParts[1] || '09:00:00');
+
+        // 插入新行：在 empty-form tbody 之前创建新的 tbody（nested_admin 每行一个 tbody）
+        var newTbody = document.createElement('tbody');
+        newTbody.className = 'djn-tbody djn-inline-form';
+        newTbody.appendChild(newRow);
+        emptyTbody.parentNode.insertBefore(newTbody, emptyTbody);
+    }
+
+    // 更新 TOTAL_FORMS
+    totalFormsInput.value = currentTotal + results.length;
+
+    _caselogShowToast('{% trans "已填入" %}' + results.length + '{% trans "条提醒，保存后生效" %}', 'success');
+
+    // 滚动到提醒区域
+    inlineGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function _caselogUpdateRowFieldNames(row, prefix, index) {
+    var inputs = row.querySelectorAll('input, select, textarea');
+    for (var j = 0; j < inputs.length; j++) {
+        var input = inputs[j];
+        if (input.name) {
+            input.name = input.name.replace(/__prefix__/g, index);
+        }
+        if (input.id) {
+            input.id = input.id.replace(/__prefix__/g, index);
+        }
+    }
+    var labels = row.querySelectorAll('label');
+    for (var k = 0; k < labels.length; k++) {
+        var label = labels[k];
+        if (label.htmlFor) {
+            label.htmlFor = label.htmlFor.replace(/__prefix__/g, index);
+        }
+    }
+}
+
+function _caselogSetFieldValue(row, fieldName, value) {
+    var select = row.querySelector('select[name$="-' + fieldName + '"]');
+    if (select) {
+        select.value = value;
+        var evt = document.createEvent('HTMLEvents');
+        evt.initEvent('change', true, true);
+        select.dispatchEvent(evt);
+        return;
+    }
+    var input = row.querySelector('input[name$="-' + fieldName + '"]');
+    if (input) {
+        input.value = value;
+        return;
+    }
+    var textarea = row.querySelector('textarea[name$="-' + fieldName + '"]');
+    if (textarea) {
+        textarea.value = value;
+        return;
+    }
+}
+
+function _caselogInit() {
+    _caselogAddParseButton();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _caselogInit);
+} else {
+    _caselogInit();
+}
+</script>
+{% endblock %}

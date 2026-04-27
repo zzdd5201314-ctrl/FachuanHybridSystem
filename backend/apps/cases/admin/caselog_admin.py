@@ -17,13 +17,23 @@ class CaseLogAttachmentInline(BaseTabularInline):
     autocomplete_fields = ("log",)
 
 
+class ReminderInline(BaseTabularInline):
+    model = CaseLog.reminders.rel.related_model  # type: ignore[assignment]  # Reminder
+    extra = 0
+    fields = ("reminder_type", "content", "due_at")
+    verbose_name = "重要日期提醒"
+    verbose_name_plural = "重要日期提醒"
+    ordering = ("due_at",)
+
+
 @admin.register(CaseLog)
 class CaseLogAdmin(BaseModelAdmin):
     list_display = ("id", "case_link", "actor", "reminder_type", "reminder_time", "created_at", "updated_at")
     search_fields = ("content", "case__name")
     autocomplete_fields = ("case", "actor")
-    exclude = ("actor",)
-    inlines = (CaseLogAttachmentInline,)
+    exclude = ("actor", "source_subfolder")
+    inlines = (ReminderInline, CaseLogAttachmentInline)
+    change_form_template = "admin/cases/caselog/change_form.html"
 
     @admin.display(description="案件名称", ordering="case__name")
     def case_link(self, obj: CaseLog) -> str:

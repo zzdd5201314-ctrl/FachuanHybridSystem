@@ -91,6 +91,22 @@ class ReminderOut(SchemaMixin, Schema):
         return SchemaMixin._resolve_datetime_iso(obj.updated_at) or ""
 
 
+class ParsedReminderOut(Schema):
+    """从文本解析出的提醒条目。"""
+
+    content: str
+    reminder_type: str
+    reminder_type_label: str
+    due_at: str
+    source_text: str
+
+
+class ParseReminderIn(Schema):
+    """解析提醒请求。"""
+
+    text: str
+
+
 class ReminderTypeItem(Schema):
     value: str
     label: str

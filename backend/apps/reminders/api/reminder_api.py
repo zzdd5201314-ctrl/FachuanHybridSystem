@@ -9,7 +9,15 @@ from ninja import Router
 
 from apps.core.api.schema_utils import schema_to_update_dict
 
-from ..schemas import ReminderIn, ReminderOut, ReminderTypeItem, ReminderUpdate, list_reminder_types
+from ..schemas import (
+    ParsedReminderOut,
+    ParseReminderIn,
+    ReminderIn,
+    ReminderOut,
+    ReminderTypeItem,
+    ReminderUpdate,
+    list_reminder_types,
+)
 from ..services.wiring import get_reminder_service
 
 router = Router()
@@ -18,6 +26,24 @@ router = Router()
 def _get_reminder_service() -> Any:
     """工厂函数：获取 ReminderService 实例。"""
     return get_reminder_service()
+
+
+@router.post("/parse", response=list[ParsedReminderOut])
+def parse_reminders(request: Any, payload: ParseReminderIn) -> list[ParsedReminderOut]:
+    """从文本中解析提醒事项。"""
+    from ..services.reminder_parser_service import parse_reminders_from_text
+
+    results = parse_reminders_from_text(payload.text)
+    return [
+        ParsedReminderOut(
+            content=r.content,
+            reminder_type=r.reminder_type,
+            reminder_type_label=r.reminder_type_label,
+            due_at=r.due_at,
+            source_text=r.source_text,
+        )
+        for r in results
+    ]
 
 
 @router.get("/list", response=list[ReminderOut])
