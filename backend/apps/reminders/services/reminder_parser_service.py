@@ -1,6 +1,6 @@
 """从文本中解析提醒事项的服务。
 
-通过正则表达式提取日期，通过关键词推断提醒类型，
+通过正则表达式提取日期和时间，通过关键词推断提醒类型，
 生成结构化的提醒解析结果，供前端填充到 Reminder Inline 表单。
 """
 
@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 # ---- 日期正则 ----
 DATE_SINGLE_PATTERN = re.compile(
     r"(\d{4}[年/\.\-]\d{1,2}[月/\.\-]\d{1,2}[日]?)",
+    re.UNICODE,
+)
+
+# ---- 时间正则 ----
+# 匹配 "下午3点" "上午9点" "下午3点半" "15时30分" "下午3:30" 等
+TIME_PATTERN = re.compile(
+    r"(上午|下午|晚间|晚上|凌晨|早上)?\s*"
+    r"(\d{1,2})\s*[点时：:]\s*(\d{1,2})?\s*(分|半)?",
     re.UNICODE,
 )
 
@@ -127,6 +135,58 @@ def _parse_date(date_str: str) -> datetime | None:
     return None
 
 
+def _extract_time_near_date(text: str, date_end: int) -> tuple[int, int] | None:
+    """在日期之后提取时间信息。
+
+    Args:
+        text: 原始文本
+        date_end: 日期匹配结束位置
+
+    Returns:
+        (hour, minute) 或 None
+    """
+    # 在日期后 10 个字符范围内搜索时间
+    search_start = date_end
+    search_end = min(len(text), date_end + 15)
+    search_text = text[search_start:search_end]
+
+    match = TIME_PATTERN.search(search_text)
+    if not match:
+        return None
+
+    period = match.group(1) or ""
+    hour_str = match.group(2)
+    minute_str = match.group(3)
+    half = match.group(4)
+
+    try:
+        hour = int(hour_str)
+    except (ValueError, TypeError):
+        return None
+
+    # 处理上午/下午
+    if period in ("下午", "晚间", "晚上") and hour < 12:
+        hour += 12
+    elif period == "凌晨" and hour == 12:
+        hour = 0
+
+    # 处理分钟
+    minute = 0
+    if half == "半":
+        minute = 30
+    elif minute_str:
+        try:
+            minute = int(minute_str)
+        except (ValueError, TypeError):
+            minute = 0
+
+    # 合法性检查
+    if 0 <= hour <= 23 and 0 <= minute <= 59:
+        return (hour, minute)
+
+    return None
+
+
 def _extract_sentence(text: str, start: int, end: int, context_radius: int = 30) -> str:
     """从文本中提取日期所在的句子片段。"""
     # 向前后扩展到句子边界
@@ -153,9 +213,10 @@ def parse_reminders_from_text(text: str) -> list[ParsedReminder]:
 
     流程:
     1. 用正则提取所有日期
-    2. 对每个日期，提取其所在句子的上下文
-    3. 根据上下文关键词推断提醒类型
-    4. 组装 ParsedReminder 列表
+    2. 在日期附近查找时间信息
+    3. 对每个日期，提取其所在句子的上下文
+    4. 根据上下文关键词推断提醒类型
+    5. 组装 ParsedReminder 列表
 
     Args:
         text: 日志内容文本
@@ -184,8 +245,26 @@ def parse_reminders_from_text(text: str) -> list[ParsedReminder]:
             logger.info("无法解析日期: %s", date_str)
             continue
 
-        # 提取上下文句子
-        sentence = _extract_sentence(text, match.start(), match.end())
+        # 在日期附近提取时间
+        time_info = _extract_time_near_date(text, match.end())
+        if time_info is not None:
+            hour, minute = time_info
+            parsed_dt = parsed_dt.replace(hour=hour, minute=minute)
+        else:
+            # 默认时间 09:00
+            parsed_dt = parsed_dt.replace(hour=9, minute=0)
+
+        # 提取上下文句子（包含时间部分）
+        context_end = match.end()
+        # 如果有时间，扩展上下文范围以包含时间描述
+        if time_info is not None:
+            search_start = match.end()
+            search_end = min(len(text), match.end() + 15)
+            time_match = TIME_PATTERN.search(text[search_start:search_end])
+            if time_match:
+                context_end = search_start + time_match.end()
+
+        sentence = _extract_sentence(text, match.start(), context_end)
 
         # 推断类型
         reminder_type = _infer_reminder_type(sentence)
@@ -199,7 +278,7 @@ def parse_reminders_from_text(text: str) -> list[ParsedReminder]:
                 content=content,
                 reminder_type=reminder_type,
                 reminder_type_label=reminder_type_label,
-                due_at=parsed_dt.strftime("%Y-%m-%dT09:00"),
+                due_at=parsed_dt.strftime("%Y-%m-%dT%H:%M"),
                 source_text=sentence,
             )
         )
