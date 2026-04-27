@@ -171,6 +171,7 @@
 {% block admin_change_form_document_ready %}
 {{ block.super }}
 <script type="text/javascript" src="{% static 'documents/js/folder_binding_inline.js' %}"></script>
+{% verbatim %}
 <script type="text/javascript">
 (function($) {
     $(document).ready(function() {
@@ -181,10 +182,7 @@
 
         // 替换词预览区域
         var previewContainer = null;
-        var extractUrl = '{% url "admin:documents_documenttemplate_extract_placeholders" %}';
-        // 用 JS 拼接避免 Django 模板引擎解析 {{ }}
-        var PH_OPEN = '{' + '{ ';
-        var PH_CLOSE = ' }' + '}';
+        var extractUrl = '/admin/documents/documenttemplate/extract-placeholders/';
 
         function updateFileSourceState() {
             var existingSelected = existingFileSelect.val() !== '';
@@ -257,7 +255,7 @@
             var rows = '';
 
             data.placeholders.forEach(function(p) {
-                var phDisplay = PH_OPEN + escapeHtml(p.key) + PH_CLOSE;
+                var phDisplay = '{{ ' + escapeHtml(p.key) + ' }}';
                 if (p.defined) {
                     definedCount++;
                     rows += '<div class="placeholder-item">' +
@@ -419,4 +417,5 @@
     });
 })(django.jQuery);
 </script>
+{% endverbatim %}
 {% endblock %}
