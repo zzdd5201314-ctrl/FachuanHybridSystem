@@ -200,33 +200,11 @@ function _caselogParseReminders() {
     xhr.send(JSON.stringify({ text: text }));
 }
 
-function _caselogFindReminderInline() {
-    // 尝试多种 ID 格式
+function _caselogFillInlineRows(results) {
     var inlineGroup = document.getElementById('reminders-group');
     if (!inlineGroup) {
-        // nested_admin 可能用 djn_ 前缀
         inlineGroup = document.querySelector('.inline-group[id$="reminders-group"]');
     }
-    if (!inlineGroup) {
-        // tabular 可能在 table 内
-        inlineGroup = document.querySelector('#id_reminders-group');
-    }
-    if (!inlineGroup) {
-        // 通用搜索
-        var allGroups = document.querySelectorAll('.inline-group, .djn-group');
-        for (var i = 0; i < allGroups.length; i++) {
-            var id = allGroups[i].id || '';
-            if (id.indexOf('reminders') !== -1) {
-                inlineGroup = allGroups[i];
-                break;
-            }
-        }
-    }
-    return inlineGroup;
-}
-
-function _caselogFillInlineRows(results) {
-    var inlineGroup = _caselogFindReminderInline();
     if (!inlineGroup) {
         _caselogShowToast('{% trans "未找到提醒表单区域" %}', 'error');
         return;
@@ -241,42 +219,52 @@ function _caselogFillInlineRows(results) {
     var currentTotal = parseInt(totalFormsInput.value, 10) || 0;
     var prefix = totalFormsInput.name.replace('-TOTAL_FORMS', '');
 
-    // 找到空行模板（tabular 用 tr.empty-form，stacked 用 div.empty-form/djn-empty-form）
-    var emptyRow = inlineGroup.querySelector('.empty-form');
-    if (!emptyRow) {
-        emptyRow = inlineGroup.querySelector('.djn-empty-form');
+    // nested_admin: empty-form 是 <tbody class="djn-empty-form empty-form">
+    // 需要克隆其内部的 <tr>，而非 <tbody> 本身
+    var emptyTbody = inlineGroup.querySelector('.empty-form');
+    var emptyRow = null;
+    if (emptyTbody && emptyTbody.tagName === 'TBODY') {
+        // nested_admin tabular: <tbody class="empty-form"><tr>...</tr></tbody>
+        emptyRow = emptyTbody.querySelector('tr');
+    } else if (emptyTbody) {
+        // 标准 Django tabular: <tr class="empty-form">
+        emptyRow = emptyTbody;
     }
 
-    var isTabular = Boolean(inlineGroup.querySelector('table'));
+    if (!emptyRow) {
+        _caselogShowToast('{% trans "表单结构异常：找不到空行模板" %}', 'error');
+        return;
+    }
+
+    var tbody = inlineGroup.querySelector('table tbody');
+    // 如果 emptyTbody 和普通 tbody 不是同一个，需要找到实际的数据 tbody
+    // nested_admin 结构: <table><thead>...</thead><tbody class="djn-item ...">已有行</tbody><tbody class="empty-form">空行</tbody></table>
 
     for (var i = 0; i < results.length; i++) {
         var r = results[i];
         var formIndex = currentTotal + i;
-        var newRow;
 
-        if (emptyRow) {
-            newRow = emptyRow.cloneNode(true);
-            newRow.classList.remove('empty-form', 'djn-empty-form');
-            newRow.style.display = '';
-            newRow.id = '';
+        var newRow = emptyRow.cloneNode(true);
+        newRow.classList.remove('empty-form', 'djn-empty-form', 'djn-item-dno', 'row1', 'row2');
+        newRow.style.display = '';
+        newRow.id = '';
 
-            _caselogUpdateRowFieldNames(newRow, prefix, formIndex);
-        } else {
-            continue;
-        }
+        // 更新 __prefix__ → 实际索引
+        _caselogUpdateRowFieldNames(newRow, prefix, formIndex);
 
+        // 填入值
         _caselogSetFieldValue(newRow, 'reminder_type', r.reminder_type);
         _caselogSetFieldValue(newRow, 'content', r.content);
-        _caselogSetFieldValue(newRow, 'due_at', r.due_at);
+        // due_at 是 SplitDateTimeField，拆分为 due_at_0 (日期) 和 due_at_1 (时间)
+        var dueParts = r.due_at.split('T');
+        _caselogSetFieldValue(newRow, 'due_at_0', dueParts[0] || '');
+        _caselogSetFieldValue(newRow, 'due_at_1', dueParts[1] || '09:00:00');
 
-        if (isTabular) {
-            var tbody = inlineGroup.querySelector('tbody');
-            if (tbody) {
-                tbody.appendChild(newRow);
-            }
-        } else {
-            emptyRow.parentNode.insertBefore(newRow, emptyRow);
-        }
+        // 插入新行：在 empty-form tbody 之前创建新的 tbody（nested_admin 每行一个 tbody）
+        var newTbody = document.createElement('tbody');
+        newTbody.className = 'djn-tbody djn-inline-form';
+        newTbody.appendChild(newRow);
+        emptyTbody.parentNode.insertBefore(newTbody, emptyTbody);
     }
 
     // 更新 TOTAL_FORMS
@@ -312,7 +300,6 @@ function _caselogSetFieldValue(row, fieldName, value) {
     var select = row.querySelector('select[name$="-' + fieldName + '"]');
     if (select) {
         select.value = value;
-        // 触发 change 事件
         var evt = document.createEvent('HTMLEvents');
         evt.initEvent('change', true, true);
         select.dispatchEvent(evt);
