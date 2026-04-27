@@ -11,7 +11,7 @@ from django.http import HttpRequest, JsonResponse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from apps.client.models import Client, ClientIdentityDoc
+from apps.client.models import Client, ClientIdentityDoc, PropertyClue, PropertyClueAttachment
 from apps.client.ports import CredentialPort, GsxtReportPort
 from apps.client.services.client_export_serializer_service import serialize_client_obj
 from apps.client.services.wiring import get_credential_port, get_gsxt_report_port
@@ -151,6 +151,14 @@ class ClientIdentityDocInline(admin.TabularInline[ClientIdentityDoc]):  # type: 
         return ""
 
     file_link.short_description = _("文件")  # type: ignore[attr-defined]
+
+
+class PropertyClueInline(admin.TabularInline[PropertyClue]):  # type: ignore[type-arg]
+    model = PropertyClue
+    extra = 1
+    fields = ("clue_type", "content")  # type: ignore[assignment]
+    verbose_name = _("财产线索")
+    verbose_name_plural = _("财产线索")
 
 
 class ClientAdminForm(forms.ModelForm[Client]):
@@ -340,8 +348,10 @@ class ClientAdmin(SimpleHistoryAdmin, AdminImportExportMixin, admin.ModelAdmin[C
 
     def get_inlines(self, request: HttpRequest, obj: Client | None = None) -> list[type[Any]]:
         inlines: list[type[Any]] = [ClientIdentityDocInline]
-        if obj and obj.client_type == "legal":
-            inlines.append(GsxtReportTaskInline)
+        if obj:
+            inlines.append(PropertyClueInline)
+            if obj.client_type == "legal":
+                inlines.append(GsxtReportTaskInline)
         return inlines
 
     def save_formset(self, request: HttpRequest, form: ModelForm[Client], formset: Any, change: bool) -> None:
