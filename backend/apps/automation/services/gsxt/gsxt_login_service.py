@@ -105,6 +105,19 @@ async def _do_login_and_wait(credential: GsxtCredentialProtocol, task_id: int) -
         context = browser.contexts[0]
         page = await context.new_page()
 
+        # 应用 stealth 反检测，隐藏自动化痕迹
+        try:
+            from playwright_stealth import Stealth
+
+            stealth = Stealth(
+                navigator_platform_override="MacIntel",
+                navigator_languages_override=("zh-CN", "zh", "en"),
+            )
+            await stealth.apply_stealth_async(page)
+            logger.info("已对登录页应用 stealth 反检测")
+        except ImportError:
+            logger.warning("playwright-stealth 未安装，跳过反检测")
+
         try:
             await page.goto(GSXT_LOGIN_URL, timeout=30000, wait_until="domcontentloaded")
             await asyncio.sleep(2)

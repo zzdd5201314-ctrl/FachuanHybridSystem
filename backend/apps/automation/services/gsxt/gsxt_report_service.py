@@ -8,7 +8,7 @@ import threading
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from playwright.async_api import Page
+    from playwright.async_api import BrowserContext, Page
 
 logger = logging.getLogger("apps.automation")
 
@@ -19,6 +19,18 @@ SEARCH_TIMEOUT = 60  # 等待搜索结果（秒）
 
 class GsxtReportError(Exception):
     """报告申请失败异常。"""
+
+
+async def _apply_stealth(page: Page) -> None:
+    """对页面应用反检测策略，隐藏自动化痕迹。"""
+    try:
+        from playwright_stealth import Stealth
+
+        stealth = Stealth(navigator_platform_override="MacIntel", navigator_languages_override=("zh-CN", "zh", "en"))
+        await stealth.apply_stealth_async(page)
+        logger.info("已对页面应用 stealth 反检测")
+    except ImportError:
+        logger.warning("playwright-stealth 未安装，跳过反检测")
 
 
 # ──────────────────────────────────────────────
@@ -34,12 +46,17 @@ async def _wait_captcha_success(page: Page, captcha_selector: str, timeout: int 
     deadline = asyncio.get_event_loop().time() + timeout
     while asyncio.get_event_loop().time() < deadline:
         await asyncio.sleep(2)
-        done = await page.evaluate(f"""(() => {{
-            const el = document.querySelector('{captcha_selector}');
-            return el ? el.className.includes('geetest_lock_success') : false;
-        }})()""")
-        if done:
-            return True
+        try:
+            done = await page.evaluate(f"""(() => {{
+                const el = document.querySelector('{captcha_selector}');
+                return el ? el.className.includes('geetest_lock_success') : false;
+            }})()""")
+            if done:
+                return True
+        except Exception:
+            # 页面可能已关闭或导航
+            logger.warning("检查验证码状态时页面异常，可能已关闭")
+            return False
     return False
 
 
@@ -67,9 +84,12 @@ async def search_company(page: Page, company_name: str) -> None:
     deadline = asyncio.get_event_loop().time() + CAPTCHA_TIMEOUT
     while asyncio.get_event_loop().time() < deadline:
         await asyncio.sleep(2)
-        if "corp-query-search-1" in page.url:
-            logger.info("搜索结果页已加载: %s", page.url)
-            return
+        try:
+            if "corp-query-search-1" in page.url:
+                logger.info("搜索结果页已加载: %s", page.url)
+                return
+        except Exception:
+            pass
 
     raise GsxtReportError(f"等待搜索结果超时（{CAPTCHA_TIMEOUT}秒），企业：{company_name}")
 
@@ -79,10 +99,15 @@ async def search_company(page: Page, company_name: str) -> None:
 # ──────────────────────────────────────────────
 
 
-async def click_company_detail(page: Page, company_name: str) -> str:
+async def click_company_detail(page: Page, company_name: str, context: BrowserContext) -> Page:
     """
     在搜索结果页找到匹配企业名称的链接并点击，等待详情页加载。
-    返回详情页 URL。
+
+    反爬升级后，page.goto() 到详情页容易被检测关闭。
+    改为：直接点击链接，同时监听新标签页打开；无论哪种方式，都返回详情页 Page 对象。
+
+    Returns:
+        详情页的 Page 对象（可能是当前 page 或新标签页）。
     """
     await asyncio.sleep(2)
 
@@ -99,12 +124,75 @@ async def click_company_detail(page: Page, company_name: str) -> str:
     if not href:
         raise GsxtReportError(f"搜索结果中未找到企业：{company_name}")
 
-    logger.info("找到企业链接，跳转详情页: %s", href)
-    await page.goto(href, timeout=60000, wait_until="commit")
-    # 等待详情页核心内容加载完成
-    await page.wait_for_selector("#btn_send_pdf", timeout=60000)
+    logger.info("找到企业链接，尝试点击进入详情页: %s", href)
 
-    return page.url
+    # 策略：同时监听新标签页和当前页导航
+    detail_page: Page | None = None
+
+    async def _on_new_page(new_page: Page) -> None:
+        nonlocal detail_page
+        detail_page = new_page
+        logger.info("检测到新标签页打开: %s", await new_page.title() if not new_page.is_closed() else "(已关闭)")
+
+    context.on("page", _on_new_page)
+
+    try:
+        # 尝试直接点击链接（而非 page.goto），更接近真实用户行为
+        link_clicked = await page.evaluate(f"""(() => {{
+            const links = Array.from(document.querySelectorAll('a'));
+            const match = links.find(a => a.innerText && a.innerText.trim() === '{company_name}');
+            if (match) {{ match.click(); return true; }}
+            const fuzzy = links.find(a => a.innerText && a.innerText.includes('{company_name}'));
+            if (fuzzy) {{ fuzzy.click(); return true; }}
+            return false;
+        }})()""")
+
+        if link_clicked:
+            logger.info("已点击企业链接，等待详情页加载...")
+            # 等待页面稳定
+            await asyncio.sleep(3)
+        else:
+            # 回退到 goto
+            logger.info("点击失败，回退到 page.goto: %s", href)
+            await page.goto(href, timeout=60000, wait_until="commit")
+    except Exception as e:
+        logger.warning("点击链接异常: %s，回退到 page.goto", e)
+        try:
+            await page.goto(href, timeout=60000, wait_until="commit")
+        except Exception:
+            pass
+    finally:
+        context.remove_listener("page", _on_new_page)
+
+    # 如果新标签页打开了，使用新标签页
+    if detail_page and not detail_page.is_closed():
+        logger.info("使用新标签页作为详情页")
+        await _apply_stealth(detail_page)
+        try:
+            await detail_page.wait_for_selector("#btn_send_pdf", timeout=60000)
+        except Exception:
+            logger.warning("新标签页中未找到 #btn_send_pdf，可能页面结构变化")
+        return detail_page
+
+    # 否则使用当前页面
+    logger.info("使用当前页面作为详情页")
+    try:
+        await page.wait_for_selector("#btn_send_pdf", timeout=60000)
+    except Exception as e:
+        # 如果当前页面被关闭（反爬检测），尝试在 context 的其他页面中查找
+        if "closed" in str(e).lower() or "target" in str(e).lower():
+            logger.warning("当前页面被关闭，尝试在 context 中查找详情页")
+            for p in context.pages:
+                try:
+                    if not p.is_closed() and "gsxt.gov.cn" in p.url and "search" not in p.url:
+                        logger.info("在 context 中找到可能的详情页: %s", p.url)
+                        await p.wait_for_selector("#btn_send_pdf", timeout=30000)
+                        return p
+                except Exception:
+                    continue
+        raise GsxtReportError(f"详情页加载失败，可能被反爬检测关闭: {e}")
+
+    return page
 
 
 # ──────────────────────────────────────────────
@@ -189,6 +277,9 @@ async def _run_full_flow(task_id: int) -> None:
         browser = await p.chromium.connect_over_cdp("http://localhost:9222")
         context = browser.contexts[0]
         page = await context.new_page()
+        await _apply_stealth(page)
+
+        detail_page: Page | None = None
 
         try:
             task.status = GsxtReportStatus.WAITING_CAPTCHA
@@ -202,7 +293,7 @@ async def _run_full_flow(task_id: int) -> None:
 
             # 先用公司名匹配，失败时用信用代码兜底
             try:
-                await click_company_detail(page, company_name)
+                detail_page = await click_company_detail(page, company_name, context)
             except GsxtReportError:
                 if not credit_code:
                     raise
@@ -210,12 +301,12 @@ async def _run_full_flow(task_id: int) -> None:
                 task.error_message = f"名称未匹配，改用信用代码 {credit_code} 重新搜索，请完成验证码"
                 await save_task(task, ["error_message"])
                 await search_company(page, credit_code)
-                await click_company_detail(page, company_name)
+                detail_page = await click_company_detail(page, company_name, context)
 
             task.error_message = "已进入详情页，请完成发送报告验证码"
             await save_task(task, ["error_message"])
 
-            await request_report(page)
+            await request_report(detail_page)
 
             task.status = GsxtReportStatus.WAITING_EMAIL
             task.error_message = "报告已发送到邮箱，正在自动轮询收取…"
@@ -246,7 +337,19 @@ async def _run_full_flow(task_id: int) -> None:
             logger.exception("任务 %d 失败: %s", task_id, e)
 
         finally:
-            await page.close()
+            # 关闭搜索页
+            try:
+                if not page.is_closed():
+                    await page.close()
+            except Exception:
+                pass
+            # 关闭详情页（如果是新标签页）
+            if detail_page and detail_page is not page:
+                try:
+                    if not detail_page.is_closed():
+                        await detail_page.close()
+                except Exception:
+                    pass
 
 
 def start_report_flow(task_id: int) -> None:
