@@ -38,7 +38,7 @@ class CaseLogAdmin(BaseModelAdmin):
     list_display = ("id", "case_link", "actor", "reminder_type", "reminder_time", "created_at", "updated_at")
     search_fields = ("content", "case__name")
     autocomplete_fields = ("case", "actor")
-    exclude = ("actor",)
+    exclude = ("actor", "source_subfolder")
     inlines = (ReminderInline, CaseLogAttachmentInline)
     change_form_template = "admin/cases/caselog/change_form.html"
 
