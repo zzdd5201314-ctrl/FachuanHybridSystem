@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+CASE_LOG_API_REMINDER_SOURCE = "case_log_api"
+
 
 class ReminderServiceAdapter(ReminderService):
     """提醒服务适配器，继承 ReminderService 提供 API 方法，同时实现 IReminderService 供其他模块调用。"""
@@ -105,17 +107,82 @@ class ReminderServiceAdapter(ReminderService):
         content: str,
         reminder_time: datetime,
         user_id: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ReminderDTO:
         """内部方法：按调用方提供的内容创建案件日志提醒。"""
-        metadata = {"created_by_user_id": user_id} if user_id is not None else {}
+        final_metadata: dict[str, Any] = dict(metadata) if metadata else {}
+        final_metadata.setdefault("created_by_user_id", user_id)
         reminder = super().create_reminder(
             case_log_id=case_log_id,
             reminder_type=reminder_type,
             content=content,
             due_at=reminder_time,
-            metadata=metadata,
+            metadata=final_metadata,
         )
         return self._to_reminder_dto(reminder)
+
+    def upsert_case_log_reminder_internal(
+        self,
+        *,
+        case_log_id: int,
+        reminder_type: str,
+        content: str,
+        reminder_time: datetime,
+        user_id: int | None = None,
+        metadata_source: str | None = None,
+    ) -> ReminderDTO:
+        """内部方法：创建或更新案件日志提醒。"""
+        reminder = self._get_preferred_case_log_reminder(case_log_id=case_log_id, metadata_source=metadata_source)
+        metadata: dict[str, Any] = {}
+        if reminder is not None and isinstance(reminder.metadata, dict):
+            metadata.update(reminder.metadata)
+        if metadata_source:
+            metadata["source"] = metadata_source
+        if user_id is not None:
+            metadata["created_by_user_id"] = user_id
+        if reminder is None:
+            return self.create_case_log_reminder_internal(
+                case_log_id=case_log_id,
+                reminder_type=reminder_type,
+                content=content,
+                reminder_time=reminder_time,
+                user_id=user_id,
+                metadata=metadata,
+            )
+        updated = super().update_reminder(
+            reminder.id,
+            {
+                "reminder_type": reminder_type,
+                "content": content,
+                "due_at": reminder_time,
+                "metadata": metadata,
+            },
+        )
+        return self._to_reminder_dto(updated)
+
+    def clear_case_log_reminder_internal(self, *, case_log_id: int, metadata_source: str | None = None) -> bool:
+        """内部方法：清除案件日志提醒。"""
+        reminder = self._get_preferred_case_log_reminder(case_log_id=case_log_id, metadata_source=metadata_source)
+        if reminder is None:
+            return False
+        super().delete_reminder(reminder.id)
+        return True
+
+    def _get_preferred_case_log_reminder(
+        self, *, case_log_id: int, metadata_source: str | None = None
+    ) -> Reminder | None:
+        """按 metadata_source 查找匹配的提醒记录，优先匹配 source 标记。"""
+        validate_positive_id(case_log_id, field_name=_("案件日志ID"))
+        reminders = list(Reminder.objects.filter(case_log_id=case_log_id).order_by("-due_at", "-id"))
+        if not reminders:
+            return None
+        if metadata_source:
+            for reminder in reminders:
+                metadata = reminder.metadata if isinstance(reminder.metadata, dict) else {}
+                if metadata.get("source") == metadata_source:
+                    return reminder
+            return None
+        return reminders[0]
 
     def get_reminder_type_by_code_internal(self, code: str) -> ReminderTypeDTO | None:
         """内部方法：根据代码获取提醒类型。"""
