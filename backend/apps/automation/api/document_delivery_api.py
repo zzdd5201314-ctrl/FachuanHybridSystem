@@ -52,8 +52,8 @@ class DocumentDeliveryQueryIn(BaseModel):
     )
 
     class Config:
-        json_schema_extra: ClassVar[dict[str, str]] = {  # type: ignore[dict-item]
-            "example": {"credential_id": 1, "cutoff_hours": 24, "tab": "pending"}
+        json_schema_extra: ClassVar[dict[str, str]] = {
+            "example": {"credential_id": 1, "cutoff_hours": 24, "tab": "pending"}  # type: ignore[dict-item]
         }
 
 
@@ -65,8 +65,8 @@ class DocumentDeliveryQueryOut(BaseModel):
     message: str = Field(..., description="响应消息")
 
     class Config:
-        json_schema_extra: ClassVar[dict[str, str]] = {  # type: ignore[dict-item]
-            "example": {
+        json_schema_extra: ClassVar[dict[str, str]] = {
+            "example": {  # type: ignore[dict-item]
                 "success": True,
                 "data": {
                     "total_found": 5,
@@ -99,8 +99,8 @@ class DocumentDeliveryScheduleCreateIn(BaseModel):
     is_active: bool = Field(default=True, description="是否启用", json_schema_extra={"example": True})
 
     class Config:
-        json_schema_extra: ClassVar[dict[str, str]] = {  # type: ignore[dict-item]
-            "example": {
+        json_schema_extra: ClassVar[dict[str, str]] = {
+            "example": {  # type: ignore[dict-item]
                 "credential_id": 1,
                 "runs_per_day": 2,
                 "hour_interval": 12,
@@ -123,8 +123,8 @@ class DocumentDeliveryScheduleUpdateIn(BaseModel):
     is_active: bool | None = Field(None, description="是否启用", json_schema_extra={"example": False})
 
     class Config:
-        json_schema_extra: ClassVar[dict[str, str]] = {  # type: ignore[dict-item]
-            "example": {"runs_per_day": 3, "hour_interval": 8, "cutoff_hours": 48, "is_active": False}
+        json_schema_extra: ClassVar[dict[str, str]] = {
+            "example": {"runs_per_day": 3, "hour_interval": 8, "cutoff_hours": 48, "is_active": False}  # type: ignore[dict-item]
         }
 
 
