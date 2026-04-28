@@ -104,7 +104,7 @@ async def _cdp_navigate(url: str, wait_seconds: int = 8) -> str:
             r = await asyncio.wait_for(ws.recv(), timeout=5)
             msg = json.loads(r)
             if msg.get("id") == 3:
-                return msg.get("result", {}).get("result", {}).get("value", url)
+                return str(msg.get("result", {}).get("result", {}).get("value", url))
 
 
 async def _wait_captcha_success(page: Any, captcha_selector: str, timeout: int = CAPTCHA_TIMEOUT) -> bool:
