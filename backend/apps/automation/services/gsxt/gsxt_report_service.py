@@ -48,7 +48,7 @@ def _ensure_chrome_running() -> None:
         return
 
     try:
-        subprocess.run(["pkill", "-f", CHROME_USER_DATA_DIR], capture_output=True, timeout=5)
+        subprocess.run(["/usr/bin/pkill", "-f", CHROME_USER_DATA_DIR], capture_output=True, timeout=5)
         time.sleep(2)
     except Exception:
         pass
@@ -97,7 +97,9 @@ async def _cdp_navigate(url: str, wait_seconds: int = 8) -> str:
 
         await asyncio.sleep(wait_seconds)
 
-        await ws.send(json.dumps({"id": 3, "method": "Runtime.evaluate", "params": {"expression": "window.location.href"}}))
+        await ws.send(
+            json.dumps({"id": 3, "method": "Runtime.evaluate", "params": {"expression": "window.location.href"}})
+        )
         while True:
             r = await asyncio.wait_for(ws.recv(), timeout=5)
             msg = json.loads(r)
@@ -322,7 +324,9 @@ async def _run_full_flow(task_id: int) -> None:
             await target.click("#btn_send_pdf")
 
             done = await _wait_captcha_success(
-                target, ".geetest_captcha.geetest_bind.geetest_lock_success", CAPTCHA_TIMEOUT,
+                target,
+                ".geetest_captcha.geetest_bind.geetest_lock_success",
+                CAPTCHA_TIMEOUT,
             )
             if not done:
                 raise GsxtReportError(f"等待发送报告验证码超时（{CAPTCHA_TIMEOUT}秒）")

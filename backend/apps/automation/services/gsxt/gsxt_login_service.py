@@ -56,14 +56,17 @@ def _kill_existing_chrome() -> None:
     """关闭使用同一 user-data-dir 的已有 Chrome 实例。"""
     try:
         result = subprocess.run(
-            ["pgrep", "-fl", CHROME_USER_DATA_DIR],
-            capture_output=True, text=True, timeout=5,
+            ["/usr/bin/pgrep", "-fl", CHROME_USER_DATA_DIR],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.stdout.strip():
             logger.info("关闭已有的 GSXT Chrome 实例...")
             subprocess.run(
-                ["pkill", "-f", CHROME_USER_DATA_DIR],
-                capture_output=True, timeout=5,
+                ["/usr/bin/pkill", "-f", CHROME_USER_DATA_DIR],
+                capture_output=True,
+                timeout=5,
             )
             time.sleep(2)
     except Exception:
@@ -106,7 +109,7 @@ def _ensure_chrome_running() -> None:
 
     raise GsxtLoginError(
         "Chrome 启动失败。请先关闭所有 Chrome 窗口后重试，"
-        f"或手动运行：\n  \"{CHROME_PATH}\" --remote-debugging-port=9222 --user-data-dir={CHROME_USER_DATA_DIR}"
+        f'或手动运行：\n  "{CHROME_PATH}" --remote-debugging-port=9222 --user-data-dir={CHROME_USER_DATA_DIR}'
     )
 
 
@@ -150,22 +153,30 @@ async def _cdp_navigate(url: str, wait_seconds: int = 8) -> str:
         await ws.recv()
 
         # 导航
-        await ws.send(json.dumps({
-            "id": 2,
-            "method": "Page.navigate",
-            "params": {"url": url},
-        }))
+        await ws.send(
+            json.dumps(
+                {
+                    "id": 2,
+                    "method": "Page.navigate",
+                    "params": {"url": url},
+                }
+            )
+        )
         await ws.recv()
 
         # 等待页面加载
         await asyncio.sleep(wait_seconds)
 
         # 获取当前 URL
-        await ws.send(json.dumps({
-            "id": 3,
-            "method": "Runtime.evaluate",
-            "params": {"expression": "window.location.href"},
-        }))
+        await ws.send(
+            json.dumps(
+                {
+                    "id": 3,
+                    "method": "Runtime.evaluate",
+                    "params": {"expression": "window.location.href"},
+                }
+            )
+        )
         while True:
             r = await asyncio.wait_for(ws.recv(), timeout=5)
             msg = json.loads(r)

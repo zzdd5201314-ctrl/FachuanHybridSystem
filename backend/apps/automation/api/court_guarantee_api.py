@@ -14,8 +14,9 @@ from typing import Any
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from apps.core.tasking import submit_task
 from ninja import Router, Schema
+
+from apps.core.tasking import submit_task
 
 logger = logging.getLogger("apps.automation")
 router = Router()

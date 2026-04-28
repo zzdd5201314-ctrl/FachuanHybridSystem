@@ -1407,10 +1407,14 @@ class CourtZxfwGuaranteeService:
 
             # 点击每行的删除按钮
             for _ in range(existing_rows + 2):
-                delete_btn = self.page.locator(
-                    ".el-table__body-wrapper .el-table__row button, "
-                    ".el-table__body-wrapper .el-table__row .el-button"
-                ).filter(has_text="删除").first
+                delete_btn = (
+                    self.page.locator(
+                        ".el-table__body-wrapper .el-table__row button, "
+                        ".el-table__body-wrapper .el-table__row .el-button"
+                    )
+                    .filter(has_text="删除")
+                    .first
+                )
                 if delete_btn.count() == 0:
                     break
                 try:
@@ -2157,7 +2161,9 @@ class CourtZxfwGuaranteeService:
         province_keyword = province_name.replace("省", "")
 
         try:
-            type_inputs = self.page.locator(".el-dialog input[placeholder='请选择财产类型'], #addSQR input[placeholder='请选择财产类型']")
+            type_inputs = self.page.locator(
+                ".el-dialog input[placeholder='请选择财产类型'], #addSQR input[placeholder='请选择财产类型']"
+            )
             for i in range(type_inputs.count()):
                 field = type_inputs.nth(i)
                 if not field.is_visible() or field.is_disabled():
@@ -2187,7 +2193,9 @@ class CourtZxfwGuaranteeService:
             pass
 
         try:
-            owner_inputs = self.page.locator(".el-dialog input[placeholder='请选择财产所有人'], #addSQR input[placeholder='请选择财产所有人']")
+            owner_inputs = self.page.locator(
+                ".el-dialog input[placeholder='请选择财产所有人'], #addSQR input[placeholder='请选择财产所有人']"
+            )
             for i in range(owner_inputs.count()):
                 field = owner_inputs.nth(i)
                 if not field.is_visible() or field.is_disabled():
@@ -2221,7 +2229,9 @@ class CourtZxfwGuaranteeService:
             pass
 
         try:
-            province_inputs = self.page.locator(".el-dialog .fd-sf input.el-input__inner, #addSQR .fd-sf input.el-input__inner")
+            province_inputs = self.page.locator(
+                ".el-dialog .fd-sf input.el-input__inner, #addSQR .fd-sf input.el-input__inner"
+            )
             if province_inputs.count() > 0:
                 field = province_inputs.first
                 if field.is_visible() and not field.is_disabled():
