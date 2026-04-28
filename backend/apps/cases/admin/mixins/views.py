@@ -346,7 +346,7 @@ class CaseAdminViewsMixin:
 
     def _get_case_with_relations(self, case_id: int) -> Case | None:
         service = self._get_case_admin_service()  # type: ignore[attr-defined]
-        return service.get_case_with_admin_relations(case_id)
+        return service.get_case_with_admin_relations(case_id)  # type: ignore[no-any-return]
 
     def _get_folder_disabled_reason(self, case: Case) -> str:
         service = self._get_case_admin_service()  # type: ignore[attr-defined]

@@ -147,7 +147,7 @@ class PerformanceMonitorServiceAdapter(IPerformanceMonitorService):
 
                 # 计算平均获取时间
                 avg_duration = (
-                    queryset.filter(success=True, total_duration__isnull=False).aggregate(
+                    queryset.filter(success=True, total_duration__isnull=False).aggregate(  # type: ignore[misc]
                         avg_duration=Avg("total_duration")
                     )["avg_duration"]
                     or 0

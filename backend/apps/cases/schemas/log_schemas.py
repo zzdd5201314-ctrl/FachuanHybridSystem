@@ -40,7 +40,7 @@ class _CaseLogReminderMixin(Schema):
 
     @model_validator(mode="after")
     def validate_reminder_fields(self) -> _CaseLogReminderMixin:
-        fields_set = getattr(self, "model_fields_set", set())
+        fields_set: set[str] = getattr(self, "model_fields_set", set())
         reminder_type_set = "reminder_type" in fields_set
         reminder_time_set = "reminder_time" in fields_set
         if reminder_type_set != reminder_time_set:
@@ -119,7 +119,7 @@ class CaseLogOut(ModelSchema, SchemaMixin):
 
     @staticmethod
     def resolve_attachments(obj: CaseLog) -> list[CaseLogAttachmentOut]:
-        return list(obj.attachments.all())
+        return list(obj.attachments.all())  # type: ignore[arg-type]
 
     @staticmethod
     def resolve_reminders(obj: CaseLog) -> list[ReminderPayload]:

@@ -49,7 +49,7 @@ class AdminImportExportMixin:
     def get_urls(self) -> list[Any]:
         urls = super().get_urls()  # type: ignore[misc]
         custom = [
-            path("import/", self.admin_site.admin_view(self.import_view), name=f"{self.export_model_name}_import"),
+            path("import/", self.admin_site.admin_view(self.import_view), name=f"{self.export_model_name}_import"),  # type: ignore[attr-defined]
         ]
         return custom + urls
 

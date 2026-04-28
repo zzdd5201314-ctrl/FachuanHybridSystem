@@ -143,7 +143,7 @@ class ClientMutationService:
             raise
 
         client = self.query_service.get_client(client_id=client_id, user=user)
-        file_paths = self.deletion_workflow.collect_client_file_paths(client_id=cast(int, client.pk))
+        file_paths = self.deletion_workflow.collect_client_file_paths(client_id=cast(int, client.pk))  # type: ignore[redundant-cast]
         client.delete()
         self.deletion_workflow.cleanup_files_on_commit(file_paths=file_paths)
 

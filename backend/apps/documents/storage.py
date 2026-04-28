@@ -87,7 +87,7 @@ def resolve_docx_template_path(file_path: str) -> Path:
     except ValueError as exc:
         raise ValueError("模板路径越界，必须位于当前 docx_templates 根目录内") from exc
 
-    return resolved
+    return resolved  # type: ignore[no-any-return]
 
 
 @deconstructible

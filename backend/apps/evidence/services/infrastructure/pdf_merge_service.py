@@ -134,7 +134,7 @@ class PDFMergeWorkflow:
 
     def add_page_numbers(self, pdf_input: io.BytesIO, start_page: int = 1) -> bytes:
         utils = _get_pdf_merge_utils_module()
-        return utils.add_page_numbers(pdf_input, start_page)
+        return utils.add_page_numbers(pdf_input, start_page)  # type: ignore[no-any-return]
 
     def _generate_merged_filename(self, evidence_list: EvidenceList) -> str:
 

@@ -101,7 +101,7 @@ class CaseLogMutationService:
         log.save()
 
         if "content" in data and data.get("content") != old_content:
-            CaseLogVersion.objects.create(log=log, content=old_content, actor_id=actor_id)
+            CaseLogVersion.objects.create(log=log, content=old_content, actor_id=actor_id)  # type: ignore[misc]
 
         self._sync_case_log_reminder(
             log=log,

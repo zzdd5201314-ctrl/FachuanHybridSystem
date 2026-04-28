@@ -283,7 +283,7 @@ class HeadingNumbering:
         """创建 num 引用指向 abstractNum，返回 numId（每次调用生成独立编号序列）"""
         existing_num_ids = {
             int(n.get(qn("w:numId"), 0))
-            for n in numbering_elem.findall(qn("w:num"))
+            for n in numbering_elem.findall(qn("w:num"))  # type: ignore[attr-defined]
         }
         num_id = max(existing_num_ids, default=0) + 1
 

@@ -253,7 +253,7 @@ class PreservationQuoteService(QuoteExecutionMixin):
             # 根据成功/失败情况设置状态
             if success_count == 0:
                 quote.status = QuoteStatus.FAILED
-                quote.error_message = _("所有保险公司查询均失败")
+                quote.error_message = str(_("所有保险公司查询均失败"))
             elif failed_count == 0:
                 quote.status = QuoteStatus.SUCCESS
             else:

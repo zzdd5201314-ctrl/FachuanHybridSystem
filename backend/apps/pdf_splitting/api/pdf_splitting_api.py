@@ -96,7 +96,7 @@ def get_pdf_split_job(request: Any, job_id: UUID) -> JobOut:
 def get_pdf_split_preview(request: Any, job_id: UUID, page_no: int) -> HttpResponse:
     job = PdfSplitJobService().get_job(job_id)
     preview_path = PdfSplitService().render_preview(job, page_no)
-    return FileResponse(preview_path.open("rb"), content_type="image/png", filename=preview_path.name)
+    return FileResponse(preview_path.open("rb"), content_type="image/png", filename=preview_path.name)  # type: ignore[return-value]
 
 
 @router.post("/jobs/{job_id}/confirm", response=JobSubmitOut)
