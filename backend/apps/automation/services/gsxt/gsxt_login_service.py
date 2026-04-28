@@ -341,28 +341,21 @@ async def _run_full_flow(credential: GsxtCredentialProtocol, task_id: int) -> No
             await save_task(task, ["error_message"])
 
             target = detail_page or page
-            # 详情页的 #btn_send_pdf 初始可能不可见，需要滚动到底部
+            # 详情页改版后，"发送报告"按钮藏在"更多"下拉菜单中
+            # 流程：点击 #moreActionsToggle → 显示 #moreActionsMenu → 点击 #btn_send_pdf
             try:
-                await target.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                await asyncio.sleep(2)
+                await target.wait_for_selector("#moreActionsToggle", timeout=30000)
+                await target.click("#moreActionsToggle")
+                logger.info("已点击'更多'按钮，等待下拉菜单显示...")
+                await asyncio.sleep(1)
             except Exception:
-                pass
+                logger.warning("未找到'更多'按钮，尝试直接点击 #btn_send_pdf")
 
-            # 等待 #btn_send_pdf 出现（可能在页面底部，需要滚动后才加载）
+            # 等待 #btn_send_pdf 出现（在下拉菜单中）
             try:
-                await target.wait_for_selector("#btn_send_pdf", timeout=60000)
+                await target.wait_for_selector("#btn_send_pdf", timeout=15000)
             except Exception:
-                # 尝试多次滚动
-                for scroll_attempt in range(3):
-                    try:
-                        await target.evaluate(f"window.scrollTo(0, document.body.scrollHeight * {(scroll_attempt + 1) / 3})")
-                        await asyncio.sleep(2)
-                        if await target.evaluate("!!document.querySelector('#btn_send_pdf')"):
-                            break
-                    except Exception:
-                        pass
-                else:
-                    raise GsxtReportError("详情页未找到 #btn_send_pdf，可能页面未完全加载")
+                raise GsxtReportError("详情页未找到发送报告按钮，可能页面未完全加载")
 
             await target.click("#btn_send_pdf")
             logger.info("已点击发送报告，等待用户完成验证码...")
