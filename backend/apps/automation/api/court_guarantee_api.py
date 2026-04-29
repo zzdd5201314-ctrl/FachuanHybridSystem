@@ -900,7 +900,12 @@ def _resolve_insurance_company_defaults(*, quote_context: dict[str, Any] | None)
     return _DEFAULT_INSURANCE_COMPANY, _GUARANTEE_INSURANCE_COMPANY_OPTIONS
 
 
-def _build_guarantee_material_paths(case: Any) -> list[str]:
+def _build_guarantee_material_paths(case: Any) -> list[dict[str, str]]:
+    """构建担保立案材料列表，返回 ``[{"path": ..., "type_name": ...}, ...]``。
+
+    type_name 来自 CaseMaterial.type_name（用户/系统明确分类），供 Playwright 层
+    做精确匹配，避免文件名歧义（如"营业执照"出现在"委托材料"类型中）。
+    """
     from django.db.models import Q
 
     from apps.cases.models import CaseMaterial, CaseMaterialCategory, CaseMaterialSide
@@ -934,13 +939,32 @@ def _build_guarantee_material_paths(case: Any) -> list[str]:
         records: list[tuple[int, str, str, str]],
         keywords: list[str],
         used: set[str],
-    ) -> str | None:
+        type_name_keywords: list[str] | None = None,
+    ) -> tuple[str, str] | None:
+        """从记录中选取匹配关键词的文件，优先匹配 type_name（用户/系统明确分类）。
+
+        Args:
+            type_name_keywords: 当提供时，先仅用这些关键词匹配 type_name，
+                再用 keywords 匹配 type_name+filename 联合。
+                这样可以避免文件名歧义（如"营业执照"出现在"委托材料"类型中）。
+
+        Returns:
+            (path, type_name) 或 None。
+        """
+        # 第一轮：仅匹配 type_name（主信号优先）
+        primary_keywords = type_name_keywords or keywords
+        for _, type_name, filename, path in records:
+            if path in used:
+                continue
+            if any(keyword in type_name for keyword in primary_keywords):
+                return path, type_name
+        # 第二轮：匹配 type_name + filename 联合
         for _, type_name, filename, path in records:
             if path in used:
                 continue
             haystack = f"{type_name} {filename}"
             if any(keyword in haystack for keyword in keywords):
-                return path
+                return path, type_name
         return None
 
     our_party_qs = CaseMaterial.objects.filter(case=case, category=CaseMaterialCategory.PARTY).filter(
@@ -951,30 +975,32 @@ def _build_guarantee_material_paths(case: Any) -> list[str]:
     our_files = _collect(our_party_qs)
     non_party_files = _collect(non_party_qs)
 
-    selected: list[str] = []
+    selected: list[dict[str, str]] = []
     used: set[str] = set()
 
-    required_rules: list[tuple[list[tuple[int, str, str, str]], list[str]]] = [
-        (our_files, ["财产保全申请书", "保全申请书"]),
-        (our_files, ["起诉状", "起诉书", "起诉"]),
-        (non_party_files, ["立案受理通知书", "受理通知书", "立案通知书", "受理通知", "立案通知"]),
-        (our_files, ["身份证明", "营业执照", "身份证", "法定代表人身份证明"]),
-        (our_files, ["证据", "证据材料", "明细", "清单"]),
+    required_rules: list[tuple[list[tuple[int, str, str, str]], list[str], list[str] | None]] = [
+        # (records, filename_keywords, type_name_keywords)
+        (our_files, ["财产保全申请书", "保全申请书"], ["保全申请", "保全", "保全申请书及保函"]),
+        (our_files, ["起诉状", "起诉书", "起诉"], ["起诉状"]),
+        (non_party_files, ["立案受理通知书", "受理通知书", "立案通知书", "受理通知", "立案通知"], None),
+        (our_files, ["身份证明", "营业执照", "身份证", "法定代表人身份证明"], ["身份证明", "当事人身份证明"]),
+        (our_files, ["证据", "证据材料", "明细", "清单"], ["证据"]),
     ]
 
-    for records, keywords in required_rules:
-        picked = _pick(records=records, keywords=keywords, used=used)
+    for records, keywords, type_name_keywords in required_rules:
+        picked = _pick(records=records, keywords=keywords, used=used, type_name_keywords=type_name_keywords)
         if not picked:
             continue
-        used.add(picked)
-        selected.append(picked)
+        path, type_name = picked
+        used.add(path)
+        selected.append({"path": path, "type_name": type_name})
 
     for records in (our_files, non_party_files):
-        for _, _, _, path in records:
+        for _, type_name, _, path in records:
             if path in used:
                 continue
             used.add(path)
-            selected.append(path)
+            selected.append({"path": path, "type_name": type_name})
             if len(selected) >= 12:
                 return selected
 
@@ -1268,7 +1294,9 @@ def _run_guarantee(
     )
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=False, slow_mo=_BROWSER_SLOW_MO_MS)
+        # Docker/NAS 环境通常没有 XServer，缺少 DISPLAY 时自动走无头模式。
+        _headless = not bool(os.environ.get("DISPLAY"))
+        browser = pw.chromium.launch(headless=_headless, slow_mo=_BROWSER_SLOW_MO_MS)
         context = browser.new_context()
         page = context.new_page()
         run_success = False

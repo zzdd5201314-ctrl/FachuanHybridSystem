@@ -45,7 +45,18 @@ class CourtZxfwGuaranteeService:
     def apply_guarantee(self, case_data: dict[str, Any]) -> dict[str, Any]:
         self.page.goto(self.GUARANTEE_URL, timeout=60000, wait_until="domcontentloaded")
         self._random_wait(4, 6)
-        self._material_paths = [str(path) for path in (case_data.get("material_paths") or []) if str(path)]
+        # material_paths: list[{"path": str, "type_name": str}] 或兼容旧格式 list[str]
+        raw_paths = case_data.get("material_paths") or []
+        self._material_items: list[dict[str, str]] = []
+        for item in raw_paths:
+            if isinstance(item, dict):
+                p = str(item.get("path") or "")
+                if p:
+                    self._material_items.append({"path": p, "type_name": str(item.get("type_name") or "")})
+            else:
+                p = str(item)
+                if p:
+                    self._material_items.append({"path": p, "type_name": ""})
 
         insurance_company_name = str(case_data.get("insurance_company_name") or "").strip()
         consultant_code = str(case_data.get("consultant_code") or "").strip()
@@ -747,24 +758,83 @@ class CourtZxfwGuaranteeService:
 
     def _complete_g_three(self, case_data: dict[str, Any]) -> dict[str, Any]:
         result: dict[str, Any] = {"uploaded": 0, "next_clicked": None, "uploads": []}
-        file_paths = [str(p) for p in case_data.get("material_paths") or [] if str(p)]
-        if not file_paths:
+        # 兼容旧格式 list[str] 与新格式 list[{"path": str, "type_name": str}]
+        raw_paths = case_data.get("material_paths") or []
+        items: list[dict[str, str]] = []
+        for item in raw_paths:
+            if isinstance(item, dict):
+                p = str(item.get("path") or "")
+                if p:
+                    items.append({"path": p, "type_name": str(item.get("type_name") or "")})
+            else:
+                p = str(item)
+                if p:
+                    items.append({"path": p, "type_name": ""})
+        if not items:
             return result
 
         used: set[str] = set()
 
-        def _pick_path(keyword_groups: list[list[str]]) -> str | None:
+        def _pick_path(
+            keyword_groups: list[list[str]],
+            *,
+            type_name_groups: list[list[str]] | None = None,
+            exclude_type_names: list[str] | None = None,
+        ) -> str | None:
+            """从材料列表中选取文件，优先按 type_name 匹配（用户/系统明确分类）。
+
+            Args:
+                keyword_groups: 文件名关键词组（按优先级排序）。
+                type_name_groups: 当提供时，先仅用这些关键词匹配 type_name，
+                    再用 keyword_groups 匹配 filename。避免文件名歧义。
+                exclude_type_names: type_name 包含这些关键词的材料将被跳过。
+            """
+            # 第一轮：仅匹配 type_name（主信号优先）
+            if type_name_groups:
+                for keywords in type_name_groups:
+                    for entry in items:
+                        if entry["path"] in used:
+                            continue
+                        tn = entry["type_name"]
+                        if exclude_type_names and any(ex in tn for ex in exclude_type_names):
+                            continue
+                        if any(keyword in tn for keyword in keywords):
+                            return entry["path"]
+            # 第二轮：匹配 filename
             for keywords in keyword_groups:
-                for path in file_paths:
-                    if path in used:
+                for entry in items:
+                    if entry["path"] in used:
                         continue
-                    filename = path.rsplit("/", 1)[-1]
+                    tn = entry["type_name"]
+                    if exclude_type_names and any(ex in tn for ex in exclude_type_names):
+                        continue
+                    filename = entry["path"].rsplit("/", 1)[-1]
                     if any(keyword in filename for keyword in keywords):
-                        return path
-            for path in file_paths:
-                if path not in used:
-                    return path
+                        return entry["path"]
+            # 兜底
+            for entry in items:
+                if entry["path"] not in used:
+                    return entry["path"]
             return None
+
+        def _pick_evidence() -> list[str]:
+            """收集所有证据文件，优先按 type_name 匹配。"""
+            evidence: list[str] = []
+            # 第一轮：type_name 匹配
+            for entry in items:
+                if entry["path"] in used:
+                    continue
+                if any(kw in entry["type_name"] for kw in ["证据", "明细", "清单"]):
+                    evidence.append(entry["path"])
+            # 第二轮：filename 匹配
+            if not evidence:
+                for entry in items:
+                    if entry["path"] in used:
+                        continue
+                    filename = entry["path"].rsplit("/", 1)[-1]
+                    if any(kw in filename for kw in ["证据", "明细", "清单"]):
+                        evidence.append(entry["path"])
+            return evidence
 
         file_inputs = self.page.locator("input[type='file']")
         total_inputs = min(file_inputs.count(), 10)
@@ -792,11 +862,17 @@ class CourtZxfwGuaranteeService:
 
             chosen_files: list[str] = []
             if "保全申请" in label_text:
-                picked = _pick_path([["财产保全申请书", "保全申请书"], ["申请书"]])
+                picked = _pick_path(
+                    [["财产保全申请书", "保全申请书"], ["申请书"]],
+                    type_name_groups=[["保全申请", "保全", "保全申请书及保函"]],
+                )
                 if picked:
                     chosen_files = [picked]
             elif "起诉" in label_text:
-                picked = _pick_path([["起诉状", "起诉书"], ["起诉"]])
+                picked = _pick_path(
+                    [["起诉状", "起诉书"], ["起诉"]],
+                    type_name_groups=[["起诉状"]],
+                )
                 if picked:
                     chosen_files = [picked]
             elif "受理" in label_text or "立案" in label_text:
@@ -804,28 +880,34 @@ class CourtZxfwGuaranteeService:
                 if picked:
                     chosen_files = [picked]
             elif "案件证据" in label_text:
-                # 证据材料：收集所有可用的证据文件
-                evidence_files: list[str] = []
-                for path in file_paths:
-                    if path in used:
-                        continue
-                    filename = path.rsplit("/", 1)[-1]
-                    if any(kw in filename for kw in ["证据", "明细", "清单"]):
-                        evidence_files.append(path)
-                if not evidence_files:
-                    picked = _pick_path([["证据"], ["明细", "清单"]])
-                    if picked:
-                        evidence_files = [picked]
+                evidence_files = _pick_evidence()
                 if evidence_files:
                     chosen_files = evidence_files
             elif "申请人-" in label_text or "被申请人-" in label_text or "身份证明" in label_text:
                 if "申请人-" in label_text and "-法人" in label_text:
-                    applicant_license = _pick_path([["营业执照"]])
-                    applicant_legal_id = _pick_path([["法定代表人身份证明", "身份证明书", "法人身份证明", "身份证"]])
+                    # 法人：营业执照 + 法人身份证明，排除 type_name=委托材料 的文件
+                    applicant_license = _pick_path(
+                        [["营业执照"]],
+                        type_name_groups=[["营业执照", "身份证明"]],
+                        exclude_type_names=["委托材料", "委托手续", "授权委托"],
+                    )
+                    applicant_legal_id = _pick_path(
+                        [["法定代表人身份证明", "身份证明书", "法人身份证明", "身份证"]],
+                        type_name_groups=[["身份证明", "法定代表人"]],
+                        exclude_type_names=["委托材料", "委托手续", "授权委托"],
+                    )
                     chosen_files = [path for path in [applicant_license, applicant_legal_id] if path]
                 elif "被申请人-" in label_text and "-法人" in label_text:
-                    respondent_license = _pick_path([["营业执照"]])
-                    respondent_legal_id = _pick_path([["法定代表人身份证明", "身份证明书", "法人身份证明", "身份证"]])
+                    respondent_license = _pick_path(
+                        [["营业执照"]],
+                        type_name_groups=[["营业执照", "身份证明"]],
+                        exclude_type_names=["委托材料", "委托手续", "授权委托"],
+                    )
+                    respondent_legal_id = _pick_path(
+                        [["法定代表人身份证明", "身份证明书", "法人身份证明", "身份证"]],
+                        type_name_groups=[["身份证明", "法定代表人"]],
+                        exclude_type_names=["委托材料", "委托手续", "授权委托"],
+                    )
                     chosen_files = [path for path in [respondent_license, respondent_legal_id] if path]
                 elif "被申请人-" in label_text and "-自然人" in label_text:
                     respondent_name = ""
@@ -834,42 +916,38 @@ class CourtZxfwGuaranteeService:
                         respondent_name = str(match.group(1) or "").strip()
 
                     natural_identity = ""
-                    for path in file_paths:
-                        if path in used:
+                    for entry in items:
+                        if entry["path"] in used:
                             continue
-                        filename = path.rsplit("/", 1)[-1]
+                        filename = entry["path"].rsplit("/", 1)[-1]
                         if "法定代表人" in filename:
                             continue
                         if "身份证" not in filename and "身份证明" not in filename:
                             continue
                         if respondent_name and respondent_name not in filename:
                             continue
-                        natural_identity = path
+                        natural_identity = entry["path"]
                         break
 
                     if natural_identity:
                         chosen_files = [natural_identity]
                 else:
-                    picked = _pick_path([["身份证明", "身份证"], ["营业执照"], ["授权委托书", "所函"]])
+                    picked = _pick_path(
+                        [["身份证明", "身份证"], ["营业执照"], ["授权委托书", "所函"]],
+                        type_name_groups=[["身份证明", "当事人身份证明"]],
+                        exclude_type_names=["委托材料", "委托手续", "授权委托"],
+                    )
                     if picked:
                         chosen_files = [picked]
             elif "代理人" in label_text:
-                picked = _pick_path([["所函", "授权委托书", "律师证", "执业证"], ["身份证明", "身份证"]])
+                picked = _pick_path(
+                    [["所函", "授权委托书", "律师证", "执业证"], ["身份证明", "身份证"]],
+                    type_name_groups=[["委托材料", "委托手续", "授权委托", "所函", "律师"]],
+                )
                 if picked:
                     chosen_files = [picked]
             elif "证据" in label_text:
-                # 证据材料：收集所有可用的证据文件
-                evidence_files2: list[str] = []
-                for path in file_paths:
-                    if path in used:
-                        continue
-                    filename = path.rsplit("/", 1)[-1]
-                    if any(kw in filename for kw in ["证据", "明细", "清单"]):
-                        evidence_files2.append(path)
-                if not evidence_files2:
-                    picked = _pick_path([["证据"], ["明细", "清单"]])
-                    if picked:
-                        evidence_files2 = [picked]
+                evidence_files2 = _pick_evidence()
                 if evidence_files2:
                     chosen_files = evidence_files2
             elif "其他" in label_text:
@@ -908,15 +986,15 @@ class CourtZxfwGuaranteeService:
 
         complaint_path = next(
             (
-                path
-                for path in file_paths
+                entry["path"]
+                for entry in items
                 if (
-                    "起诉状" in path.rsplit("/", 1)[-1]
-                    or "起诉书" in path.rsplit("/", 1)[-1]
-                    or "起诉" in path.rsplit("/", 1)[-1]
+                    "起诉状" in entry["path"].rsplit("/", 1)[-1]
+                    or "起诉书" in entry["path"].rsplit("/", 1)[-1]
+                    or "起诉" in entry["path"].rsplit("/", 1)[-1]
                 )
             ),
-            file_paths[0],
+            items[0]["path"] if items else "",
         )
 
         for _ in range(12):
@@ -1115,10 +1193,10 @@ class CourtZxfwGuaranteeService:
     def _retry_identity_material_upload_in_g_three(self) -> bool:
         def _pick_path(keyword_groups: list[list[str]]) -> str | None:
             for keywords in keyword_groups:
-                for path in self._material_paths:
-                    filename = path.rsplit("/", 1)[-1]
+                for entry in self._material_items:
+                    filename = entry["path"].rsplit("/", 1)[-1]
                     if any(keyword in filename for keyword in keywords):
-                        return path
+                        return entry["path"]
             return None
 
         legal_identity = _pick_path([["法定代表人身份证明", "身份证明书", "身份证明", "身份证"]])
@@ -1177,17 +1255,21 @@ class CourtZxfwGuaranteeService:
 
     def _retry_evidence_material_upload_in_g_three(self) -> bool:
         """重试上传证据材料到 gThree 页面的证据槽位。"""
-        # 收集所有可用的证据文件
+        # 收集所有可用的证据文件（优先按 type_name 匹配）
         evidence_files: list[str] = []
-        for path in self._material_paths:
-            filename = path.rsplit("/", 1)[-1]
-            if any(kw in filename for kw in ["证据", "明细", "清单"]):
-                evidence_files.append(path)
+        for entry in self._material_items:
+            if any(kw in entry["type_name"] for kw in ["证据", "明细", "清单"]):
+                evidence_files.append(entry["path"])
+        if not evidence_files:
+            for entry in self._material_items:
+                filename = entry["path"].rsplit("/", 1)[-1]
+                if any(kw in filename for kw in ["证据", "明细", "清单"]):
+                    evidence_files.append(entry["path"])
 
         if not evidence_files:
             # fallback: 尝试所有未使用的材料
-            for path in self._material_paths:
-                evidence_files.append(path)
+            for entry in self._material_items:
+                evidence_files.append(entry["path"])
                 if len(evidence_files) >= 3:
                     break
 
