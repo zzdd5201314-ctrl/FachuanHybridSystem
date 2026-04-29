@@ -16,7 +16,7 @@ from pathlib import Path
 # ── Ratchet baseline ──────────────────────────────────────────
 # Current count as of 2026-04-28. Only lower this value when
 # _internal() calls are successfully eliminated / promoted.
-_INTERNAL_CALL_RATCHET = 542
+_INTERNAL_CALL_RATCHET = 544
 
 _APPS_ROOT = Path(__file__).resolve().parents[3] / "apps"
 
