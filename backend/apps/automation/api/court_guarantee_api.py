@@ -900,7 +900,12 @@ def _resolve_insurance_company_defaults(*, quote_context: dict[str, Any] | None)
     return _DEFAULT_INSURANCE_COMPANY, _GUARANTEE_INSURANCE_COMPANY_OPTIONS
 
 
-def _build_guarantee_material_paths(case: Any) -> list[str]:
+def _build_guarantee_material_paths(case: Any) -> list[dict[str, str]]:
+    """构建担保立案材料列表，返回 ``[{"path": ..., "type_name": ...}, ...]``。
+
+    type_name 来自 CaseMaterial.type_name（用户/系统明确分类），供 Playwright 层
+    做精确匹配，避免文件名歧义（如"营业执照"出现在"委托材料"类型中）。
+    """
     from django.db.models import Q
 
     from apps.cases.models import CaseMaterial, CaseMaterialCategory, CaseMaterialSide
@@ -935,13 +940,16 @@ def _build_guarantee_material_paths(case: Any) -> list[str]:
         keywords: list[str],
         used: set[str],
         type_name_keywords: list[str] | None = None,
-    ) -> str | None:
+    ) -> tuple[str, str] | None:
         """从记录中选取匹配关键词的文件，优先匹配 type_name（用户/系统明确分类）。
 
         Args:
             type_name_keywords: 当提供时，先仅用这些关键词匹配 type_name，
                 再用 keywords 匹配 type_name+filename 联合。
                 这样可以避免文件名歧义（如"营业执照"出现在"委托材料"类型中）。
+
+        Returns:
+            (path, type_name) 或 None。
         """
         # 第一轮：仅匹配 type_name（主信号优先）
         primary_keywords = type_name_keywords or keywords
@@ -949,14 +957,14 @@ def _build_guarantee_material_paths(case: Any) -> list[str]:
             if path in used:
                 continue
             if any(keyword in type_name for keyword in primary_keywords):
-                return path
+                return path, type_name
         # 第二轮：匹配 type_name + filename 联合
         for _, type_name, filename, path in records:
             if path in used:
                 continue
             haystack = f"{type_name} {filename}"
             if any(keyword in haystack for keyword in keywords):
-                return path
+                return path, type_name
         return None
 
     our_party_qs = CaseMaterial.objects.filter(case=case, category=CaseMaterialCategory.PARTY).filter(
@@ -967,7 +975,7 @@ def _build_guarantee_material_paths(case: Any) -> list[str]:
     our_files = _collect(our_party_qs)
     non_party_files = _collect(non_party_qs)
 
-    selected: list[str] = []
+    selected: list[dict[str, str]] = []
     used: set[str] = set()
 
     required_rules: list[tuple[list[tuple[int, str, str, str]], list[str], list[str] | None]] = [
@@ -983,15 +991,16 @@ def _build_guarantee_material_paths(case: Any) -> list[str]:
         picked = _pick(records=records, keywords=keywords, used=used, type_name_keywords=type_name_keywords)
         if not picked:
             continue
-        used.add(picked)
-        selected.append(picked)
+        path, type_name = picked
+        used.add(path)
+        selected.append({"path": path, "type_name": type_name})
 
     for records in (our_files, non_party_files):
-        for _, _, _, path in records:
+        for _, type_name, _, path in records:
             if path in used:
                 continue
             used.add(path)
-            selected.append(path)
+            selected.append({"path": path, "type_name": type_name})
             if len(selected) >= 12:
                 return selected
 
