@@ -18,12 +18,16 @@ from apps.organization.services.password_reset_service import (
 class PasswordResetServiceTest(TestCase):
     """密码重置服务测试"""
 
+    # 标准测试手机号 / 标准测试密码
+    _TEST_PHONE = "13800000000"  # nosec: standard test phone
+    _TEST_PASSWORD = "TestOldP@ss1"  # nosec: test fixture
+
     def setUp(self):
         self.user = Lawyer.objects.create_user(
             username="测试律师",
-            phone="13800138000",
+            phone=self._TEST_PHONE,
             email="test@example.com",
-            password="oldpassword123",
+            password=self._TEST_PASSWORD,
         )
 
     @patch("apps.organization.services.password_reset_service.EmailService.send_password_reset_email")
@@ -71,13 +75,13 @@ class PasswordResetServiceTest(TestCase):
 
         mock_send_notification.return_value = True
 
-        success, message = PasswordResetService.reset_password(uid, token, "newpassword123")
+        success, message = PasswordResetService.reset_password(uid, token, "TestNewP@ss1")
 
         self.assertTrue(success)
 
         # 验证密码已更新
         self.user.refresh_from_db()
-        self.assertTrue(self.user.check_password("newpassword123"))
+        self.assertTrue(self.user.check_password("TestNewP@ss1"))
 
     def test_token_invalid_after_password_change(self):
         """测试密码修改后 token 失效"""
@@ -85,7 +89,7 @@ class PasswordResetServiceTest(TestCase):
         token = password_reset_token_generator.make_token(self.user)
 
         # 先修改密码
-        self.user.set_password("anotherpassword")
+        self.user.set_password("TestOtherP@ss1")
         self.user.save()
 
         # 验证旧 token 应该失效
