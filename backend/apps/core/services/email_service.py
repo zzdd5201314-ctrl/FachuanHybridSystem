@@ -89,7 +89,7 @@ class EmailService:
             logger.info(f"密码重置邮件已发送至 {to_email[:3]}***{to_email[-4:]}")
             return True
 
-        except Exception as e:
+        except (ConnectionError, OSError, RuntimeError) as e:
             logger.error(f"发送邮件失败: {e}", exc_info=True)
             return False
 
@@ -142,6 +142,6 @@ class EmailService:
             logger.info(f"密码修改通知已发送至 {to_email[:3]}***{to_email[-4:]}")
             return True
 
-        except Exception as e:
+        except (ConnectionError, OSError, RuntimeError) as e:
             logger.error(f"发送通知邮件失败: {e}", exc_info=True)
             return False

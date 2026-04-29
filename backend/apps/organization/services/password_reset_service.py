@@ -91,7 +91,7 @@ class PasswordResetService:
             else:
                 return False, "邮件发送失败，请稍后再试或联系管理员"
 
-        except Exception as e:
+        except (ValueError, TypeError, Lawyer.DoesNotExist) as e:
             logger.error(f"请求密码重置失败: {e}", exc_info=True)
             return False, "系统错误，请稍后再试"
 
@@ -121,7 +121,7 @@ class PasswordResetService:
 
             return True, user, "Token 有效"
 
-        except Exception as e:
+        except (ValueError, TypeError, UnicodeDecodeError, Lawyer.DoesNotExist) as e:
             logger.error(f"验证 token 失败: {e}", exc_info=True)
             return False, None, "无效的重置链接"
 
@@ -159,7 +159,7 @@ class PasswordResetService:
             logger.info(f"用户 {user.pk} 密码重置成功")
             return True, "密码重置成功"
 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"重置密码失败: {e}", exc_info=True)
             return False, "系统错误，请稍后再试"
 
