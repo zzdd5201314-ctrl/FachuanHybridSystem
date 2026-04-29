@@ -77,4 +77,4 @@ def test_business_layer_has_no_django_q_imports() -> None:
             "Use ``from apps.core.tasking import submit_task`` instead.\n"
             f"Found {len(violations)} violation(s):\n" + "\n".join(lines)
         )
-        assert False, msg
+        raise AssertionError(msg)
