@@ -217,6 +217,10 @@
     grid-template-columns: repeat(2, 1fr);
 }
 
+.info-grid.two-columns > .info-card {
+    margin-bottom: 0 !important;
+}
+
 /* 文档生成页：匹配模板卡片占 3/4，文件夹绑定占 1/4 */
 .info-grid.two-columns.documents-layout-grid {
     grid-template-columns: 3fr 1fr;
@@ -228,6 +232,11 @@
     border-radius: 8px;
     padding: 20px;
     transition: box-shadow 0.2s ease;
+    margin-bottom: 20px;
+}
+
+.info-card:last-child {
+    margin-bottom: 0;
 }
 
 .info-card:hover {

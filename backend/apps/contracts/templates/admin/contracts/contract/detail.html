@@ -3,7 +3,7 @@
 
 {% block extrahead %}
 {{ block.super }}
-<link rel="stylesheet" type="text/css" href="{% static 'contracts/css/contract_detail.css' %}?v=20260429b">
+<link rel="stylesheet" type="text/css" href="{% static 'contracts/css/contract_detail.css' %}?v=20260430a">
 {% endblock %}
 
 {% block breadcrumbs %}
@@ -79,12 +79,17 @@
         </nav>
 
         <div class="tab-content">
-            <!-- 轻量 Tab: 直接 include -->
-            {% include "admin/contracts/contract/partials/basic_info.html" %}
-            {% include "admin/contracts/contract/partials/finance.html" %}
-            {% include "admin/contracts/contract/partials/filing.html" %}
+            <div x-show="activeTab === 'basic'" x-transition>
+                {% include "admin/contracts/contract/partials/basic_info.html" %}
+            </div>
+            <div x-show="activeTab === 'finance'" x-transition>
+                {% include "admin/contracts/contract/partials/finance.html" %}
+            </div>
+            <div x-show="activeTab === 'filing'" x-transition>
+                {% include "admin/contracts/contract/partials/filing.html" %}
+            </div>
 
-            <!-- 重量 Tab: 懒加载 -->
+            <!-- 懒加载 Tab -->
             <div x-show="activeTab === 'documents'" x-cloak>
                 <div x-show="!tabsLoaded.documents" style="text-align: center; padding: 40px;">
                     <span class="spinner"></span> {% trans "加载中..." %}
