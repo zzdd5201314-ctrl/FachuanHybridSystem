@@ -190,7 +190,8 @@
     background: var(--unfold-primary, #3b82f6);
 }
 
-.tab-content {
+/* 标签页内容区 - 必须有内边距 */
+.contract-detail-page .tab-content {
     padding: 24px;
 }
 
@@ -198,29 +199,23 @@
     display: none !important;
 }
 
-/* 信息网格 */
-.info-grid {
+/* 信息网格 - 必须有网格间距 */
+.contract-detail-page .info-grid {
     display: grid;
     gap: 20px;
 }
 
-.info-grid.two-columns {
+.contract-detail-page .info-grid.two-columns {
     grid-template-columns: repeat(2, 1fr);
     align-items: stretch;
 }
 
-.info-grid.two-columns > .info-card {
+.contract-detail-page .info-grid.two-columns > .info-card {
     margin-bottom: 0 !important;
 }
 
-@media (max-width: 768px) {
-    .info-grid.two-columns {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* 信息卡片 */
-.info-card {
+/* 信息卡片 - 必须有内边距 */
+.contract-detail-page .info-card {
     background: #fafafa;
     border-radius: 8px;
     padding: 20px;
@@ -228,7 +223,7 @@
     margin-bottom: 20px;
 }
 
-.info-card:last-child {
+.contract-detail-page .info-card:last-child {
     margin-bottom: 0;
 }
 
