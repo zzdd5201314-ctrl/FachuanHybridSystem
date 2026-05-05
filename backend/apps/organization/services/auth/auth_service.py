@@ -77,6 +77,7 @@ class AuthService:
         user = Lawyer.objects.create_user(
             username=username,
             password=password,
+            email=None,
             real_name=real_name,
             phone=phone,
             is_superuser=should_grant_admin,
@@ -97,6 +98,7 @@ class AuthService:
         user = Lawyer.objects.create_user(
             username=AUTO_REGISTER_BOOTSTRAP_USERNAME,
             password=AUTO_REGISTER_BOOTSTRAP_PASSWORD,
+            email=None,
             real_name=AUTO_REGISTER_BOOTSTRAP_USERNAME,
             is_superuser=True,
             is_staff=True,
