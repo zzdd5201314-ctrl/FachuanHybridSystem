@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Trash2, FileWarning, Link2, AlertTriangle,
-  CheckCircle2, XCircle, Clock,
+  CheckCircle2, XCircle, Clock, Download, Pencil, FolderDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { PATHS, generatePath } from '@/routes/paths'
 import { formatDate } from '@/lib/date'
+
+import { getAccessToken } from '@/lib/token'
 
 import { useCourtSms } from '../hooks/use-court-sms'
 import { courtSmsApi } from '../api/court-sms'
@@ -113,6 +115,8 @@ export function CourtSmsDetail({ smsId }: CourtSmsDetailProps) {
   const queryClient = useQueryClient()
   const { data: sms, isLoading, error } = useCourtSms(smsId)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [renamingIndex, setRenamingIndex] = useState<number | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   const handleBack = useCallback(() => navigate(PATHS.ADMIN_TOOLS_COURT_SMS), [navigate])
 
@@ -126,6 +130,59 @@ export function CourtSmsDetail({ smsId }: CourtSmsDetailProps) {
       toast.error('删除失败')
     }
   }, [smsId, navigate, queryClient])
+
+  const handleDownload = useCallback(async (refIndex: number) => {
+    try {
+      const url = courtSmsApi.downloadDocumentUrl(smsId, refIndex)
+      const token = getAccessToken()
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!res.ok) throw new Error(`下载失败 (${res.status})`)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = sms?.documents[refIndex]?.name || 'document'
+      a.click()
+      URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '下载失败')
+    }
+  }, [smsId, sms])
+
+  const handleDownloadAll = useCallback(async () => {
+    try {
+      const url = courtSmsApi.downloadAllUrl(smsId)
+      const token = getAccessToken()
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!res.ok) throw new Error(`下载失败 (${res.status})`)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = `courtsms_${smsId}_documents.zip`
+      a.click()
+      URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '批量下载失败')
+    }
+  }, [smsId])
+
+  const handleRename = useCallback(async (refIndex: number) => {
+    if (!renameValue.trim()) return
+    try {
+      const result = await courtSmsApi.renameDocument(smsId, refIndex, renameValue.trim())
+      if (result.success) {
+        toast.success('重命名成功')
+        setRenamingIndex(null)
+        setRenameValue('')
+        queryClient.invalidateQueries({ queryKey: ['court-sms', smsId] })
+      } else {
+        toast.error(result.error || '重命名失败')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '重命名失败')
+    }
+  }, [smsId, renameValue, queryClient])
 
   if (isLoading) return <DetailSkeleton />
 
@@ -220,19 +277,45 @@ export function CourtSmsDetail({ smsId }: CourtSmsDetailProps) {
 
       {/* ── 文书 ── */}
       {sms.documents.length > 0 && (
-        <DetailCard title="关联文书">
+        <DetailCard title="关联文书" extra={
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleDownloadAll}>
+            <FolderDown className="mr-1 size-3.5" />全部下载
+          </Button>
+        }>
           <div className="flex flex-col gap-2">
-            {sms.documents.map((doc) => (
+            {sms.documents.map((doc, idx) => (
               <div key={doc.id} className="flex items-center gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-3 text-[13px]">
                 <Link2 className="text-muted-foreground size-3.5 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <span className="font-medium truncate block">{doc.name}</span>
-                  {doc.source && <span className="text-muted-foreground text-xs">{doc.source}</span>}
+                  {renamingIndex === idx ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleRename(idx); if (e.key === 'Escape') setRenamingIndex(null) }}
+                        className="flex-1 rounded border border-input bg-background px-2 py-1 text-xs"
+                        autoFocus
+                      />
+                      <Button size="sm" className="h-6 px-2 text-xs" onClick={() => handleRename(idx)}>确定</Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setRenamingIndex(null)}>取消</Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-medium truncate block">{doc.name}</span>
+                      {doc.source && <span className="text-muted-foreground text-xs">{doc.source}</span>}
+                    </>
+                  )}
                 </div>
-                {doc.download_url && (
-                  <a href={doc.download_url} target="_blank" rel="noopener noreferrer" className="text-primary text-xs hover:underline shrink-0">
-                    下载
-                  </a>
+                {renamingIndex !== idx && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => { setRenamingIndex(idx); setRenameValue(doc.name.replace(/\.[^.]+$/, '')) }}>
+                      <Pencil className="mr-1 size-3" />重命名
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => handleDownload(idx)}>
+                      <Download className="mr-1 size-3" />下载
+                    </Button>
+                  </div>
                 )}
               </div>
             ))}

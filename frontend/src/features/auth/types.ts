@@ -63,7 +63,7 @@ export interface RegisterRequest {
  */
 export interface RegisterResponse {
   success: boolean
-  user: User
+  user?: User
   requires_approval: boolean
   message: string
 }

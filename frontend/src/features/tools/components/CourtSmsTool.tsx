@@ -1,19 +1,23 @@
 import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router'
 import { formatDate } from '@/lib/date'
-import {
-  Search, Plus, Eye, Link2, RotateCcw, LinkIcon,
-  CheckCircle2, XCircle, Clock, AlertTriangle,
-} from 'lucide-react'
+import { Search, Plus, Trash2, Loader2, LinkIcon } from 'lucide-react'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -21,7 +25,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { useCourtSmsList } from '../hooks/use-court-sms'
-import { courtSmsApi, type CourtSMSDetail } from '../api/court-sms'
+import { courtSmsApi } from '../api/court-sms'
 import { caseApi } from '@/features/cases/api'
 import { generatePath } from '@/routes/paths'
 
@@ -48,43 +52,6 @@ const STATUS_FILTERS = ['all', 'completed', 'pending_manual', 'download_failed',
 // ============================================================================
 // Sub-components
 // ============================================================================
-
-/** 通知结果渲染 */
-function NotificationResults({ results }: { results: Record<string, unknown> | null }) {
-  if (!results || Object.keys(results).length === 0) {
-    return <span className="text-muted-foreground text-xs">无通知记录</span>
-  }
-
-  return (
-    <div className="space-y-2">
-      {Object.entries(results).map(([platform, result]) => {
-        const r = result as Record<string, unknown>
-        const success = Boolean(r.success ?? r.status === 'sent')
-        const sentAt = (r.sent_at ?? r.timestamp) as string | undefined
-        const error = (r.error ?? r.error_message) as string | undefined
-        const chatId = (r.chat_id ?? r.channel) as string | undefined
-
-        return (
-          <div key={platform} className="flex items-start gap-2 rounded-md border p-2.5 text-sm">
-            {success ? (
-              <CheckCircle2 className="size-4 text-green-500 mt-0.5 shrink-0" />
-            ) : error ? (
-              <XCircle className="size-4 text-red-500 mt-0.5 shrink-0" />
-            ) : (
-              <Clock className="size-4 text-muted-foreground mt-0.5 shrink-0" />
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="font-medium text-xs">{platform}</div>
-              {chatId && <div className="text-muted-foreground text-xs">群组: {chatId}</div>}
-              {sentAt && <div className="text-muted-foreground text-xs">时间: {formatDate(sentAt)}</div>}
-              {error && <div className="text-destructive text-xs mt-0.5">{error}</div>}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 /** 案件搜索与关联对话框 */
 function AssignCaseDialog({
@@ -196,6 +163,8 @@ function AssignCaseDialog({
 // ============================================================================
 
 export function CourtSmsTool() {
+  const navigate = useNavigate()
+
   // Filter state
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -209,10 +178,12 @@ export function CourtSmsTool() {
   const [submitReceivedAt, setSubmitReceivedAt] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  // Detail dialog state
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [detail, setDetail] = useState<CourtSMSDetail | null>(null)
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [batchLoading, setBatchLoading] = useState(false)
+
+  // Delete dialog state
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
   // Assign case dialog state
   const [assignOpen, setAssignOpen] = useState(false)
@@ -235,6 +206,54 @@ export function CourtSmsTool() {
       )
     : items
 
+  // Selection handlers
+  const toggleRow = useCallback((id: number, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleAll = useCallback(() => {
+    const allIds = filtered.map((s) => s.id)
+    const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id))
+    setSelectedIds(allSelected ? new Set() : new Set(allIds))
+  }, [filtered, selectedIds])
+
+  // Delete handlers
+  const handleSingleDelete = useCallback(async () => {
+    if (!deleteTarget) return
+    try {
+      await courtSmsApi.delete(deleteTarget)
+      toast.success('短信已删除')
+      queryClient.invalidateQueries({ queryKey: ['court-sms'] })
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(deleteTarget); return next })
+    } catch {
+      toast.error('删除失败')
+    } finally {
+      setDeleteTarget(null)
+    }
+  }, [deleteTarget, queryClient])
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    setBatchLoading(true)
+    try {
+      const ids = Array.from(selectedIds)
+      await courtSmsApi.deleteBatch(ids)
+      toast.success(`已删除 ${ids.length} 条短信`)
+      setSelectedIds(new Set())
+      queryClient.invalidateQueries({ queryKey: ['court-sms'] })
+    } catch {
+      toast.error('批量删除失败')
+    } finally {
+      setBatchLoading(false)
+    }
+  }, [selectedIds, queryClient])
+
   const handleSubmit = async () => {
     if (!submitContent.trim()) return
     setSubmitting(true)
@@ -254,30 +273,6 @@ export function CourtSmsTool() {
     }
   }
 
-  const handleView = async (id: number) => {
-    setDetailOpen(true)
-    setDetailLoading(true)
-    setDetail(null)
-    try {
-      const data = await courtSmsApi.get(id)
-      setDetail(data)
-    } catch (e) {
-      console.error('Fetch detail failed:', e)
-    } finally {
-      setDetailLoading(false)
-    }
-  }
-
-  const handleRetry = async (id: number) => {
-    if (!window.confirm('确定重新处理此短信？')) return
-    try {
-      await courtSmsApi.retry(id)
-      queryClient.invalidateQueries({ queryKey: ['court-sms'] })
-    } catch (e) {
-      console.error('Retry failed:', e)
-    }
-  }
-
   const handleOpenAssign = useCallback((id: number, content: string) => {
     setAssignSmsId(id)
     setAssignSmsContent(content)
@@ -286,11 +281,9 @@ export function CourtSmsTool() {
 
   const handleAssignSuccess = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['court-sms'] })
-    // Also refresh detail if open
-    if (detail && assignSmsId === detail.id) {
-      courtSmsApi.get(detail.id).then(setDetail).catch(console.error)
-    }
-  }, [queryClient, detail, assignSmsId])
+  }, [queryClient])
+
+  const colCount = 7 // checkbox + ID + 状态 + 内容 + 关联案件 + 文书 + 收到时间 + 删除
 
   return (
     <div className="space-y-6">
@@ -384,33 +377,59 @@ export function CourtSmsTool() {
         ))}
       </div>
 
+      {/* Batch action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-4 py-2">
+          <span className="text-sm text-muted-foreground">
+            已选 <span className="font-medium text-foreground">{selectedIds.size}</span> 项
+          </span>
+          <div className="flex-1" />
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            disabled={batchLoading}
+            onClick={handleBatchDelete}
+          >
+            {batchLoading ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Trash2 className="mr-1 size-3" />}
+            删除选中
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox
+                  checked={filtered.length > 0 && filtered.every((s) => selectedIds.has(s.id))}
+                  onCheckedChange={toggleAll}
+                  aria-label="全选"
+                />
+              </TableHead>
               <TableHead className="w-[60px]">ID</TableHead>
               <TableHead className="w-[90px]">状态</TableHead>
-              <TableHead className="w-[90px]">类型</TableHead>
               <TableHead>短信内容</TableHead>
               <TableHead className="w-[160px]">关联案件</TableHead>
               <TableHead className="w-[60px]">文书</TableHead>
               <TableHead className="w-[120px]">收到时间</TableHead>
-              <TableHead className="w-[100px]">操作</TableHead>
+              <TableHead className="w-[40px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 8 }).map((_, j) => (
+                  {Array.from({ length: colCount }).map((_, j) => (
                     <TableCell key={j}><div className="bg-muted h-4 w-20 animate-pulse rounded" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-sm">
+                <TableCell colSpan={colCount} className="h-32 text-center text-muted-foreground text-sm">
                   没有短信记录
                 </TableCell>
               </TableRow>
@@ -420,14 +439,22 @@ export function CourtSmsTool() {
 
               return (
                 <TableRow key={sms.id}>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(sms.id)}
+                      onCheckedChange={() => toggleRow(sms.id)}
+                      aria-label={`选择短信 #${sms.id}`}
+                    />
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{sms.id}</TableCell>
                   <TableCell>
                     <Badge variant={variant} className="text-xs">{statusLabel}</Badge>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {sms.sms_type ? (SMS_TYPE_LABELS[sms.sms_type] ?? sms.sms_type) : '-'}
-                  </TableCell>
-                  <TableCell className="text-sm max-w-[400px] truncate" title={sms.content}>
+                  <TableCell
+                    className="text-sm max-w-[400px] truncate cursor-pointer hover:text-primary"
+                    title={sms.content}
+                    onClick={() => navigate(generatePath.courtSmsDetail(sms.id))}
+                  >
                     {sms.content}
                   </TableCell>
                   <TableCell className="text-sm truncate max-w-[160px]" title={sms.case_name ?? undefined}>
@@ -437,7 +464,7 @@ export function CourtSmsTool() {
                           variant="ghost"
                           size="sm"
                           className="h-6 px-1.5 text-xs text-primary"
-                          onClick={() => handleOpenAssign(sms.id, sms.content)}
+                          onClick={(e) => { e.stopPropagation(); handleOpenAssign(sms.id, sms.content) }}
                         >
                           <LinkIcon className="size-3 mr-0.5" />手动关联
                         </Button>
@@ -450,37 +477,15 @@ export function CourtSmsTool() {
                   <TableCell className="text-muted-foreground text-sm">
                     {formatDate(sms.received_at)}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => handleView(sms.id)}
-                      >
-                        <Eye className="size-3 mr-0.5" />查看
-                      </Button>
-                      {sms.status === 'pending_manual' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => handleOpenAssign(sms.id, sms.content)}
-                        >
-                          <LinkIcon className="size-3" />
-                        </Button>
-                      )}
-                      {(sms.status === 'failed' || sms.status === 'download_failed') && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => handleRetry(sms.id)}
-                        >
-                          <RotateCcw className="size-3" />
-                        </Button>
-                      )}
-                    </div>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="size-7 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteTarget(sms.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               )
@@ -529,186 +534,19 @@ export function CourtSmsTool() {
         </DialogContent>
       </Dialog>
 
-      {/* Detail Dialog */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>短信详情 #{detail?.id}</DialogTitle>
-          </DialogHeader>
-          {detailLoading ? (
-            <div className="space-y-3 py-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-muted h-4 w-full animate-pulse rounded" />
-              ))}
-            </div>
-          ) : detail && (
-            <div className="space-y-4">
-              {/* Status + Type badges */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <Badge variant={STATUS_BADGE_VARIANT[detail.status] ?? 'outline'} className="text-xs">
-                  {STATUS_LABELS[detail.status] ?? detail.status}
-                </Badge>
-                {detail.sms_type && (
-                  <Badge variant="outline" className="text-xs">
-                    {SMS_TYPE_LABELS[detail.sms_type] ?? detail.sms_type}
-                  </Badge>
-                )}
-                {detail.status === 'pending_manual' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto h-7 text-xs"
-                    onClick={() => {
-                      setDetailOpen(false)
-                      handleOpenAssign(detail.id, detail.content)
-                    }}
-                  >
-                    <LinkIcon className="size-3 mr-1" />关联案件
-                  </Button>
-                )}
-              </div>
-
-              {/* SMS Content */}
-              <div className="rounded-md bg-muted p-4">
-                <div className="text-xs text-muted-foreground mb-1">短信内容</div>
-                <div className="text-sm whitespace-pre-wrap">{detail.content}</div>
-              </div>
-
-              {/* Case info */}
-              {detail.case && (
-                <div className="rounded-md bg-muted p-4">
-                  <div className="text-xs text-muted-foreground mb-1">关联案件</div>
-                  <a
-                    href={generatePath.caseDetail(String(detail.case.id))}
-                    className="text-sm font-medium text-primary hover:underline"
-                  >
-                    {detail.case.name}
-                  </a>
-                </div>
-              )}
-
-              {/* Case numbers */}
-              {detail.case_numbers.length > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1.5">案号</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {detail.case_numbers.map((cn, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{cn}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Party names */}
-              {detail.party_names.length > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1.5">当事人</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {detail.party_names.map((pn, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{pn}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Documents */}
-              {detail.documents.length > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1.5">文书</div>
-                  <div className="space-y-1.5">
-                    {detail.documents.map((doc) => (
-                      <div key={doc.id} className="flex items-center gap-2 text-sm bg-muted rounded-md px-3 py-2">
-                        <Link2 className="size-3.5 text-muted-foreground shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <span className="truncate block">{doc.name}</span>
-                          {doc.source && (
-                            <span className="text-muted-foreground text-xs">{doc.source}</span>
-                          )}
-                        </div>
-                        {doc.download_url && (
-                          <a
-                            href={doc.download_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary text-xs hover:underline shrink-0"
-                          >
-                            下载
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Download links */}
-              {detail.download_links.length > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1.5">下载链接</div>
-                  <div className="space-y-1">
-                    {detail.download_links.map((url, i) => (
-                      <a
-                        key={i}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block text-xs text-primary hover:underline truncate"
-                      >
-                        {url}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Error message */}
-              {detail.error_message && (
-                <div className="rounded-md bg-destructive/10 p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <AlertTriangle className="size-3.5 text-destructive" />
-                    <span className="text-xs text-destructive font-medium">错误信息</span>
-                  </div>
-                  <div className="text-xs text-destructive">{detail.error_message}</div>
-                </div>
-              )}
-
-              {/* Notification results */}
-              {(detail.notification_results || detail.feishu_sent_at) && (
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1.5">通知状态</div>
-                  {detail.notification_results ? (
-                    <NotificationResults results={detail.notification_results} />
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm">
-                      {detail.feishu_sent_at ? (
-                        <>
-                          <CheckCircle2 className="size-4 text-green-500" />
-                          <span>飞书已通知 {formatDate(detail.feishu_sent_at)}</span>
-                        </>
-                      ) : detail.feishu_error ? (
-                        <>
-                          <XCircle className="size-4 text-red-500" />
-                          <span className="text-destructive">飞书通知失败: {detail.feishu_error}</span>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">未通知</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Timestamps */}
-              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t">
-                <div>收到时间: {formatDate(detail.received_at)}</div>
-                <div>创建时间: {formatDate(detail.created_at)}</div>
-                {detail.updated_at && <div>更新时间: {formatDate(detail.updated_at)}</div>}
-                {detail.retry_count > 0 && <div>重试次数: {detail.retry_count}</div>}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Single Delete Dialog */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除短信</AlertDialogTitle>
+            <AlertDialogDescription>删除后无法恢复。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSingleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">确认删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Assign Case Dialog */}
       <AssignCaseDialog

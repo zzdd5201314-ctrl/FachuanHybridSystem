@@ -65,11 +65,15 @@ class LawyerService:
     # ---- Mutation 代理 ----
 
     def create_lawyer(
-        self, data: LawyerCreateDTO, user: Lawyer | None, license_pdf: UploadedFile | None = None
+        self,
+        data: LawyerCreateDTO,
+        user: Lawyer | None,
+        license_pdf: UploadedFile | None = None,
+        avatar: UploadedFile | None = None,
     ) -> Lawyer:
         if user is None:
             raise AuthenticationError(message=_("请先登录"), code="AUTHENTICATION_REQUIRED")
-        return self._mutation.create_lawyer(data=data, user=user, license_pdf=license_pdf)
+        return self._mutation.create_lawyer(data=data, user=user, license_pdf=license_pdf, avatar=avatar)
 
     def update_lawyer(
         self,
@@ -77,12 +81,13 @@ class LawyerService:
         data: LawyerUpdateDTO,
         user: Lawyer | None,
         license_pdf: UploadedFile | None = None,
+        avatar: UploadedFile | None = None,
     ) -> Lawyer:
         lawyer = self.get_lawyer(lawyer_id, user)
         # get_lawyer 对 user=None 抛 AuthenticationError，此处 user 必不为 None
         if user is None:  # pragma: no cover
             raise AuthenticationError(message=_("请先登录"), code="AUTHENTICATION_REQUIRED")
-        return self._mutation.update_lawyer(lawyer=lawyer, data=data, user=user, license_pdf=license_pdf)
+        return self._mutation.update_lawyer(lawyer=lawyer, data=data, user=user, license_pdf=license_pdf, avatar=avatar)
 
     def delete_lawyer(self, lawyer_id: int, user: Lawyer | None) -> None:
         lawyer = self.get_lawyer(lawyer_id, user)

@@ -38,7 +38,7 @@ export function FolderScanPanel({ contractId }: { contractId: number }) {
 
   const toggleCandidate = (idx: number) => {
     const src = status?.candidates ?? []
-    const list = candidates.length > 0 ? candidates : [...src]
+    const list = candidates.length > 0 ? [...candidates] : [...src]
     list[idx] = { ...list[idx], selected: !list[idx].selected }
     setCandidates(list)
   }

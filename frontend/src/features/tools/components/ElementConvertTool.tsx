@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Upload, FileText, X, Download, Loader2, Check, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { api } from '@/lib/api'
+import { HTTPError } from 'ky'
 
 interface MbidItem {
   mbid: string
@@ -50,6 +51,21 @@ export function ElementConvertTool() {
   })
 
   const categories: MbidCategory[] = mbidData?.categories ?? []
+
+  // Auto-select MBID when filename matches an option name
+  useEffect(() => {
+    if (!selectedFile || categories.length === 0) return
+    const fileName = selectedFile.name.replace(/\.[^.]+$/, '') // strip extension
+    for (const cat of categories) {
+      for (const item of cat.items) {
+        if (fileName.includes(item.name)) {
+          setSelectedMbid(item.mbid)
+          return
+        }
+      }
+    }
+  }, [selectedFile, categories])
+
   const step1Done = !!selectedFile
   const step2Done = !!selectedFile && !!selectedMbid
   const currentStep = step2Done ? 3 : step1Done ? 2 : 1
@@ -99,7 +115,23 @@ export function ElementConvertTool() {
       URL.revokeObjectURL(url)
       toast.success('转换完成，文件已下载')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '转换失败')
+      if (err instanceof HTTPError) {
+        const status = err.response.status
+        try {
+          const body = await err.response.json() as { detail?: string }
+          if (status === 502) {
+            toast.error(body.detail || '远端转换服务暂时不可用，请稍后重试')
+          } else {
+            toast.error(body.detail || `请求失败 (${status})`)
+          }
+        } catch {
+          toast.error(status === 502
+            ? '远端转换服务暂时不可用，请稍后重试'
+            : `请求失败 (${status})`)
+        }
+      } else {
+        toast.error(err instanceof Error ? err.message : '转换失败')
+      }
     } finally {
       setIsConverting(false)
     }

@@ -14,7 +14,6 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import { lawyerApi } from '../api'
 import type { Lawyer, LawyerCreateInput, LawyerUpdateInput } from '../types'
 import { lawyerQueryKey } from './use-lawyer'
-import { lawyersQueryKey } from './use-lawyers'
 
 /**
  * 创建律师参数接口
@@ -24,6 +23,8 @@ export interface CreateLawyerParams {
   data: LawyerCreateInput
   /** 执业证 PDF 文件（可选） */
   licensePdf?: File
+  /** 头像文件（可选） */
+  avatar?: File
 }
 
 /**
@@ -36,6 +37,8 @@ export interface UpdateLawyerParams {
   data: LawyerUpdateInput
   /** 执业证 PDF 文件（可选） */
   licensePdf?: File
+  /** 头像文件（可选） */
+  avatar?: File
 }
 
 /**
@@ -129,8 +132,8 @@ export function useLawyerMutations(): UseLawyerMutationsReturn {
    * Requirements: 8.8
    */
   const createLawyer = useMutation<Lawyer, Error, CreateLawyerParams>({
-    mutationFn: ({ data, licensePdf }: CreateLawyerParams) =>
-      lawyerApi.create(data, licensePdf),
+    mutationFn: ({ data, licensePdf, avatar }: CreateLawyerParams) =>
+      lawyerApi.create(data, licensePdf, avatar),
     onSuccess: () => {
       // 创建成功后，失效所有律师列表缓存以刷新数据
       // 使用 predicate 匹配所有以 'lawyers' 开头的查询
@@ -150,8 +153,8 @@ export function useLawyerMutations(): UseLawyerMutationsReturn {
    * Requirements: 8.9
    */
   const updateLawyer = useMutation<Lawyer, Error, UpdateLawyerParams>({
-    mutationFn: ({ id, data, licensePdf }: UpdateLawyerParams) =>
-      lawyerApi.update(id, data, licensePdf),
+    mutationFn: ({ id, data, licensePdf, avatar }: UpdateLawyerParams) =>
+      lawyerApi.update(id, data, licensePdf, avatar),
     onSuccess: (updatedLawyer, { id }) => {
       // 更新成功后，失效所有律师列表缓存
       queryClient.invalidateQueries({

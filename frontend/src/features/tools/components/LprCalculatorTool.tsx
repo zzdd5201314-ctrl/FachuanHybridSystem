@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -134,8 +134,12 @@ function formatRateDisplay(rate: string, rateUnit: string | null, rateMode: stri
 export function LprCalculatorTool() {
   const [principalMode, setPrincipalMode] = useState<'fixed' | 'variable'>('fixed')
   const [principal, setPrincipal] = useState('100000')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date()
+    d.setFullYear(d.getFullYear() - 1)
+    return d.toISOString().split('T')[0]
+  })
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
   const [principalChanges, setPrincipalChanges] = useState<PrincipalChange[]>([
     { start_date: '', end_date: '', principal: '' },
   ])
@@ -150,24 +154,16 @@ export function LprCalculatorTool() {
   const [result, setResult] = useState<LprCalculateResponse | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
-  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    const saved = localStorage.getItem('lpr_calculator_history')
+    return saved ? JSON.parse(saved) : []
+  })
   const [syncMessage, setSyncMessage] = useState('')
 
   const { data: lprData } = useLprRates()
   const rates = lprData?.items ?? []
   const latestRate = rates[0] ?? null
   const calcMutation = useLprCalculate()
-
-  useEffect(() => {
-    const today = new Date()
-    const lastYear = new Date(today)
-    lastYear.setFullYear(lastYear.getFullYear() - 1)
-    setEndDate(today.toISOString().split('T')[0])
-    setStartDate(lastYear.toISOString().split('T')[0])
-
-    const saved = localStorage.getItem('lpr_calculator_history')
-    if (saved) setHistory(JSON.parse(saved))
-  }, [])
 
   const saveToHistory = useCallback((data: LprCalculateResponse) => {
     if (!data.success) return

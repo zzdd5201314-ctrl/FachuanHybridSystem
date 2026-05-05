@@ -12,3 +12,8 @@ class LawyerUploadService:
         if license_pdf is None:
             return
         lawyer.license_pdf.save(license_pdf.name or "license.pdf", license_pdf, save=False)
+
+    def attach_avatar(self, lawyer: Lawyer, avatar: UploadedFile | None) -> None:
+        if avatar is None:
+            return
+        lawyer.avatar.save(avatar.name or "avatar.jpg", avatar, save=False)

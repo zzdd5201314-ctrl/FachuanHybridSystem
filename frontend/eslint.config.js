@@ -19,5 +19,12 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // React Compiler 规则：setState in effect 是常见合法模式（表单重置、路由变化等）
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+      // 允许 _ 前缀的未使用变量（解构排除模式）
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    },
   },
 ])

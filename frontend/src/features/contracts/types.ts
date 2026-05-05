@@ -110,6 +110,7 @@ export interface ContractPayment {
   note: string | null
   created_at: string | null
   updated_at: string | null
+  invoices: Invoice[]
 }
 
 export interface SupplementaryAgreementParty {
@@ -136,6 +137,10 @@ export interface Invoice {
   payment: number
   amount: number
   invoice_no: string | null
+  invoice_number: string | null
+  total_amount: number | null
+  original_filename: string | null
+  uploaded_at: string | null
   issued_at: string | null
   note: string | null
   created_at: string | null
@@ -148,6 +153,7 @@ export interface ClientPaymentRecord {
   received_at: string | null
   note: string | null
   image_url: string | null
+  image_path: string | null
   created_at: string | null
 }
 
@@ -156,11 +162,15 @@ export interface FinalizedMaterial {
   category: string
   category_label: string
   filename: string
+  original_filename: string
   file_url: string
   file_size: number | null
   source: string
   source_label: string
   order: number
+  archive_item_code: string | null
+  remark: string | null
+  uploaded_at: string | null
   created_at: string | null
 }
 
@@ -222,6 +232,10 @@ export interface Contract {
   matched_document_template: string | null
   matched_folder_templates: string | null
   has_matched_templates: boolean
+  finalized_materials: FinalizedMaterial[]
+  filing_number: string | null
+  law_firm_oa_url: string | null
+  law_firm_oa_case_number: string | null
 }
 
 // ============================================================================

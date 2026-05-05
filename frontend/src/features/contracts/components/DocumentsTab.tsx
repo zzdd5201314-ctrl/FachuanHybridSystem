@@ -32,11 +32,11 @@ export function DocumentsTab({ contract: c }: { contract: Contract }) {
   const handleGenerateAgreement = useCallback(async (agreementId: number) => {
     setGeneratingId(agreementId)
     try {
-      await contractApi.generateSupplementaryAgreement(c.id, agreementId)
+      await contractApi.generateSupplementaryAgreement(agreementId)
       toast.success('补充协议文档已生成')
     } catch { toast.error('生成失败') }
     setGeneratingId(null)
-  }, [c.id])
+  }, [])
 
   return (
     <div>

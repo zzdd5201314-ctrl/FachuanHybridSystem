@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PATHS, generatePath } from '@/routes/paths'
+import { resolveMediaUrl } from '@/lib/api'
 
 import { useLawyer } from '../hooks/use-lawyer'
 import type { Lawyer } from '../types'
@@ -251,7 +252,7 @@ function BasicInfoCard({ lawyer }: BasicInfoCardProps) {
             value={
               lawyer.license_pdf_url ? (
                 <a
-                  href={lawyer.license_pdf_url}
+                  href={resolveMediaUrl(lawyer.license_pdf_url) ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline inline-flex items-center gap-1"

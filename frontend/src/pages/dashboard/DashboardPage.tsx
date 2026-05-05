@@ -299,17 +299,17 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">仪表盘</h1>
-        <p className="text-sm text-muted-foreground mt-1">欢迎回来。以下是今日概览。</p>
+        <p className="text-muted-foreground text-sm mt-1">欢迎回来。以下是今日概览。</p>
       </div>
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.label} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(stat.path)}>
-            <CardContent className="pt-4 pb-3 px-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[13px] text-muted-foreground">{stat.label}</span>
-                <div className="text-muted-foreground">{stat.icon}</div>
+          <Card key={stat.label} className="cursor-pointer hover:shadow-md transition-shadow py-2" onClick={() => navigate(stat.path)}>
+            <CardContent className="py-1.5 px-4">
+              <div className="flex items-center justify-between mb-0">
+                <span className="text-xs text-muted-foreground">{stat.label}</span>
+                <div className="text-muted-foreground opacity-60 [&>svg]:w-4 [&>svg]:h-4">{stat.icon}</div>
               </div>
-              <div className="text-2xl font-semibold">{stat.value}</div>
+              <div className="text-lg font-semibold">{stat.value}</div>
             </CardContent>
           </Card>
         ))}

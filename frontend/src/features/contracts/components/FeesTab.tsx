@@ -34,7 +34,7 @@ function DetailCard({ title, children, extra }: { title: string; children: React
   )
 }
 
-function ClientPaymentSection({ records: initial }: { records: ClientPaymentRecord[] }) {
+function ClientPaymentSection({ contractId, records: initial }: { contractId: number; records: ClientPaymentRecord[] }) {
   const [records, setRecords] = useState(initial)
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
@@ -43,12 +43,12 @@ function ClientPaymentSection({ records: initial }: { records: ClientPaymentReco
   const handleDelete = useCallback(async () => {
     if (deleteId == null) return
     try {
-      await contractApi.deleteClientPaymentRecord(deleteId)
+      await contractApi.deleteClientPaymentRecord(contractId, deleteId)
       setRecords(prev => prev.filter(r => r.id !== deleteId))
       toast.success('已删除')
     } catch { toast.error('删除失败') }
     setDeleteId(null)
-  }, [deleteId])
+  }, [contractId, deleteId])
 
   return (
     <DetailCard
@@ -212,7 +212,7 @@ export function FeesTab({ contract: c }: { contract: Contract }) {
       <InvoiceSection contract={c} />
 
       {/* Client Payment Records */}
-      <ClientPaymentSection records={c.client_payment_records ?? []} />
+      <ClientPaymentSection contractId={c.id} records={c.client_payment_records ?? []} />
     </div>
   )
 }

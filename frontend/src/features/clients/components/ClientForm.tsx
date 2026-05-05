@@ -9,8 +9,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useNavigate } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
-import { Loader2, Save, X, Upload, CheckCircle2 } from 'lucide-react'
+import { Loader2, Save, X, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -79,13 +78,6 @@ export function ClientForm({ clientId, mode }: ClientFormProps) {
   const showLegalRep = clientType !== 'natural'
   const idNumberLabel = clientType === 'natural' ? '身份证号' : '统一社会信用代码'
   const legalRepLabel = clientType === 'non_legal_org' ? '负责人' : '法定代表人'
-
-  // OA 凭证检查
-  const { data: oaCredential } = useQuery({
-    queryKey: ['oa-credential'],
-    queryFn: () => clientApi.checkOaCredential(),
-    staleTime: 10 * 60 * 1000,
-  })
 
   // 新建模式下的证件上传
   const [pendingDocs, setPendingDocs] = useState<{ docType: string; file: File }[]>([])
@@ -289,14 +281,6 @@ export function ClientForm({ clientId, mode }: ClientFormProps) {
   if (!isEditMode) {
     return (
       <div className="space-y-4">
-        {/* OA 凭证状态 */}
-        {oaCredential?.has_credential && (
-          <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-700">
-            <CheckCircle2 className="size-4" />
-            <span>已配置律所 OA 凭证，可使用 OA 相关功能</span>
-          </div>
-        )}
-
         {/* 智能辅助区域 */}
         <EnterpriseSearch onPrefill={handleEnterprisePrefill} />
         <TextParser onParsed={handleTextParsed} />

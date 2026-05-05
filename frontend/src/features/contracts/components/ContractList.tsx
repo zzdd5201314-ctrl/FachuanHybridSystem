@@ -15,7 +15,7 @@ export function ContractList() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [caseType, setCaseType] = useState<CaseType | undefined>()
-  const [status, setStatus] = useState<ContractStatus | undefined>()
+  const [status, setStatus] = useState<ContractStatus | undefined>('active')
   const [search, setSearch] = useState('')
   const [feeMode, setFeeMode] = useState<FeeMode | undefined>()
   const [isFiled, setIsFiled] = useState<boolean | undefined>()

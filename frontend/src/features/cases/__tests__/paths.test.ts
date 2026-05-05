@@ -37,7 +37,7 @@ describe('Property 5: 路径生成函数正确性', () => {
   it('caseDetail works with numeric ids', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 999999 }), (id) => {
-        const path = generatePath.caseDetail(id)
+        const path = generatePath.caseDetail(String(id))
         expect(path).toBe(`/admin/cases/${id}`)
       }),
       { numRuns: 100 },
@@ -47,7 +47,7 @@ describe('Property 5: 路径生成函数正确性', () => {
   it('caseEdit works with numeric ids', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 999999 }), (id) => {
-        const path = generatePath.caseEdit(id)
+        const path = generatePath.caseEdit(String(id))
         expect(path).toBe(`/admin/cases/${id}/edit`)
       }),
       { numRuns: 100 },

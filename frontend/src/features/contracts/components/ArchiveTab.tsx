@@ -26,9 +26,9 @@ const CHECKLIST: ChecklistItem[] = [
   { code: 'CONTRACT', name: '合同正本', required: true, category: 'contract_original' },
   { code: 'SUPPLEMENT', name: '补充协议', required: false, category: 'supplementary_agreement' },
   { code: 'INVOICE', name: '发票', required: false, category: 'invoice' },
-  { code: 'ARCHIVE_DOC', name: '归档文书', required: true, category: 'archive_document' },
+  { code: 'ARCHIVE_DOC', name: '归档文书', required: true, category: 'archive_doc' },
   { code: 'SUPERVISION', name: '监督卡', required: false, category: 'supervision_card' },
-  { code: 'AUTH', name: '授权委托材料', required: true, category: 'authorization_material' },
+  { code: 'AUTH', name: '授权委托材料', required: true, category: 'authorization' },
 ]
 
 function isItemDone(item: ChecklistItem, materials: FinalizedMaterial[]): boolean {
@@ -66,13 +66,13 @@ export function ArchiveTab({ contract: c }: { contract: Contract }) {
     try {
       const updated = await contractApi.get(c.id)
       setMaterials(updated.finalized_materials ?? [])
-    } catch {}
+    } catch { /* 刷新失败时保持当前数据 */ }
   }, [c.id])
 
   const handleUpload = useCallback(async (code: string, file: File) => {
     setActionLoading(`upload-${code}`)
     try {
-      await contractApi.uploadArchiveItem(c.id, code, file)
+      await contractApi.uploadArchiveItem(c.id, file, code)
       toast.success('上传成功')
       await refreshMaterials()
     } catch { toast.error('上传失败') }
@@ -271,7 +271,7 @@ export function ArchiveTab({ contract: c }: { contract: Contract }) {
               >
                 <span className="flex-1 truncate font-medium">{m.original_filename}</span>
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-                  {m.category_label || MATERIAL_CATEGORY_LABELS[m.category]}
+                  {m.category_label || MATERIAL_CATEGORY_LABELS[m.category as MaterialCategory]}
                 </Badge>
                 {m.remark && <span className="text-muted-foreground text-xs shrink-0">{m.remark}</span>}
                 <span className="text-muted-foreground text-xs shrink-0">{m.uploaded_at?.slice(0, 10) || ''}</span>

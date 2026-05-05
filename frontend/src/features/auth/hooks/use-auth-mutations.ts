@@ -93,13 +93,26 @@ export function useRegisterMutation() {
   const login = useAuthStore((state) => state.login)
 
   return useMutation({
-    mutationFn: (data: RegisterRequest) => authApi.register(data),
-    onSuccess: (response) => {
-      // 首位用户自动登录（不需要审批）
-      if (!response.requires_approval && response.user.is_active) {
-        login(response.user)
-        queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+    mutationFn: async (data: RegisterRequest) => {
+      const response = await authApi.register(data)
+
+      // 注册失败时抛出错误，让 onError 处理
+      if (!response.success) {
+        throw new Error(response.message || '注册失败')
       }
+
+      // 首位用户注册成功后尝试自动登录
+      if (!response.requires_approval && response.user?.is_active) {
+        try {
+          await authApi.autoLogin(data.username, data.password)
+          login(response.user)
+          queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+        } catch {
+          // 自动登录失败不影响注册结果，用户可手动登录
+        }
+      }
+
+      return response
     },
   })
 }

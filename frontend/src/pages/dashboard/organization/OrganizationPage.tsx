@@ -46,10 +46,8 @@ export function OrganizationPage() {
     <div className="space-y-6">
       {/* 页面标题 - Requirements 1.4 */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">组织管理</h1>
-        <p className="text-muted-foreground">
-          管理律所、律师、团队和账号凭证信息
-        </p>
+        <h1 className="text-xl font-semibold">组织管理</h1>
+        <p className="text-muted-foreground text-sm mt-1">管理律所、律师、团队和账号凭证信息</p>
       </div>
 
       {/* Tab 切换组件 */}

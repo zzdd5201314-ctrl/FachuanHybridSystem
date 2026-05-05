@@ -2,9 +2,15 @@
 法院短信处理 API
 """
 
+import io
+import re
+import zipfile
 from datetime import datetime
+from pathlib import Path
 from typing import Any, cast
 
+from django.conf import settings
+from django.http import FileResponse, Http404
 from ninja import Form, Router
 from ninja.pagination import PageNumberPagination, paginate
 
@@ -172,3 +178,113 @@ def batch_delete_sms(request: Any, payload: CourtSMSBatchDeleteIn) -> CourtSMSBa
     service = _get_court_sms_service()
     deleted = service.batch_delete_sms(payload.ids)
     return CourtSMSBatchDeleteOut(deleted=deleted)
+
+
+# ============================================================================
+# 文书下载接口
+# ============================================================================
+
+
+@router.get("/court-sms/{sms_id}/documents/{ref_index}/download")
+def download_document(request: Any, sms_id: int, ref_index: int) -> FileResponse:
+    """下载单个关联文书"""
+    from apps.automation.models import CourtSMS
+    from apps.automation.services.sms.court_sms_document_reference_service import CourtSMSDocumentReferenceService
+
+    sms = CourtSMS.objects.filter(id=sms_id).first()
+    if sms is None:
+        raise Http404("短信记录不存在")
+
+    references = CourtSMSDocumentReferenceService().collect(sms)
+    if ref_index < 0 or ref_index >= len(references):
+        raise Http404("文书索引超出范围")
+
+    file_path = Path(references[ref_index].file_path)
+    if not file_path.exists() or not file_path.is_file():
+        raise Http404("文书文件不存在")
+
+    return FileResponse(file_path.open("rb"), as_attachment=True, filename=file_path.name)
+
+
+@router.get("/court-sms/{sms_id}/documents/download-all")
+def download_all_documents(request: Any, sms_id: int) -> FileResponse:
+    """批量下载关联文书（ZIP）"""
+    from apps.automation.models import CourtSMS
+    from apps.automation.services.sms.court_sms_document_reference_service import CourtSMSDocumentReferenceService
+
+    sms = CourtSMS.objects.filter(id=sms_id).first()
+    if sms is None:
+        raise Http404("短信记录不存在")
+
+    references = CourtSMSDocumentReferenceService().collect(sms)
+    existing_files: list[Path] = []
+    for ref in references:
+        p = Path(ref.file_path)
+        if p.exists() and p.is_file():
+            existing_files.append(p)
+
+    if not existing_files:
+        raise Http404("没有可下载的文书文件")
+
+    zip_buffer = io.BytesIO()
+    name_count: dict[str, int] = {}
+    with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for fp in existing_files:
+            base = fp.name
+            if base in name_count:
+                name_count[base] += 1
+                arcname = f"{fp.stem}_{name_count[base]}{fp.suffix}"
+            else:
+                name_count[base] = 1
+                arcname = base
+            zf.write(fp, arcname=arcname)
+
+    zip_buffer.seek(0)
+    return FileResponse(zip_buffer, as_attachment=True, filename=f"courtsms_{sms_id}_documents.zip")
+
+
+@router.post("/court-sms/{sms_id}/documents/{ref_index}/rename")
+def rename_document(request: Any, sms_id: int, ref_index: int, payload: dict[str, Any]) -> dict[str, Any]:
+    """重命名单个关联文书"""
+    from apps.automation.models import CourtSMS
+    from apps.automation.services.sms.court_sms_document_reference_service import CourtSMSDocumentReferenceService
+
+    sms = CourtSMS.objects.filter(id=sms_id).first()
+    if sms is None:
+        raise Http404("短信记录不存在")
+
+    references = CourtSMSDocumentReferenceService().collect(sms)
+    if ref_index < 0 or ref_index >= len(references):
+        return {"success": False, "error": "文书索引超出范围"}
+
+    ref = references[ref_index]
+    file_path = Path(ref.file_path)
+    if not file_path.exists() or not file_path.is_file():
+        return {"success": False, "error": "文书文件不存在"}
+
+    raw_stem = str(payload.get("new_stem", "") or "").strip()
+    if not raw_stem:
+        return {"success": False, "error": "文件名不能为空"}
+    if "." in raw_stem:
+        return {"success": False, "error": "只能修改文件名，不能修改扩展名"}
+
+    new_stem = re.sub(r'[\\/:*?"<>|]', "", raw_stem).strip()
+    if not new_stem:
+        return {"success": False, "error": "文件名包含非法字符"}
+
+    new_path = file_path.with_name(f"{new_stem}{file_path.suffix}")
+    if new_path == file_path:
+        return {"success": True, "message": "文件名未变化"}
+    if new_path.exists():
+        return {"success": False, "error": f"目标文件已存在：{new_path.name}"}
+
+    old_abs = str(file_path.resolve())
+    file_path.rename(new_path)
+    new_abs = str(new_path.resolve())
+
+    # 同步引用
+    from apps.automation.admin.sms.court_sms_admin import CourtSMSAdmin
+    admin_instance = CourtSMSAdmin(CourtSMS, None)
+    admin_instance._sync_document_references(sms, old_abs, new_abs, ref.court_document_id)
+
+    return {"success": True, "new_name": new_path.name}

@@ -1,6 +1,6 @@
 """Module for lawyer."""
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -16,10 +16,30 @@ def lawyer_license_upload_path(instance: object, filename: str) -> str:
     return f"lawyers/licenses/{filename}"
 
 
+class LawyerManager(UserManager):
+    """自定义 UserManager，处理 email 的 None 值。
+
+    Django 的 normalize_email(None) 会返回 ''（空字符串），
+    而 email 字段有 unique=True，空字符串会导致重复注册冲突。
+    此管理器确保无 email 时存为 NULL（PostgreSQL 允许多个 NULL）。
+    """
+
+    def _create_user(self, username, email, password, **extra_fields):
+        if email is None:
+            # 跳过 normalize_email，直接传 None 给 model，确保数据库存 NULL
+            user = self.model(username=username, email=None, **extra_fields)
+            user.set_password(password)
+            user.save(using=self._db)
+            return user
+        return super()._create_user(username, email, password, **extra_fields)
+
+
 class Lawyer(AbstractUser):
     """律师模型，扩展自 Django AbstractUser，代表系统用户。"""
 
-    real_name = models.CharField(max_length=255, blank=True, verbose_name=_("真实姓名"))
+    objects = LawyerManager()
+
+    real_name = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("真实姓名"))
     law_firm_id: int | None  # 外键ID字段
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True, verbose_name=_("手机号码"))
     email = models.EmailField(_("email address"), blank=True, null=True, unique=True)  # type: ignore[assignment]

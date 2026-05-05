@@ -157,44 +157,22 @@ export const lawyerApi = {
    *
    * Requirements: 8.8
    */
-  create: async (data: LawyerCreateInput, licensePdf?: File): Promise<Lawyer> => {
-    if (licensePdf) {
-      // 使用 FormData 上传文件
+  create: async (data: LawyerCreateInput, licensePdf?: File, avatar?: File): Promise<Lawyer> => {
+    if (licensePdf || avatar) {
       const formData = new FormData()
-
-      // 添加 JSON 数据字段
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           if (Array.isArray(value)) {
-            // 数组字段需要特殊处理
-            value.forEach((item) => {
-              formData.append(key, String(item))
-            })
+            value.forEach((item) => formData.append(key, String(item)))
           } else {
             formData.append(key, String(value))
           }
         }
       })
-
-      // 添加文件
-      formData.append('license_pdf', licensePdf)
-
-      const token = getAccessToken()
-      const headers: Record<string, string> = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      return ky
-        .post(`${API_BASE}/lawyers`, {
-          body: formData,
-          headers,
-          // 不设置 Content-Type，让浏览器自动设置 multipart/form-data
-        })
-        .json<Lawyer>()
+      if (licensePdf) formData.append('license_pdf', licensePdf)
+      if (avatar) formData.append('avatar', avatar)
+      return api.post('lawyers', { body: formData }).json<Lawyer>()
     }
-
-    // 无文件时使用 JSON
     return api.post('lawyers', { json: data }).json<Lawyer>()
   },
 
@@ -214,45 +192,24 @@ export const lawyerApi = {
   update: async (
     id: number | string,
     data: LawyerUpdateInput,
-    licensePdf?: File
+    licensePdf?: File,
+    avatar?: File,
   ): Promise<Lawyer> => {
-    if (licensePdf) {
-      // 使用 FormData 上传文件
+    if (licensePdf || avatar) {
       const formData = new FormData()
-
-      // 添加 JSON 数据字段
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           if (Array.isArray(value)) {
-            // 数组字段需要特殊处理
-            value.forEach((item) => {
-              formData.append(key, String(item))
-            })
+            value.forEach((item) => formData.append(key, String(item)))
           } else {
             formData.append(key, String(value))
           }
         }
       })
-
-      // 添加文件
-      formData.append('license_pdf', licensePdf)
-
-      const token = getAccessToken()
-      const headers: Record<string, string> = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      return ky
-        .put(`${API_BASE}/lawyers/${id}`, {
-          body: formData,
-          headers,
-          // 不设置 Content-Type，让浏览器自动设置 multipart/form-data
-        })
-        .json<Lawyer>()
+      if (licensePdf) formData.append('license_pdf', licensePdf)
+      if (avatar) formData.append('avatar', avatar)
+      return api.put(`lawyers/${id}`, { body: formData }).json<Lawyer>()
     }
-
-    // 无文件时使用 JSON
     return api.put(`lawyers/${id}`, { json: data }).json<Lawyer>()
   },
 

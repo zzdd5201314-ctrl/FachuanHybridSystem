@@ -46,6 +46,7 @@ def create_lawyer(
     request: HttpRequest,
     payload: LawyerCreateIn,
     license_pdf: UploadedFile | None = File(None),
+    avatar: UploadedFile | None = File(None),
 ) -> LawyerOut:
     dto = LawyerCreateDTO(
         username=payload.username,
@@ -59,7 +60,7 @@ def create_lawyer(
         lawyer_team_ids=payload.lawyer_team_ids,
         biz_team_ids=payload.biz_team_ids,
     )
-    return _lawyer_service.create_lawyer(data=dto, user=get_request_user(request), license_pdf=license_pdf)
+    return _lawyer_service.create_lawyer(data=dto, user=get_request_user(request), license_pdf=license_pdf, avatar=avatar)
 
 
 @router.put("/lawyers/{lawyer_id}", response=LawyerOut)
@@ -68,6 +69,7 @@ def update_lawyer(
     lawyer_id: int,
     payload: LawyerUpdateIn,
     license_pdf: UploadedFile | None = File(None),
+    avatar: UploadedFile | None = File(None),
 ) -> LawyerOut:
     dto = LawyerUpdateDTO(
         real_name=payload.real_name,
@@ -85,6 +87,7 @@ def update_lawyer(
         data=dto,
         user=get_request_user(request),
         license_pdf=license_pdf,
+        avatar=avatar,
     )
 
 

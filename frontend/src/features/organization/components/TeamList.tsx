@@ -57,18 +57,10 @@ const ALL_TYPES_VALUE = 'all'
 // Types
 // ============================================================================
 
-export interface TeamListProps {
-  // 无需 props，内部管理状态
-}
-
-// ============================================================================
-// Main Component
-// ============================================================================
-
 /**
  * 团队列表组件
  */
-export function TeamList(_props: TeamListProps) {
+export function TeamList() {
   // ========== 筛选状态 ==========
   const [teamType, setTeamType] = useState<TeamType | undefined>(undefined)
 

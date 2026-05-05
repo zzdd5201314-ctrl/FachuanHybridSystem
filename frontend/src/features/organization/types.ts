@@ -81,6 +81,7 @@ export interface Lawyer {
   is_admin: boolean
   is_active: boolean
   license_pdf_url: string | null
+  avatar_url: string | null
   law_firm_detail: LawFirm | null
 }
 

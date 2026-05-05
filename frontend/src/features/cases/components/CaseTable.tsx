@@ -17,7 +17,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { generatePath } from '@/routes/paths'
 import {
   type Case,
@@ -31,16 +30,14 @@ import {
 export interface CaseTableProps {
   cases: Case[]
   isLoading: boolean
-  selectedIds?: Set<number>
-  onSelectionChange?: (ids: Set<number>) => void
 }
 
 // ============================================================================
 // Skeleton & Empty
 // ============================================================================
 
-function TableSkeleton({ colSpan }: { colSpan: number }) {
-  const widths = colSpan === 9 ? [40, 12, 48, 24, 20, 20, 24, 20, 24] : [12, 48, 24, 20, 20, 24, 20, 24]
+function TableSkeleton() {
+  const widths = [12, 48, 24, 20, 20, 24, 20, 24]
   return (
     <>{Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
@@ -85,42 +82,16 @@ function getLawyerDisplay(c: Case): string {
 // Main Component
 // ============================================================================
 
-export function CaseTable({ cases, isLoading, selectedIds, onSelectionChange }: CaseTableProps) {
+export function CaseTable({ cases, isLoading }: CaseTableProps) {
   const navigate = useNavigate()
-  const selectable = !!onSelectionChange
 
-  const toggleRow = (id: number, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!onSelectionChange || !selectedIds) return
-    const next = new Set(selectedIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    onSelectionChange(next)
-  }
-
-  const toggleAll = () => {
-    if (!onSelectionChange) return
-    const allIds = cases.map((c) => c.id)
-    const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds?.has(id))
-    onSelectionChange(allSelected ? new Set() : new Set(allIds))
-  }
-
-  const colSpan = selectable ? 9 : 8
+  const colSpan = 8
 
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table className="min-w-[700px]">
         <TableHeader>
           <TableRow>
-            {selectable && (
-              <TableHead className="w-[40px]">
-                <Checkbox
-                  checked={cases.length > 0 && cases.every((c) => selectedIds?.has(c.id))}
-                  onCheckedChange={toggleAll}
-                  aria-label="全选"
-                />
-              </TableHead>
-            )}
             <TableHead className="w-[60px]">ID</TableHead>
             <TableHead>案件名称</TableHead>
             <TableHead className="w-[160px]">立案号</TableHead>
@@ -132,26 +103,20 @@ export function CaseTable({ cases, isLoading, selectedIds, onSelectionChange }: 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isLoading ? <TableSkeleton colSpan={colSpan} /> : cases.length === 0 ? <EmptyState colSpan={colSpan} /> : (
+          {isLoading ? <TableSkeleton /> : cases.length === 0 ? <EmptyState colSpan={colSpan} /> : (
             cases.map((c) => {
               const stageKey = c.current_stage as CaseStage | null
               const stageLabel = stageKey ? (CASE_STAGE_LABELS[stageKey]?.zh ?? c.current_stage) : '-'
               const statusKey = c.status as CaseStatus | null
               const statusLabel = statusKey ? (CASE_STATUS_LABELS[statusKey]?.zh ?? c.status) : '-'
               const typeLabel = c.case_type ? (SIMPLE_CASE_TYPE_LABELS[c.case_type]?.zh ?? c.case_type) : null
-              const isSelected = selectedIds?.has(c.id) ?? false
 
               return (
                 <TableRow
                   key={c.id}
                   onClick={() => navigate(generatePath.caseDetail(String(c.id)))}
-                  className={`cursor-pointer hover:bg-muted/50 transition-colors ${isSelected ? 'bg-muted/40' : ''}`}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
                 >
-                  {selectable && (
-                    <TableCell onClick={(e) => toggleRow(c.id, e)}>
-                      <Checkbox checked={isSelected} aria-label={`选择案件 ${c.name}`} />
-                    </TableCell>
-                  )}
                   <TableCell className="text-muted-foreground text-sm">{c.id}</TableCell>
                   <TableCell className="max-w-[260px]">
                     <div className="flex items-center gap-2">

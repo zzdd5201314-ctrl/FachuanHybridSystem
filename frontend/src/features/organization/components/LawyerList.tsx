@@ -25,14 +25,6 @@ import { useLawyers } from '../hooks/use-lawyers'
 // Types
 // ============================================================================
 
-export interface LawyerListProps {
-  // 无需 props，内部管理状态
-}
-
-// ============================================================================
-// Main Component
-// ============================================================================
-
 /**
  * 律师列表组件
  *
@@ -40,7 +32,7 @@ export interface LawyerListProps {
  * - 3.4: 点击「新建律师」按钮导航到新建页面
  * - 3.3: 提供搜索框支持按用户名、真实姓名、手机号搜索
  */
-export function LawyerList(_props: LawyerListProps) {
+export function LawyerList() {
   const navigate = useNavigate()
 
   // ========== 状态管理 ==========

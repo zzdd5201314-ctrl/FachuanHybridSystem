@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { PaymentFormDialog } from './PaymentFormDialog'
 import { usePaymentMutations } from '../hooks/use-payment-mutations'
-import type { ContractPayment } from '../types'
+import type { ContractPayment, PaymentInput } from '../types'
 
 export function PaymentList({ contractId, payments }: { contractId: number; payments: ContractPayment[] }) {
   const { createPayment, updatePayment, deletePayment } = usePaymentMutations(contractId)
@@ -19,14 +19,14 @@ export function PaymentList({ contractId, payments }: { contractId: number; paym
   const [editing, setEditing] = useState<ContractPayment | undefined>()
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  const handleSubmit = useCallback(async (data: Record<string, unknown>) => {
+  const handleSubmit = useCallback(async (data: PaymentInput) => {
     try {
       if (editing) {
-        const { contract_id, ...rest } = data as Record<string, unknown>
-        await updatePayment.mutateAsync({ id: editing.id, data: rest as any })
+        const { contract_id: _cid, ...rest } = data
+        await updatePayment.mutateAsync({ id: editing.id, data: rest })
         toast.success('收款已更新')
       } else {
-        await createPayment.mutateAsync(data as any)
+        await createPayment.mutateAsync(data)
         toast.success('收款已添加')
       }
       setFormOpen(false); setEditing(undefined)

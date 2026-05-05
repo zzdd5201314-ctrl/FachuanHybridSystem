@@ -34,7 +34,7 @@ export const reminderFormSchema = z
       .max(255, '提醒事项不能超过255字符'),
 
     /** 到期时间 - 必填 */
-    due_at: z.date({ required_error: '请选择到期时间' }),
+    due_at: z.date({ message: '请选择到期时间' }),
 
     /** 关联合同 ID - 与 case_log_id 二选一 */
     contract_id: z.number().nullable().optional(),
@@ -43,7 +43,7 @@ export const reminderFormSchema = z
     case_log_id: z.number().nullable().optional(),
 
     /** 元数据 - 可选 */
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .refine(
     (data) => {

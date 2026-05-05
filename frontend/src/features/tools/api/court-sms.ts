@@ -93,4 +93,13 @@ export const courtSmsApi = {
 
   deleteBatch: (ids: number[]): Promise<{ deleted: number }> =>
     api.post('batch-delete', { json: { ids } }).json(),
+
+  downloadDocumentUrl: (smsId: number, refIndex: number): string =>
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'}/automation/court-sms/${smsId}/documents/${refIndex}/download`,
+
+  downloadAllUrl: (smsId: number): string =>
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'}/automation/court-sms/${smsId}/documents/download-all`,
+
+  renameDocument: (smsId: number, refIndex: number, newStem: string): Promise<{ success: boolean; error?: string; new_name?: string }> =>
+    api.post(`${smsId}/documents/${refIndex}/rename`, { json: { new_stem: newStem } }).json(),
 }

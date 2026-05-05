@@ -56,14 +56,6 @@ const ALL_LAWYERS_VALUE = 'all'
 // Types
 // ============================================================================
 
-export interface CredentialListProps {
-  // 无需 props，内部管理状态
-}
-
-// ============================================================================
-// Main Component
-// ============================================================================
-
 /**
  * 凭证列表组件
  *
@@ -73,7 +65,7 @@ export interface CredentialListProps {
  * - 5.16: 提供删除按钮，点击后显示确认对话框
  * - 5.17: 确认删除后删除凭证并显示成功提示
  */
-export function CredentialList(_props: CredentialListProps) {
+export function CredentialList() {
   // ========== 筛选状态 ==========
   // Requirements: 5.3 - 律师筛选
   const [lawyerId, setLawyerId] = useState<number | undefined>(undefined)

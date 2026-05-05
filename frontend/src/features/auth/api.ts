@@ -190,27 +190,28 @@ export const authApi = {
   /**
    * 用户注册
    * POST /api/v1/organization/register
+   * 仅负责注册，不处理自动登录（由 useRegisterMutation 处理）
    */
   register: async (data: RegisterRequest): Promise<RegisterResponse> => {
-    const response = await ky
+    return ky
       .post(`${API_BASE}/organization/register`, {
         json: data,
       })
       .json<RegisterResponse>()
+  },
 
-    // 如果注册成功且不需要审批，自动获取 token
-    if (response.success && !response.requires_approval && response.user.is_active) {
-      const tokenResponse = await ky
-        .post(`${API_BASE}/token/pair`, {
-          json: { username: data.username, password: data.password },
-        })
-        .json<TokenPairResponse>()
+  /**
+   * 首位用户注册后自动登录（获取 JWT token）
+   */
+  autoLogin: async (username: string, password: string): Promise<void> => {
+    const tokenResponse = await ky
+      .post(`${API_BASE}/token/pair`, {
+        json: { username, password },
+      })
+      .json<TokenPairResponse>()
 
-      setTokens(tokenResponse)
-      resetApiInstance()
-    }
-
-    return response
+    setTokens(tokenResponse)
+    resetApiInstance()
   },
 
   /**

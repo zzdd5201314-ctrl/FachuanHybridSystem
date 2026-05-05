@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+import { resolveMediaUrl } from '@/lib/api'
 import { useMaterialMutations } from '../hooks/use-material-mutations'
 import type {
   MaterialBindCandidate,
@@ -120,7 +121,7 @@ function MaterialCard({
           <div className="flex items-center gap-1">
             {item.file_url && (
               <Button variant="ghost" size="icon-xs" asChild>
-                <a href={item.file_url} target="_blank" rel="noopener noreferrer">
+                <a href={resolveMediaUrl(item.file_url) ?? undefined} target="_blank" rel="noopener noreferrer">
                   <FileText className="size-3" />
                 </a>
               </Button>

@@ -23,11 +23,21 @@ def get_document_service() -> IDocumentService:
     return ServiceLocator.get_document_service()
 
 
+def _build_sub_type_display() -> dict[str, str]:
+    from apps.documents.models.choices import DocumentCaseFileSubType
+
+    return {choice.value: str(choice.label) for choice in DocumentCaseFileSubType}
+
+
 def get_case_template_binding_service() -> CaseTemplateBindingService:
     from .case_template_binding_service import CaseTemplateBindingService
     from .repo import CaseTemplateBindingRepo
+    from .template_binding_assembler import TemplateBindingAssembler, TemplateBindingAssemblerConfig
 
-    return CaseTemplateBindingService(document_service=get_document_service(), repo=CaseTemplateBindingRepo())
+    assembler = TemplateBindingAssembler(
+        config=TemplateBindingAssemblerConfig(sub_type_display=_build_sub_type_display())
+    )
+    return CaseTemplateBindingService(document_service=get_document_service(), repo=CaseTemplateBindingRepo(), assembler=assembler)
 
 
 def get_case_document_template_admin_service() -> CaseDocumentTemplateAdminService:

@@ -25,7 +25,13 @@ class LawyerMutationService:
         self.upload_service = upload_service or LawyerUploadService()
 
     @transaction.atomic
-    def create_lawyer(self, data: LawyerCreateDTO, user: Lawyer, license_pdf: UploadedFile | None = None) -> Lawyer:
+    def create_lawyer(
+        self,
+        data: LawyerCreateDTO,
+        user: Lawyer,
+        license_pdf: UploadedFile | None = None,
+        avatar: UploadedFile | None = None,
+    ) -> Lawyer:
         if not self.access_policy.can_create(user):
             logger.warning(
                 "用户 %s 尝试创建律师但权限不足",
@@ -55,6 +61,7 @@ class LawyerMutationService:
         )
         lawyer.set_password(data.password)
         self.upload_service.attach_license_pdf(lawyer, license_pdf)
+        self.upload_service.attach_avatar(lawyer, avatar)
         lawyer.save()
 
         if data.lawyer_team_ids is not None:
@@ -76,6 +83,7 @@ class LawyerMutationService:
         data: LawyerUpdateDTO,
         user: Lawyer,
         license_pdf: UploadedFile | None = None,
+        avatar: UploadedFile | None = None,
     ) -> Lawyer:
         if not self.access_policy.can_update_lawyer(user=user, lawyer=lawyer):
             logger.warning(
@@ -91,6 +99,9 @@ class LawyerMutationService:
         self.upload_service.attach_license_pdf(lawyer, license_pdf)
         if license_pdf is not None:
             updated_fields.append("license_pdf")
+        self.upload_service.attach_avatar(lawyer, avatar)
+        if avatar is not None:
+            updated_fields.append("avatar")
         if updated_fields:
             lawyer.save(update_fields=updated_fields)
 

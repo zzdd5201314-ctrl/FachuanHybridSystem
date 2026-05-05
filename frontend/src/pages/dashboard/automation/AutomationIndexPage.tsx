@@ -30,10 +30,8 @@ export default function AutomationIndexPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">自动化工具</h1>
-        <p className="text-muted-foreground">
-          使用自动化工具提高工作效率
-        </p>
+        <h1 className="text-xl font-semibold">自动化工具</h1>
+        <p className="text-muted-foreground text-sm mt-1">使用自动化工具提高工作效率</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

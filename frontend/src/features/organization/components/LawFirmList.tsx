@@ -23,21 +23,13 @@ import { useLawFirms } from '../hooks/use-lawfirms'
 // Types
 // ============================================================================
 
-export interface LawFirmListProps {
-  // 无需 props，内部管理状态
-}
-
-// ============================================================================
-// Main Component
-// ============================================================================
-
 /**
  * 律所列表组件
  *
  * Requirements:
  * - 2.3: 点击「新建律所」按钮导航到新建页面
  */
-export function LawFirmList(_props: LawFirmListProps) {
+export function LawFirmList() {
   const navigate = useNavigate()
 
   // ========== 数据查询 ==========

@@ -27,7 +27,9 @@ from .number.case_number_service import CaseNumberService
 from .party.case_assignment_service import CaseAssignmentService
 from .party.case_party_service import CasePartyService
 from .template.case_template_binding_service import CaseTemplateBindingService
+from .template.case_template_generation_service import CaseTemplateGenerationService
 from .template.folder_binding_service import CaseFolderBindingService
+from .template.unified_template_generation_service import UnifiedTemplateGenerationService
 
 
 class CaseService(CaseQueryService, CaseCommandService):
@@ -56,6 +58,8 @@ __all__ = [
     "CaseAdminService",
     "CaseChatService",
     "CaseTemplateBindingService",
+    "CaseTemplateGenerationService",
+    "UnifiedTemplateGenerationService",
     "CaseMaterialService",
     "CaseLogService",
     "CaseAccessService",

@@ -82,7 +82,7 @@ export function CommandPalette() {
   const [results, setResults] = useState<GlobalSearchResult | null>(null)
   const [searching, setSearching] = useState(false)
   const navigate = useNavigate()
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {

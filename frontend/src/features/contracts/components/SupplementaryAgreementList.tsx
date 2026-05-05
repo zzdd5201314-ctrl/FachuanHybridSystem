@@ -21,7 +21,7 @@ export function SupplementaryAgreementList({ contractId, agreements }: { contrac
   const handleSubmit = useCallback(async (data: { contract_id: number; name?: string; party_ids?: number[] }) => {
     try {
       if (editing) {
-        const { contract_id, ...rest } = data
+        const { contract_id: _cid, ...rest } = data
         await updateAgreement.mutateAsync({ id: editing.id, data: rest })
         toast.success('补充协议已更新')
       } else {

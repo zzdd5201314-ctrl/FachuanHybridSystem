@@ -85,13 +85,10 @@ function isValidFileSize(file: File): boolean {
 }
 
 /**
- * 获取文件图标
+ * 判断是否为 PDF 文件
  */
-function getFileIcon(file: File) {
-  if (file.type === 'application/pdf') {
-    return FileText
-  }
-  return FileImage
+function isPdf(file: File): boolean {
+  return file.type === 'application/pdf'
 }
 
 /**
@@ -222,12 +219,10 @@ interface FilePreviewProps {
  * 文件预览组件
  */
 function FilePreview({ file, status, onRemove }: FilePreviewProps) {
-  const FileIcon = getFileIcon(file)
-
   return (
     <div className="bg-muted/50 flex items-center gap-3 rounded-lg p-3">
       <div className="bg-background flex size-10 items-center justify-center rounded-lg">
-        <FileIcon className="text-muted-foreground size-5" />
+        {isPdf(file) ? <FileText className="text-muted-foreground size-5" /> : <FileImage className="text-muted-foreground size-5" />}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{file.name}</p>

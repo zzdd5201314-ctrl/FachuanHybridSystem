@@ -268,7 +268,7 @@ export function CredentialFormDialog({
         })
       }
     },
-    [isEditMode, credential, createCredential, updateCredential, onOpenChange]
+    [isEditMode, credential, createCredential, updateCredential, onOpenChange, form]
   )
 
   /**
