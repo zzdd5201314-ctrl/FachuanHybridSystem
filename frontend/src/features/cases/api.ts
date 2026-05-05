@@ -3,7 +3,7 @@
  * 案件管理模块 API 封装
  */
 
-import ky from 'ky'
+import { createApiClient } from '@/lib/api'
 
 import type {
   Case,
@@ -23,23 +23,8 @@ import type {
   FeeCalculationResponse,
   SupervisingAuthority,
 } from './types'
-import { getAccessToken } from '@/lib/token'
 
-const API_BASE = 'http://localhost:8002/api/v1/cases/'
-
-const api = ky.create({
-  prefixUrl: API_BASE,
-  hooks: {
-    beforeRequest: [
-      (request) => {
-        const token = getAccessToken()
-        if (token) {
-          request.headers.set('Authorization', `Bearer ${token}`)
-        }
-      },
-    ],
-  },
-})
+const api = createApiClient({ prefixUrl: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'}/cases` })
 
 /** CaseFullOut response from POST /cases/full */
 interface CaseFullOut {

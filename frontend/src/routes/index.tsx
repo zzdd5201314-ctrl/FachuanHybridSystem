@@ -75,6 +75,25 @@ const QuoteDetailPage = lazy(() => import('@/pages/dashboard/automation/preserva
 const RecognitionListPage = lazy(() => import('@/pages/dashboard/automation/document-recognition/RecognitionListPage'))
 const RecognitionDetailPage = lazy(() => import('@/pages/dashboard/automation/document-recognition/RecognitionDetailPage'))
 
+// Phase 3: 新功能模块
+const TemplateListPage = lazy(() => import('@/pages/dashboard/templates/TemplateListPage'))
+const TemplateDetailPage = lazy(() => import('@/pages/dashboard/templates/TemplateDetailPage'))
+const TemplateNewPage = lazy(() => import('@/pages/dashboard/templates/TemplateNewPage'))
+const MessageSourceListPage = lazy(() => import('@/pages/dashboard/message-sources/MessageSourceListPage'))
+const CourtSmsPage = lazy(() => import('@/pages/dashboard/tools/CourtSmsPage'))
+const CourierTrackingPage = lazy(() => import('@/pages/dashboard/tools/CourierTrackingPage'))
+const ElementConvertPage = lazy(() => import('@/pages/dashboard/tools/ElementConvertPage'))
+const LprCalculatorPage = lazy(() => import('@/pages/dashboard/tools/LprCalculatorPage'))
+
+// Phase 4: 设置 + 任务队列 + 日志
+const SettingsOverviewPage = lazy(() => import('@/pages/dashboard/settings/SettingsOverviewPage'))
+const LawFirmSettingsPage = lazy(() => import('@/pages/dashboard/settings/LawFirmSettingsPage'))
+const TeamSettingsPage = lazy(() => import('@/pages/dashboard/settings/TeamSettingsPage'))
+const LawyerSettingsPage = lazy(() => import('@/pages/dashboard/settings/LawyerSettingsPage'))
+const ServiceConfigPage = lazy(() => import('@/pages/dashboard/settings/ServiceConfigPage'))
+const TaskQueuePage = lazy(() => import('@/pages/dashboard/task-queue/TaskQueuePage'))
+const LogsPage = lazy(() => import('@/pages/dashboard/logs/LogsPage'))
+
 /**
  * 应用路由配置
  */
@@ -285,6 +304,71 @@ export const router = createBrowserRouter([
           {
             path: PATHS.ADMIN_AUTOMATION_RECOGNITION_DETAIL,
             element: <RecognitionDetailPage />,
+          },
+          // Phase 3: 新功能路由
+          // 模板管理
+          {
+            path: PATHS.ADMIN_TEMPLATES,
+            element: <TemplateListPage />,
+          },
+          {
+            path: PATHS.ADMIN_TEMPLATE_NEW,
+            element: <TemplateNewPage />,
+          },
+          {
+            path: PATHS.ADMIN_TEMPLATE_DETAIL,
+            element: <TemplateDetailPage />,
+          },
+          // 消息来源
+          {
+            path: PATHS.ADMIN_MESSAGE_SOURCES,
+            element: <MessageSourceListPage />,
+          },
+          // 工具集
+          {
+            path: PATHS.ADMIN_TOOLS_COURT_SMS,
+            element: <CourtSmsPage />,
+          },
+          {
+            path: PATHS.ADMIN_TOOLS_COURIER,
+            element: <CourierTrackingPage />,
+          },
+          {
+            path: PATHS.ADMIN_TOOLS_ELEMENT,
+            element: <ElementConvertPage />,
+          },
+          {
+            path: PATHS.ADMIN_TOOLS_LPR,
+            element: <LprCalculatorPage />,
+          },
+          // Phase 4: 设置 + 任务队列 + 日志
+          {
+            path: PATHS.ADMIN_SETTINGS,
+            element: <SettingsOverviewPage />,
+          },
+          {
+            path: PATHS.ADMIN_SETTINGS_LAW_FIRM,
+            element: <LawFirmSettingsPage />,
+          },
+          {
+            path: PATHS.ADMIN_SETTINGS_TEAM,
+            element: <TeamSettingsPage />,
+          },
+          {
+            path: PATHS.ADMIN_SETTINGS_LAWYER,
+            element: <LawyerSettingsPage />,
+          },
+          {
+            path: PATHS.ADMIN_SETTINGS_CONFIG,
+            element: <ServiceConfigPage />,
+          },
+          {
+            path: PATHS.ADMIN_TASK_QUEUE,
+            element: <TaskQueuePage />,
+          },
+          {
+            path: PATHS.ADMIN_LOGS,
+            element: <LogsPage />,
           },
         ],
       },

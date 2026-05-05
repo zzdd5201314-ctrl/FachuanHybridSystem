@@ -1,5 +1,3 @@
-'use client'
-
 import { useEffect, useState, useCallback } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { X } from 'lucide-react'
@@ -10,6 +8,7 @@ import { Sidebar } from './components/Sidebar'
 import { Navbar } from './components/Navbar'
 import { Breadcrumb, type BreadcrumbItem } from './components/Breadcrumb'
 import { PATHS } from '@/routes/paths'
+import { CommandPalette } from '@/components/shared/CommandPalette'
 import {
   BreadcrumbProvider,
   useBreadcrumbContext,
@@ -30,7 +29,12 @@ function generateBreadcrumbItems(pathname: string): BreadcrumbItem[] {
     cases: '案件', contracts: '合同', clients: '当事人', documents: '文书',
     settings: '设置', automation: '自动化工具', 'preservation-quotes': '财产保全询价',
     'document-recognition': '文书智能识别', new: '新建', edit: '编辑',
-    user: '用户设置', system: '系统配置',
+    user: '用户设置', system: '系统配置', tools: '工具', 'law-firm': '律所设置',
+    team: '团队设置', lawyer: '律师设置', config: '服务配置',
+    templates: '文件模板', inbox: '收件箱', 'message-sources': '消息来源',
+    'task-queue': '任务队列', logs: '日志',
+    'court-sms': '法院短信', 'courier-tracking': '快递查询',
+    'element-convert': '要素式转换', 'lpr-calculator': 'LPR 计算器',
   }
 
   let currentPath = '/admin'
@@ -50,7 +54,6 @@ function AdminLayoutContent() {
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed)
   const toggleSidebar = useUIStore((state) => state.toggleSidebar)
   const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed)
-  const navMode = useUIStore((state) => state.navMode)
   const { customItems } = useBreadcrumbContext()
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -73,13 +76,14 @@ function AdminLayoutContent() {
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
 
   const breadcrumbItems = customItems ?? generateBreadcrumbItems(location.pathname)
-  const isTopbarMode = navMode === 'topbar'
-  const mainMarginLeft = isMobile || isTopbarMode ? 0 : sidebarCollapsed ? 68 : 240
+  const mainMarginLeft = isMobile ? 0 : sidebarCollapsed ? 56 : 220
 
   return (
     <div className="bg-background relative min-h-screen">
+      <CommandPalette />
+
       {/* 桌面端 Sidebar */}
-      {!isMobile && !isTopbarMode && (
+      {!isMobile && (
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       )}
 
@@ -90,19 +94,18 @@ function AdminLayoutContent() {
           isMobile && mobileMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={closeMobileMenu}
-        aria-hidden="true"
       />
 
       {/* 移动端 Sidebar 抽屉 */}
       <div
         className={cn(
-          'fixed left-0 top-0 z-50 h-full w-[280px] transition-transform duration-300 ease-out',
+          'fixed left-0 top-0 z-50 h-full w-[260px] transition-transform duration-300 ease-out',
           isMobile && mobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
         <button
           onClick={closeMobileMenu}
-          className="text-muted-foreground hover:text-foreground hover:bg-accent/50 dark:hover:bg-accent/30 absolute right-2 top-4 z-50 rounded-lg p-2 transition-colors duration-200"
+          className="absolute right-2 top-4 z-50 rounded-lg p-2 text-[#a1a1aa] hover:text-white hover:bg-[#27272a] transition-colors"
           aria-label="关闭菜单"
         >
           <X className="size-5" />
@@ -112,21 +115,21 @@ function AdminLayoutContent() {
 
       {/* 主内容区域 */}
       <div
-        className="flex min-h-screen flex-col transition-[margin-left] duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+        className="flex min-h-screen flex-col transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{ marginLeft: mainMarginLeft }}
       >
-        <Navbar onMenuClick={handleMobileMenuClick} showTopNav={isTopbarMode && !isMobile} />
+        <Navbar onMenuClick={handleMobileMenuClick} />
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <div className="mb-4 md:mb-6">
+        <main className="flex-1 px-6 pt-4 pb-0">
+          <div className="mb-4">
             <Breadcrumb items={breadcrumbItems} />
           </div>
           <Outlet />
         </main>
 
-        <footer className="border-border border-t px-4 py-4 md:px-6 lg:px-8">
+        <footer className="border-border border-t px-6 py-3">
           <p className="text-muted-foreground text-center text-xs">
-            © {new Date().getFullYear()} 法穿 AI. All rights reserved.
+            © {new Date().getFullYear()} 法穿AI
           </p>
         </footer>
       </div>

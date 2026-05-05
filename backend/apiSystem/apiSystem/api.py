@@ -208,6 +208,14 @@ def _register_app_routers() -> None:
     api_v1.add_router("/inbox", inbox_router)
     api_v1.add_router("/chat-records", chat_records_router, tags=["梳理聊天记录"])
 
+    from apps.express_query.api import router as express_query_router
+
+    api_v1.add_router("/express-query", express_query_router, auth=JWTOrSessionAuth(), tags=["快递查询"])
+
+    from apps.core.api.task_queue_api import router as task_queue_router
+
+    api_v1.add_router("/task-queue", task_queue_router, auth=JWTOrSessionAuth(), tags=["任务队列"])
+
     api_v1.add_router("/documents", document_router, tags=["文件模板"])
     api_v1.add_router("/documents", folder_template_router, tags=["文件夹模板"])
     api_v1.add_router("/documents", placeholder_router, tags=["替换词"])

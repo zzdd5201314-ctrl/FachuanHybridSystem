@@ -5,7 +5,7 @@
  * Requirements: 5.1, 6.5, 7.6, 7.8, 7.9
  */
 
-import ky from 'ky'
+import { createApiClient } from '@/lib/api'
 
 import type {
   CaseSearchResult,
@@ -14,11 +14,7 @@ import type {
   RecognitionListParams,
   UpdateRecognitionInfoRequest,
 } from './types'
-import { getAccessToken } from '@/lib/token'
 
-/**
- * 分页响应类型
- */
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
@@ -26,27 +22,7 @@ export interface PaginatedResponse<T> {
   page_size: number
 }
 
-/**
- * API 基础路径
- */
-const API_BASE = 'http://localhost:8002/api/v1/automation/document-recognition'
-
-/**
- * 创建带 JWT 认证的 Ky 实例
- */
-const api = ky.create({
-  prefixUrl: API_BASE,
-  hooks: {
-    beforeRequest: [
-      (request) => {
-        const token = getAccessToken()
-        if (token) {
-          request.headers.set('Authorization', `Bearer ${token}`)
-        }
-      },
-    ],
-  },
-})
+const api = createApiClient({ prefixUrl: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'}/automation/document-recognition` })
 
 /**
  * 文书智能识别 API

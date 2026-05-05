@@ -1,13 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import ky from 'ky'
-import { getAccessToken } from '@/lib/token'
+import { createApiClient } from '@/lib/api'
 
 interface ClientOption { id: number; name: string; client_type: string; client_type_label: string; is_our_client: boolean }
 
-const api = ky.create({
-  prefixUrl: 'http://localhost:8002/api/v1/client',
-  hooks: { beforeRequest: [(r) => { const t = getAccessToken(); if (t) r.headers.set('Authorization', `Bearer ${t}`) }] },
-})
+const api = createApiClient({ prefixUrl: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'}/client` })
 
 export function useClientsSelect() {
   return useQuery<ClientOption[]>({

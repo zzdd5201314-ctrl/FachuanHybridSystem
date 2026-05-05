@@ -44,7 +44,7 @@ class ContractServiceAdapter:
         except NotFoundError:
             return None
 
-    def list_contracts(self, **kwargs: Any) -> dict[str, Any]:
+    def list_contracts(self, **kwargs: Any) -> Any:
         return self.contract_service.list_contracts(**kwargs)
 
     def create_contract_with_cases(self, **kwargs: Any) -> Any:

@@ -15,6 +15,7 @@ export interface InboxMessage {
   id: number
   source_name: string
   source_type: string
+  message_id: string
   subject: string
   sender: string
   recipient: string

@@ -32,6 +32,9 @@ class MessageSourceAdmin(admin.ModelAdmin[MessageSource]):
     autocomplete_fields: ClassVar = ("credential",)
     readonly_fields: ClassVar = ["last_sync_at", "last_sync_status", "last_sync_error", "last_synced_uid", "created_at"]
 
+    class Media:
+        css = {"all": ("admin/css/message_source_admin.css",)}
+
     fieldsets: ClassVar = (
         (
             _("基本配置"),

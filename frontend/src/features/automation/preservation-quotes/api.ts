@@ -5,7 +5,7 @@
  * Requirements: 2.1, 3.6, 4.5, 4.9
  */
 
-import ky from 'ky'
+import { createApiClient } from '@/lib/api'
 
 import type {
   PaginatedResponse,
@@ -13,29 +13,8 @@ import type {
   PreservationQuoteCreate,
   QuoteListParams,
 } from './types'
-import { getAccessToken } from '@/lib/token'
 
-/**
- * API 基础路径
- */
-const API_BASE = 'http://localhost:8002/api/v1/automation/preservation-quotes'
-
-/**
- * 创建带 JWT 认证的 Ky 实例
- */
-const api = ky.create({
-  prefixUrl: API_BASE,
-  hooks: {
-    beforeRequest: [
-      (request) => {
-        const token = getAccessToken()
-        if (token) {
-          request.headers.set('Authorization', `Bearer ${token}`)
-        }
-      },
-    ],
-  },
-})
+const api = createApiClient({ prefixUrl: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'}/automation/preservation-quotes` })
 
 /**
  * 财产保全询价 API

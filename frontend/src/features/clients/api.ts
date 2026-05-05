@@ -3,7 +3,7 @@
  * 当事人管理模块 API 封装
  */
 
-import ky from 'ky'
+import { createApiClient } from '@/lib/api'
 
 import type {
   Client,
@@ -18,31 +18,14 @@ import type {
   PropertyClueAttachment,
   PropertyClueInput,
 } from './types'
-import { getAccessToken } from '@/lib/token'
 
-const API_BASE = 'http://localhost:8002/api/v1/client'
-
-const api = ky.create({
-  prefixUrl: API_BASE,
-  hooks: {
-    beforeRequest: [
-      (request) => {
-        const token = getAccessToken()
-        if (token) {
-          request.headers.set('Authorization', `Bearer ${token}`)
-        }
-      },
-    ],
-  },
-})
+const api = createApiClient({ prefixUrl: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'}/client` })
 
 export const clientApi = {
   // ==================== 当事人 CRUD ====================
 
   list: async (params?: ClientListParams): Promise<Client[]> => {
     const searchParams = new URLSearchParams()
-    if (params?.page !== undefined) searchParams.set('page', String(params.page))
-    if (params?.page_size !== undefined) searchParams.set('page_size', String(params.page_size))
     if (params?.client_type) searchParams.set('client_type', params.client_type)
     if (params?.is_our_client !== undefined) searchParams.set('is_our_client', String(params.is_our_client))
     if (params?.search) searchParams.set('search', params.search)

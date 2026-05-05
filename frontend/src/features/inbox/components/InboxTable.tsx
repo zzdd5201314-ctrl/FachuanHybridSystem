@@ -28,18 +28,12 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
-}
-
 function TableSkeleton() {
   return (
     <>
       {Array.from({ length: 5 }).map((_, i) => (
         <TableRow key={i}>
-          {Array.from({ length: 5 }).map((_, j) => (
+          {Array.from({ length: 6 }).map((_, j) => (
             <TableCell key={j}><div className="bg-muted h-4 w-24 animate-pulse rounded" /></TableCell>
           ))}
         </TableRow>
@@ -51,7 +45,7 @@ function TableSkeleton() {
 function EmptyState() {
   return (
     <TableRow>
-      <TableCell colSpan={6} className="h-48">
+      <TableCell colSpan={7} className="h-48">
         <div className="flex flex-col items-center justify-center gap-3">
           <div className="bg-muted flex size-12 items-center justify-center rounded-full">
             <Inbox className="text-muted-foreground size-6" />
@@ -71,6 +65,7 @@ export function InboxTable({ messages, isLoading }: InboxTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[60px]">ID</TableHead>
             <TableHead className="w-[100px]">来源</TableHead>
             <TableHead>主题</TableHead>
             <TableHead className="w-[180px]">发件人</TableHead>
@@ -91,6 +86,7 @@ export function InboxTable({ messages, isLoading }: InboxTableProps) {
                 className="cursor-pointer"
                 onClick={() => navigate(generatePath.inboxDetail(msg.id))}
               >
+                <TableCell className="text-muted-foreground text-sm">{msg.id}</TableCell>
                 <TableCell>
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${SOURCE_COLORS[msg.source_type] ?? 'bg-gray-500'}`}

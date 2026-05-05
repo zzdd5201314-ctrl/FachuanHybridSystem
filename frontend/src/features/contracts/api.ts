@@ -2,7 +2,7 @@
  * Contract Feature API
  */
 
-import { api } from '@/lib/api'
+import { api, API_BASE_URL } from '@/lib/api'
 import type {
   Contract, ContractInput, ContractUpdate, ContractListParams,
   ContractPayment, PaymentInput, PaymentUpdate,
@@ -10,11 +10,11 @@ import type {
   FolderBinding, FolderBrowseResponse,
   FolderScanStart, FolderScanSubfolderList, FolderScanStatus,
   FolderScanConfirmItem, FolderScanConfirmResult,
-  FinanceStats, PaginatedResponse, ContractPartySource,
+  FinanceStats, ContractPartySource,
 } from './types'
 
 const contractApi_ = api.extend({
-  prefixUrl: 'http://localhost:8002/api/v1/contracts',
+  prefixUrl: `${API_BASE_URL}/contracts`,
 })
 
 export const contractApi = {

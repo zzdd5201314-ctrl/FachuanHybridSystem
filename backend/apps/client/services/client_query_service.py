@@ -51,18 +51,12 @@ class ClientQueryService:
     def list_clients(
         self,
         *,
-        page: int = 1,
-        page_size: int = 20,
-        max_page_size: int = 100,
         client_type: str | None = None,
         is_our_client: bool | None = None,
         search: str | None = None,
         user: User | None = None,
     ) -> QuerySet[Client, Client]:
         return self.list_query.list_clients(
-            page=page,
-            page_size=page_size,
-            max_page_size=max_page_size,
             client_type=client_type,
             is_our_client=is_our_client,
             search=search,

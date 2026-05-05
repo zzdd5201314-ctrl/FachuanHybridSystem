@@ -11,10 +11,9 @@ def list_clients(
     search: str | None = None,
     client_type: str | None = None,
     is_our_client: bool | None = None,
-    page_size: int = 20,
 ) -> list[dict[str, Any]]:
     """查询客户列表。支持按姓名/公司名搜索（search）、客户类型（client_type：individual/company）、是否我方客户（is_our_client）筛选。"""
-    params: dict[str, Any] = {"page_size": page_size}
+    params: dict[str, Any] = {}
     if search:
         params["search"] = search
     if client_type:

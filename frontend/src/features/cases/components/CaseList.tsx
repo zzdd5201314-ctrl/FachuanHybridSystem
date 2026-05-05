@@ -7,11 +7,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
-import { Plus, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PATHS } from '@/routes/paths'
+import { PageFooter } from '@/components/shared/PageFooter'
 
 import { CaseFilters } from './CaseFilters'
 import { CaseTable } from './CaseTable'
@@ -63,7 +64,6 @@ export function CaseList() {
 
   // Client-side pagination
   const total = allCases.length
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const paginatedCases = useMemo(
     () => allCases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [allCases, page],
@@ -123,22 +123,13 @@ export function CaseList() {
       <CaseTable cases={paginatedCases} isLoading={isLoading} />
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-muted-foreground text-sm">
-            共 <span className="text-foreground font-medium">{total}</span> 条
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1} className="h-8 w-8 p-0">
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span className="text-sm">{page} / {totalPages}</span>
-            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} className="h-8 w-8 p-0">
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <PageFooter
+        stats={[{ label: '共', value: `${total} 条` }]}
+        page={page}
+        total={total}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   )
 }

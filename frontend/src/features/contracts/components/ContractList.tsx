@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PATHS } from '@/routes/paths'
+import { PageFooter } from '@/components/shared/PageFooter'
 import { ContractFilters } from './ContractFilters'
 import { ContractTable } from './ContractTable'
 import { useContracts } from '../hooks/use-contracts'
@@ -16,7 +17,7 @@ export function ContractList() {
   const [caseType, setCaseType] = useState<CaseType | undefined>()
   const [status, setStatus] = useState<ContractStatus | undefined>()
 
-  const { data, isLoading, isFetching } = useContracts({
+  const { data, isLoading } = useContracts({
     page, page_size: PAGE_SIZE, case_type: caseType, status,
   })
 
@@ -25,7 +26,6 @@ export function ContractList() {
 
   const contracts = data?.items ?? []
   const total = data?.total ?? 0
-  const totalPages = data?.total_pages ?? 1
 
   return (
     <div className="flex flex-col gap-4">
@@ -41,22 +41,13 @@ export function ContractList() {
 
       <ContractTable contracts={contracts} isLoading={isLoading} />
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-muted-foreground text-sm">
-            共 <span className="text-foreground font-medium">{total}</span> 条
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1 || isFetching} className="h-8 w-8 p-0">
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span className="text-sm">{page} / {totalPages}</span>
-            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages || isFetching} className="h-8 w-8 p-0">
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <PageFooter
+        stats={[{ label: '共', value: `${total} 条` }]}
+        page={page}
+        total={total}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   )
 }

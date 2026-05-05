@@ -196,8 +196,6 @@ export interface ParseTextResult {
 // ============================================================================
 
 export interface ClientListParams {
-  page?: number
-  page_size?: number
   client_type?: ClientType
   is_our_client?: boolean
   search?: string

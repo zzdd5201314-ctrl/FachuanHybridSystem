@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import cast
 from urllib.parse import parse_qs, urlparse
 
@@ -27,6 +28,14 @@ logger = logging.getLogger(__name__)
 GDZQFY_URL = "https://www.gdzqfy.gov.cn/api/utils/getscwsurl"
 ZNSZJ_BASE = "https://wxfxpg.susong51.com/znszj-touch"
 TIMEOUT = 60
+
+
+def _make_client() -> httpx.Client:
+    """创建 httpx 客户端，自动检测系统代理并跳过 SSL 验证（代理 MITM）。"""
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    if proxy:
+        return httpx.Client(timeout=TIMEOUT, proxy=proxy, verify=False)
+    return httpx.Client(timeout=TIMEOUT, trust_env=True, verify=False)
 
 
 class ZnszjClient:
@@ -65,7 +74,7 @@ class ZnszjClient:
 
     def _authenticate(self) -> dict[str, str]:
         """完成三步认证，返回 token、mac、sbbs。"""
-        with httpx.Client(timeout=TIMEOUT, proxy=None) as client:
+        with _make_client() as client:
             # Step 1: 获取 signatureCode
             r1 = client.post(GDZQFY_URL)
             r1.raise_for_status()
@@ -114,7 +123,7 @@ class ZnszjClient:
         """执行上传→转写→保存→下载流程。"""
         headers = {"token": token, "mac": mac}
 
-        with httpx.Client(timeout=TIMEOUT, proxy=None) as client:
+        with _make_client() as client:
             # Step 1: 上传传统文书（只需 mac）
             r1 = client.post(
                 f"{ZNSZJ_BASE}/api/v1/tableTemplate/uploadOriginQsz",

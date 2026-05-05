@@ -40,9 +40,6 @@ class ClientQueryFacade:
     def list_clients(
         self,
         *,
-        page: int = 1,
-        page_size: int = 20,
-        max_page_size: int = 100,
         client_type: str | None = None,
         is_our_client: bool | None = None,
         search: str | None = None,
@@ -51,9 +48,6 @@ class ClientQueryFacade:
         if user is not None:
             self.access_policy.ensure_has_perm(user, "client.view_client", _("无权限查看客户"))
         return self.query_service.list_clients(
-            page=page,
-            page_size=page_size,
-            max_page_size=max_page_size,
             client_type=client_type,
             is_our_client=is_our_client,
             search=search,

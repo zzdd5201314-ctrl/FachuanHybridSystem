@@ -38,26 +38,22 @@ def list_contracts(
     request: HttpRequest,
     case_type: str | None = None,
     status: str | None = None,
-    page: int = 1,
-    page_size: int = 20,
 ) -> Any:
     """
-    获取合同列表（分页）
+    获取合同列表（前端做客户端分页）
 
     Requirements: 6.1, 6.2, 6.3
     """
     service = _get_domain_service()
     ctx = extract_request_context(request)
 
-    result = service.list_contracts(
+    return service.list_contracts(
         case_type=case_type,
         status=status,
         user=ctx.user,
         org_access=ctx.org_access,
         perm_open_access=ctx.perm_open_access,
     )
-    # list_contracts 返回 dict（含分页），前端做客户端分页所以只返回 items
-    return result["items"] if isinstance(result, dict) else result
 
 
 class ContractWithCasesIn(ContractIn):

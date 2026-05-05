@@ -2,15 +2,14 @@
  * 收件箱 API
  */
 
-import { api } from '@/lib/api'
+import { api, API_BASE_URL } from '@/lib/api'
 import type { InboxMessage, InboxMessageDetail, InboxListParams } from './types'
 
 const inboxApi_ = api.extend({
-  prefixUrl: 'http://localhost:8002/api/v1/inbox',
+  prefixUrl: `${API_BASE_URL}/inbox`,
 })
 
-/** 附件 URL 基础路径 */
-const ATTACHMENT_BASE = 'http://localhost:8002/api/v1/inbox/messages'
+const ATTACHMENT_BASE = `${API_BASE_URL}/inbox/messages`
 
 export const inboxApi = {
   list: async (params?: InboxListParams): Promise<InboxMessage[]> => {

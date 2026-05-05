@@ -54,24 +54,19 @@ def _get_mutation_service() -> Any:
 @router.get("/clients", response=list[ClientOut])
 def list_clients(
     request: Any,
-    page: int = 1,
-    page_size: int | None = None,
     client_type: str | None = None,
     is_our_client: bool | None = None,
     search: str | None = None,
 ) -> list[ClientOut]:
-    """获取客户列表"""
+    """获取客户列表（前端做客户端分页）"""
     facade = _get_query_facade()
     user = getattr(request, "auth", None) or extract_request_context(request).user
-    clients = facade.list_clients(
-        page=page,
-        page_size=page_size or 20,
+    return facade.list_clients(
         client_type=client_type,
         is_our_client=is_our_client,
         search=search,
         user=user,
     )
-    return list(clients)
 
 
 @router.post("/clients/parse-text")
