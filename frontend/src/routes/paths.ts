@@ -3,13 +3,6 @@
  * 集中管理所有路由路径，避免硬编码
  */
 export const PATHS = {
-  // 公开页面
-  HOME: '/',
-  ABOUT: '/about',
-  PRICING: '/pricing',
-  TUTORIAL: '/tutorial',
-  PORTAL: '/portal/:token',
-
   // 认证页面
   LOGIN: '/login',
   REGISTER: '/register',
@@ -89,7 +82,6 @@ export const PATHS = {
  * 生成带参数的路由路径
  */
 export const generatePath = {
-  portal: (token: string) => `/portal/${token}`,
   inboxDetail: (id: string | number) => `/admin/inbox/${id}`,
   caseDetail: (id: string) => `/admin/cases/${id}`,
   caseEdit: (id: string) => `/admin/cases/${id}/edit`,

@@ -1,5 +1,4 @@
 import { createBrowserRouter, Navigate } from 'react-router'
-import { PublicLayout } from '@/layouts/PublicLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { AdminLayout } from '@/layouts/AdminLayout'
 import { PATHS } from './paths'
@@ -7,18 +6,6 @@ import { AuthGuard, GuestGuard } from './guards'
 
 // 懒加载页面组件
 import { lazy } from 'react'
-
-const HomePage = lazy(() =>
-  import('@/pages/public/HomePage').then((m) => ({ default: m.HomePage }))
-)
-
-const PricingPage = lazy(() =>
-  import('@/pages/public/PricingPage').then((m) => ({ default: m.PricingPage }))
-)
-
-const TutorialPage = lazy(() =>
-  import('@/pages/public/TutorialPage').then((m) => ({ default: m.TutorialPage }))
-)
 
 // 认证页面懒加载
 const LoginPage = lazy(() =>
@@ -98,24 +85,10 @@ const LogsPage = lazy(() => import('@/pages/dashboard/logs/LogsPage'))
  * 应用路由配置
  */
 export const router = createBrowserRouter([
-  // 公开页面
+  // 根路径重定向到后台（AuthGuard 会处理未登录情况）
   {
-    element: <PublicLayout />,
-    children: [
-      {
-        path: PATHS.HOME,
-        element: <HomePage />,
-      },
-      {
-        path: PATHS.PRICING,
-        element: <PricingPage />,
-      },
-      {
-        path: PATHS.TUTORIAL,
-        element: <TutorialPage />,
-      },
-      // 其他公开页面后续添加...
-    ],
+    path: '/',
+    element: <Navigate to={PATHS.ADMIN_DASHBOARD} replace />,
   },
   // 认证页面（已登录则跳转到 dashboard）
   {
@@ -373,5 +346,10 @@ export const router = createBrowserRouter([
         ],
       },
     ],
+  },
+  // 未匹配路径重定向到后台
+  {
+    path: '*',
+    element: <Navigate to={PATHS.ADMIN_DASHBOARD} replace />,
   },
 ])
