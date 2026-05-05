@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from django.http import HttpRequest
@@ -10,12 +11,18 @@ from ninja import Router, Schema
 router = Router()
 
 
+def _fmt_dt(dt: datetime | None) -> str | None:
+    if dt is None:
+        return None
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 class QueuedTaskOut(Schema):
     id: str
     name: str
     func: str
     group: str | None = None
-    created_at: Any = None
+    created_at: str | None = None
 
 
 class TaskOut(Schema):
@@ -23,8 +30,8 @@ class TaskOut(Schema):
     name: str
     func: str
     group: str | None = None
-    started_at: Any = None
-    finished_at: Any = None
+    started_at: str | None = None
+    finished_at: str | None = None
     duration: float | None = None
     success: bool
     result: str | None = None
@@ -36,8 +43,8 @@ class ScheduleOut(Schema):
     func: str
     schedule_type: str
     repeats: int
-    next_run: Any = None
-    last_run: Any = None
+    next_run: str | None = None
+    last_run: str | None = None
     success: bool | None = None
 
 
@@ -53,7 +60,7 @@ def list_queued(request: HttpRequest) -> Any:
             name=item.task().get("name", ""),
             func=item.task().get("func", ""),
             group=item.task().get("group", ""),
-            created_at=item.lock,
+            created_at=_fmt_dt(item.lock),
         )
         for item in items
     ]
@@ -71,8 +78,8 @@ def list_completed(request: HttpRequest) -> Any:
             name=t.name or "",
             func=t.func or "",
             group=t.group,
-            started_at=t.started,
-            finished_at=t.stopped,
+            started_at=_fmt_dt(t.started),
+            finished_at=_fmt_dt(t.stopped),
             duration=t.time_taken(),
             success=True,
             result=str(t.result)[:200] if t.result else None,
@@ -93,8 +100,8 @@ def list_failed(request: HttpRequest) -> Any:
             name=t.name or "",
             func=t.func or "",
             group=t.group,
-            started_at=t.started,
-            finished_at=t.stopped,
+            started_at=_fmt_dt(t.started),
+            finished_at=_fmt_dt(t.stopped),
             duration=t.time_taken(),
             success=False,
             result=str(t.result)[:500] if t.result else None,
@@ -126,8 +133,8 @@ def list_scheduled(request: HttpRequest) -> Any:
             func=s.func,
             schedule_type=type_labels.get(s.schedule_type, str(s.schedule_type)),
             repeats=s.repeats,
-            next_run=s.next_run,
-            last_run=s.last_run,
+            next_run=_fmt_dt(s.next_run),
+            last_run=_fmt_dt(s.last_run),
         )
         for s in schedules
     ]
