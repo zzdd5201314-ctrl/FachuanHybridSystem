@@ -41,7 +41,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Type check (tsc)
-        run: pnpm exec tsc -b --noEmit
+        run: pnpm exec tsc --project tsconfig.app.json --noEmit
 
       - name: Lint (eslint)
         run: pnpm lint
