@@ -41,27 +41,35 @@ class ContractQueryService:
         *,
         case_type: str | None,
         status: str | None,
+        search: str | None,
+        fee_mode: str | None,
         is_filed: bool | None,
     ) -> QuerySet[Contract, Contract]:
         if case_type:
             qs = qs.filter(case_type=case_type)
         if status:
             qs = qs.filter(status=status)
+        if fee_mode:
+            qs = qs.filter(fee_mode=fee_mode)
         if is_filed is not None:
             qs = qs.filter(is_filed=is_filed)
+        if search:
+            qs = qs.filter(name__icontains=search)
         return qs
 
     def list_contracts(
         self,
         case_type: str | None = None,
         status: str | None = None,
+        search: str | None = None,
+        fee_mode: str | None = None,
         is_filed: bool | None = None,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
         perm_open_access: bool = False,
     ) -> QuerySet[Contract, Contract]:
         qs = self.get_contract_queryset().order_by("-id")
-        qs = self._apply_list_filters(qs, case_type=case_type, status=status, is_filed=is_filed)
+        qs = self._apply_list_filters(qs, case_type=case_type, status=status, search=search, fee_mode=fee_mode, is_filed=is_filed)
 
         qs = self.access_policy.filter_queryset(
             qs=qs,
@@ -77,10 +85,12 @@ class ContractQueryService:
         ctx: AccessContext,
         case_type: str | None = None,
         status: str | None = None,
+        search: str | None = None,
+        fee_mode: str | None = None,
         is_filed: bool | None = None,
     ) -> QuerySet[Contract, Contract]:
         qs = self.get_contract_queryset().order_by("-id")
-        qs = self._apply_list_filters(qs, case_type=case_type, status=status, is_filed=is_filed)
+        qs = self._apply_list_filters(qs, case_type=case_type, status=status, search=search, fee_mode=fee_mode, is_filed=is_filed)
 
         qs = self.access_policy.filter_queryset_ctx(qs=qs, ctx=ctx)
         return qs

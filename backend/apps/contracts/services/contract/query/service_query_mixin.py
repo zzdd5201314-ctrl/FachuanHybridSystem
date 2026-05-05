@@ -23,6 +23,8 @@ class ContractServiceQueryMixin:
         self,
         case_type: str | None = None,
         status: str | None = None,
+        search: str | None = None,
+        fee_mode: str | None = None,
         is_filed: bool | None = None,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
@@ -33,6 +35,8 @@ class ContractServiceQueryMixin:
             self.query_facade.list_contracts(
                 case_type=case_type,
                 status=status,
+                search=search,
+                fee_mode=fee_mode,
                 is_filed=is_filed,
                 user=user,
                 org_access=org_access,

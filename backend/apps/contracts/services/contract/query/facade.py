@@ -51,6 +51,8 @@ class ContractQueryFacade:
         self,
         case_type: str | None = None,
         status: str | None = None,
+        search: str | None = None,
+        fee_mode: str | None = None,
         is_filed: bool | None = None,
         user: Any | None = None,
         org_access: dict[str, Any] | None = None,
@@ -59,6 +61,8 @@ class ContractQueryFacade:
         qs = self.query_service.list_contracts(
             case_type=case_type,
             status=status,
+            search=search,
+            fee_mode=fee_mode,
             is_filed=is_filed,
             user=user,
             org_access=org_access,
@@ -74,12 +78,16 @@ class ContractQueryFacade:
         ctx: AccessContext,
         case_type: str | None = None,
         status: str | None = None,
+        search: str | None = None,
+        fee_mode: str | None = None,
         is_filed: bool | None = None,
     ) -> list[Contract]:
         qs = self.query_service.list_contracts_ctx(
             ctx=ctx,
             case_type=case_type,
             status=status,
+            search=search,
+            fee_mode=fee_mode,
             is_filed=is_filed,
         )
         contracts = list(qs)

@@ -38,6 +38,9 @@ def list_contracts(
     request: HttpRequest,
     case_type: str | None = None,
     status: str | None = None,
+    search: str | None = None,
+    fee_mode: str | None = None,
+    is_filed: bool | None = None,
 ) -> Any:
     """
     获取合同列表（前端做客户端分页）
@@ -50,6 +53,9 @@ def list_contracts(
     return service.list_contracts(
         case_type=case_type,
         status=status,
+        search=search,
+        fee_mode=fee_mode,
+        is_filed=is_filed,
         user=ctx.user,
         org_access=ctx.org_access,
         perm_open_access=ctx.perm_open_access,
