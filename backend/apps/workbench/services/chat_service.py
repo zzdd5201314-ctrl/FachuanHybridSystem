@@ -21,6 +21,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
+from asgiref.sync import sync_to_async
+
 from pydantic_ai import Agent, UsageLimits
 from pydantic_ai.messages import (
     ModelMessage,
@@ -104,10 +106,10 @@ async def _load_message_history(
     """
     from ..models import WorkbenchMessage
 
-    # 从最新消息向前加载
+    # 从最新消息向前加载（含工具调用结果）
     messages_qs = WorkbenchMessage.objects.filter(
         session_id=session_id,
-        role__in=[WorkbenchMessage.Role.USER, WorkbenchMessage.Role.ASSISTANT],
+        role__in=[WorkbenchMessage.Role.USER, WorkbenchMessage.Role.ASSISTANT, WorkbenchMessage.Role.TOOL],
     ).order_by("-created_at")[:max_messages]
 
     raw_messages = list(reversed(await _async_list(messages_qs)))
@@ -144,6 +146,15 @@ def _convert_to_model_messages(messages: list[Any]) -> list[ModelMessage]:
             result.append(ModelRequest(parts=[UserPromptPart(content=msg.content)]))
         elif msg.role == "assistant":
             result.append(ModelResponse(parts=[TextPart(content=msg.content)]))
+        elif msg.role == "tool":
+            # 工具结果转为 ToolReturnPart，保持 tool_call_id 关联
+            tool_output = msg.tool_output or {}
+            result_text = tool_output.get("result", msg.content) if isinstance(tool_output, dict) else str(tool_output)
+            result.append(ModelRequest(parts=[ToolReturnPart(
+                tool_call_id=msg.tool_call_id or "",
+                tool_name=msg.tool_name or "",
+                content=str(result_text),
+            )]))
 
     return result
 
@@ -194,8 +205,11 @@ async def _maybe_create_summary(
         )
         summary = result.output
 
-        # 存储到 session metadata
-        await WorkbenchSession.objects.filter(id=session_id).aupdate(metadata={"conversation_summary": summary})
+        # 存储到 session metadata（merge 而非覆盖）
+        session = await WorkbenchSession.objects.aget(id=session_id)
+        meta = dict(session.metadata or {})
+        meta["conversation_summary"] = summary
+        await WorkbenchSession.objects.filter(id=session_id).aupdate(metadata=meta)
 
         return summary
     except Exception:
@@ -291,8 +305,8 @@ class WorkbenchChatService:
         agent_name = agent_type or "triage"
         set_event_queue(event_queue, agent_name=agent_name)
 
-        # 构建模型
-        model = build_model(model_name) if model_name else None
+        # 构建模型（LLMConfig 内部用同步 ORM，需 sync_to_async）
+        model = await sync_to_async(build_model)(model_name) if model_name else None
 
         # 流式运行 Agent
         full_response: list[str] = []
