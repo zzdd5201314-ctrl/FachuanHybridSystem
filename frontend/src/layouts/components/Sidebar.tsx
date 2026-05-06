@@ -66,15 +66,18 @@ function GroupMenu({ group, collapsed, isExpanded, onToggle, activePath }: {
   const Icon = group.icon
   const hasActive = group.items.some((item) => activePath.startsWith(item.path))
   const [popoverOpen, setPopoverOpen] = useState(false)
+  const [buttonRect, setButtonRect] = useState<DOMRect | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
 
-  // Click outside to close popover
+  // Click outside to close (check both button area and popover)
   useEffect(() => {
     if (!popoverOpen) return
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setPopoverOpen(false)
-      }
+      const target = e.target as Node
+      if (containerRef.current?.contains(target)) return
+      if (popoverRef.current?.contains(target)) return
+      setPopoverOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -89,8 +92,11 @@ function GroupMenu({ group, collapsed, isExpanded, onToggle, activePath }: {
     }
   }, [activePath])
 
-  const handleButtonClick = () => {
+  const handleButtonClick = (e: React.MouseEvent) => {
     if (collapsed) {
+      // Measure button position for fixed popover placement
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      setButtonRect(rect)
       setPopoverOpen((prev) => !prev)
     } else {
       onToggle()
@@ -118,30 +124,33 @@ function GroupMenu({ group, collapsed, isExpanded, onToggle, activePath }: {
         )}
       </button>
 
-      {/* Collapsed: click-triggered popover */}
-      {collapsed && popoverOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setPopoverOpen(false)} />
-          <div
-            className="absolute left-full top-0 ml-2 py-1.5 rounded-lg min-w-[160px] bg-[#27272a] text-white shadow-xl border border-[#3f3f46] z-50"
-            style={{ animation: 'popover-in 0.15s ease-out' }}
-          >
-            <div className="px-3 pb-1.5 mb-1 text-xs font-semibold text-[#71717a] border-b border-[#3f3f46]">{group.label}</div>
-            {group.items.map((item) => (
-              <NavLink
-                key={item.id}
-                to={item.path}
-                className={cn(
-                  'flex items-center gap-2.5 px-3 py-2 text-[13px] hover:bg-[#3f3f46] transition-colors duration-100',
-                  activePath.startsWith(item.path) && 'text-white bg-[#3f3f46] font-medium',
-                )}
-              >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
-        </>
+      {/* Collapsed: click-triggered popover (fixed positioning to escape overflow:hidden) */}
+      {collapsed && popoverOpen && buttonRect && (
+        <div
+          ref={popoverRef}
+          className="fixed py-1.5 rounded-lg min-w-[160px] bg-[#27272a] text-white shadow-xl border border-[#3f3f46]"
+          style={{
+            left: buttonRect.right + 8,
+            top: buttonRect.top,
+            zIndex: 9999,
+            animation: 'popover-in 0.15s ease-out',
+          }}
+        >
+          <div className="px-3 pb-1.5 mb-1 text-xs font-semibold text-[#71717a] border-b border-[#3f3f46]">{group.label}</div>
+          {group.items.map((item) => (
+            <NavLink
+              key={item.id}
+              to={item.path}
+              className={cn(
+                'flex items-center gap-2.5 px-3 py-2 text-[13px] hover:bg-[#3f3f46] transition-colors duration-100',
+                activePath.startsWith(item.path) && 'text-white bg-[#3f3f46] font-medium',
+              )}
+            >
+              <item.icon className="w-4 h-4" />
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
       )}
 
       {/* Expanded: inline sub-items */}
