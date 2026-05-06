@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
@@ -79,15 +80,18 @@ _current_event_queue: ContextVar[asyncio.Queue[dict[str, Any] | None] | None] = 
     default=None,
 )
 _current_agent_name: ContextVar[str] = ContextVar("_current_agent_name", default="triage")
+_current_user_id: ContextVar[int | None] = ContextVar("_current_user_id", default=None)
 
 
 def set_event_queue(
     queue: asyncio.Queue[dict[str, Any] | None] | None,
     agent_name: str = "triage",
+    user_id: int | None = None,
 ) -> None:
-    """设置当前请求的事件队列和 agent 名称（stream_chat 调用前设置）"""
+    """设置当前请求的事件队列、agent 名称和用户 ID（stream_chat 调用前设置）"""
     _current_event_queue.set(queue)
     _current_agent_name.set(agent_name)
+    _current_user_id.set(user_id)
 
 
 async def _process_tool_call(ctx: Any, call_tool: Any, name: str, tool_args: dict[str, Any]) -> Any:
@@ -108,7 +112,8 @@ async def _process_tool_call(ctx: Any, call_tool: Any, name: str, tool_args: dic
             }
         )
 
-    return await process_tool_call_with_approval(ctx, call_tool, name, tool_args, queue)
+    user_id = _current_user_id.get()
+    return await process_tool_call_with_approval(ctx, call_tool, name, tool_args, queue, user_id=user_id)
 
 
 # ─── Model 构建 ──────────────────────────────────────────────────────────────
@@ -153,7 +158,7 @@ def build_model(model_name: str) -> OpenAIChatModel:
 # ─── MCP Server（共享实例，带审批回调） ───────────────────────────────────────
 
 mcp_server = MCPServerStdio(
-    "python",
+    sys.executable,
     args=["-m", "mcp_server"],
     cwd=BACKEND_DIR,
     tool_prefix="",
