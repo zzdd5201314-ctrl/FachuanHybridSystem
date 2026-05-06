@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { ChevronLeft, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -65,13 +65,44 @@ function GroupMenu({ group, collapsed, isExpanded, onToggle, activePath }: {
 }) {
   const Icon = group.icon
   const hasActive = group.items.some((item) => activePath.startsWith(item.path))
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Click outside to close popover
+  useEffect(() => {
+    if (!popoverOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [popoverOpen])
+
+  // Close popover on route change
+  const prevPath = useRef(activePath)
+  useEffect(() => {
+    if (activePath !== prevPath.current) {
+      prevPath.current = activePath
+      setPopoverOpen(false)
+    }
+  }, [activePath])
+
+  const handleButtonClick = () => {
+    if (collapsed) {
+      setPopoverOpen((prev) => !prev)
+    } else {
+      onToggle()
+    }
+  }
 
   return (
-    <div>
+    <div ref={containerRef} className="relative">
       <button
-        onClick={onToggle}
+        onClick={handleButtonClick}
         className={cn(
-          'w-full flex items-center gap-3 h-10 px-3 rounded-md mx-2 transition-all duration-150 group relative',
+          'w-full flex items-center gap-3 h-10 px-3 rounded-md mx-2 transition-all duration-150 group',
           'text-[#a1a1aa] hover:text-white hover:bg-[#27272a]',
           hasActive && 'text-white',
           collapsed && 'justify-center mx-1 px-0',
@@ -85,16 +116,24 @@ function GroupMenu({ group, collapsed, isExpanded, onToggle, activePath }: {
             <ChevronDown className={cn('w-4 h-4 text-[#71717a] transition-transform duration-200', isExpanded && 'rotate-180')} />
           </>
         )}
-        {collapsed && (
-          <div className="absolute left-full ml-3 py-2 rounded-lg min-w-[160px] bg-[#27272a] text-white shadow-lg border border-[#3f3f46] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50">
+      </button>
+
+      {/* Collapsed: click-triggered popover */}
+      {collapsed && popoverOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setPopoverOpen(false)} />
+          <div
+            className="absolute left-full top-0 ml-2 py-1.5 rounded-lg min-w-[160px] bg-[#27272a] text-white shadow-xl border border-[#3f3f46] z-50"
+            style={{ animation: 'popover-in 0.15s ease-out' }}
+          >
             <div className="px-3 pb-1.5 mb-1 text-xs font-semibold text-[#71717a] border-b border-[#3f3f46]">{group.label}</div>
             {group.items.map((item) => (
               <NavLink
                 key={item.id}
                 to={item.path}
                 className={cn(
-                  'flex items-center gap-2.5 px-3 py-2 text-[13px] hover:bg-[#27272a] transition-colors duration-150',
-                  activePath.startsWith(item.path) && 'text-white bg-[#27272a] font-medium',
+                  'flex items-center gap-2.5 px-3 py-2 text-[13px] hover:bg-[#3f3f46] transition-colors duration-100',
+                  activePath.startsWith(item.path) && 'text-white bg-[#3f3f46] font-medium',
                 )}
               >
                 <item.icon className="w-4 h-4" />
@@ -102,9 +141,10 @@ function GroupMenu({ group, collapsed, isExpanded, onToggle, activePath }: {
               </NavLink>
             ))}
           </div>
-        )}
-      </button>
+        </>
+      )}
 
+      {/* Expanded: inline sub-items */}
       {!collapsed && (
         <div
           className="grid transition-[grid-template-rows] duration-200 ease-in-out"
