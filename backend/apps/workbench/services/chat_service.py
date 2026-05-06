@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 # ─── 常量 ────────────────────────────────────────────────────────────────────
 
-AGENT_MAP: dict[str, Agent] = {
+AGENT_MAP: dict[str, Agent[WorkbenchDeps, str]] = {
     "triage": triage_agent,
     "case": case_agent,
     "contract": contract_agent,
