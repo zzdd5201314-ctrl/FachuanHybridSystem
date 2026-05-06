@@ -16,6 +16,23 @@ import {
 
 const MOBILE_BREAKPOINT = 768
 
+/** 不可独立访问的路径段（仅作为路由前缀，无对应 index 页面） */
+const NO_LINK_SEGMENTS = new Set(['config'])
+
+/** 路径段 → 中文标签映射 */
+const ROUTE_LABELS: Record<string, string> = {
+  cases: '案件', contracts: '合同', clients: '当事人', documents: '文书',
+  settings: '设置', automation: '自动化工具', 'preservation-quotes': '财产保全询价',
+  'document-recognition': '文书智能识别', new: '新建', edit: '编辑',
+  user: '用户设置', system: '系统配置', tools: '工具', 'law-firm': '律所设置',
+  team: '团队设置', lawyer: '律师设置', config: '服务配置',
+  templates: '文件模板', inbox: '收件箱', 'message-sources': '消息来源',
+  'task-queue': '任务队列', logs: '日志',
+  'court-sms': '法院短信', 'courier-tracking': '快递查询',
+  'element-convert': '要素式转换', 'lpr-calculator': 'LPR 计算器',
+  ai: 'AI', email: '邮件', sms: '短信', storage: '存储', llm: 'LLM',
+}
+
 function generateBreadcrumbItems(pathname: string): BreadcrumbItem[] {
   const items: BreadcrumbItem[] = [
     { label: '首页', path: PATHS.ADMIN_DASHBOARD },
@@ -25,26 +42,23 @@ function generateBreadcrumbItems(pathname: string): BreadcrumbItem[] {
   if (segments[0] === 'admin') segments.shift()
   if (segments.length === 0 || segments[0] === 'dashboard') return [{ label: '首页' }]
 
-  const routeLabels: Record<string, string> = {
-    cases: '案件', contracts: '合同', clients: '当事人', documents: '文书',
-    settings: '设置', automation: '自动化工具', 'preservation-quotes': '财产保全询价',
-    'document-recognition': '文书智能识别', new: '新建', edit: '编辑',
-    user: '用户设置', system: '系统配置', tools: '工具', 'law-firm': '律所设置',
-    team: '团队设置', lawyer: '律师设置', config: '服务配置',
-    templates: '文件模板', inbox: '收件箱', 'message-sources': '消息来源',
-    'task-queue': '任务队列', logs: '日志',
-    'court-sms': '法院短信', 'courier-tracking': '快递查询',
-    'element-convert': '要素式转换', 'lpr-calculator': 'LPR 计算器',
-  }
-
   let currentPath = '/admin'
-  segments.forEach((segment, index) => {
-    const isLast = index === segments.length - 1
-    const label = routeLabels[segment] || segment
-    if (/^\d+$/.test(segment) || /^[a-f0-9-]{36}$/i.test(segment)) return
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]
+    const isLast = i === segments.length - 1
+    if (/^\d+$/.test(segment) || /^[a-f0-9-]{36}$/i.test(segment)) continue
+
+    const label = ROUTE_LABELS[segment] || segment
     currentPath += `/${segment}`
+
+    // 无独立页面的路径段：仅显示标签，不生成链接
+    if (NO_LINK_SEGMENTS.has(segment)) {
+      items.push({ label })
+      continue
+    }
+
     items.push(isLast ? { label } : { label, path: currentPath })
-  })
+  }
 
   return items
 }
@@ -77,6 +91,7 @@ function AdminLayoutContent() {
 
   const breadcrumbItems = customItems ?? generateBreadcrumbItems(location.pathname)
   const mainMarginLeft = isMobile ? 0 : sidebarCollapsed ? 56 : 220
+  const isWorkbench = location.pathname.startsWith(PATHS.ADMIN_WORKBENCH)
 
   return (
     <div className="bg-background relative min-h-screen">
@@ -120,18 +135,20 @@ function AdminLayoutContent() {
       >
         <Navbar onMenuClick={handleMobileMenuClick} />
 
-        <main className="flex-1 px-6 pt-4 pb-0">
+        <main className={`flex-1 px-6 pt-4 pb-0 ${isWorkbench ? 'overflow-hidden' : ''}`}>
           <div className="mb-4">
             <Breadcrumb items={breadcrumbItems} />
           </div>
           <Outlet />
         </main>
 
-        <footer className="border-border border-t px-6 py-3">
-          <p className="text-muted-foreground text-center text-xs">
-            © {new Date().getFullYear()} 法穿AI Copilot
-          </p>
-        </footer>
+        {!isWorkbench && (
+          <footer className="border-border border-t px-6 py-3">
+            <p className="text-muted-foreground text-center text-xs">
+              © {new Date().getFullYear()} 法穿AI Copilot
+            </p>
+          </footer>
+        )}
       </div>
     </div>
   )

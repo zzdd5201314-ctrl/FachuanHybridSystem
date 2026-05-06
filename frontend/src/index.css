@@ -234,3 +234,12 @@
     border-color: oklch(0.35 0.03 275);
   }
 }
+
+/* Radix ScrollArea：隐藏原生滚动条（使用自定义 ScrollBar） */
+[data-scroll-area-viewport] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+[data-scroll-area-viewport]::-webkit-scrollbar {
+  display: none;
+}

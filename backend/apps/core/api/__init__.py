@@ -69,10 +69,7 @@ def list_system_configs(request: HttpRequest) -> dict[str, Any]:
                 is_active=cfg.is_active,
             )
         )
-    groups = [
-        SystemConfigGroupOut(category=cat, items=items)
-        for cat, items in grouped.items()
-    ]
+    groups = [SystemConfigGroupOut(category=cat, items=items) for cat, items in grouped.items()]
     return {"groups": groups}
 
 

@@ -45,6 +45,9 @@ export const PATHS = {
   // 凭证管理
   ADMIN_CREDENTIALS: '/admin/organization/credentials',
 
+  // 工作台
+  ADMIN_WORKBENCH: '/admin/workbench',
+
   // 设置
   ADMIN_SETTINGS: '/admin/settings',
   ADMIN_SETTINGS_USER: '/admin/settings/user',

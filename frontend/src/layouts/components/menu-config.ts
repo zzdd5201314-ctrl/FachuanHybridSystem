@@ -14,6 +14,7 @@ import {
   ArrowRightLeft,
   Calculator,
   Settings,
+  Bot,
   type LucideIcon,
 } from 'lucide-react'
 import { PATHS } from '@/routes/paths'
@@ -54,6 +55,13 @@ export const menuConfig: MenuConfig = [
     icon: LayoutDashboard,
     label: '仪表盘',
     path: PATHS.ADMIN_DASHBOARD,
+  },
+  // 工作台 - AI 对话
+  {
+    id: 'workbench',
+    icon: Bot,
+    label: '工作台',
+    path: PATHS.ADMIN_WORKBENCH,
   },
 
   // 业务 - 菜单组

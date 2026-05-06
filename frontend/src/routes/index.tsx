@@ -81,6 +81,9 @@ const CourierTrackingPage = lazy(() => import('@/pages/dashboard/tools/CourierTr
 const ElementConvertPage = lazy(() => import('@/pages/dashboard/tools/ElementConvertPage'))
 const LprCalculatorPage = lazy(() => import('@/pages/dashboard/tools/LprCalculatorPage'))
 
+// 工作台
+const WorkbenchPage = lazy(() => import('@/features/workbench/WorkbenchPage'))
+
 // Phase 4: 设置 + 任务队列 + 日志
 const SettingsOverviewPage = lazy(() => import('@/pages/dashboard/settings/SettingsOverviewPage'))
 const LawFirmSettingsPage = lazy(() => import('@/pages/dashboard/settings/LawFirmSettingsPage'))
@@ -142,6 +145,11 @@ export const router = createBrowserRouter([
           {
             path: PATHS.ADMIN_DASHBOARD,
             element: <DashboardPage />,
+          },
+          // 工作台路由
+          {
+            path: PATHS.ADMIN_WORKBENCH,
+            element: <WorkbenchPage />,
           },
           // 收件箱路由
           {

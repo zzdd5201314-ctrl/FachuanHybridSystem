@@ -4,7 +4,6 @@ import { ArrowLeft, Save, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { PATHS } from '@/routes/paths'
 import { getApiBaseUrl, getBackendUrl } from '@/lib/api'
@@ -226,11 +225,9 @@ export function ServiceConfig() {
           <ArrowLeft className="size-4" />
           返回设置
         </Button>
-        <Card>
-          <CardContent className="pt-12 pb-12 text-center">
-            <p className="text-muted-foreground text-sm">未找到配置类别：{category}</p>
-          </CardContent>
-        </Card>
+        <div className="border border-border rounded-lg p-12 text-center">
+          <p className="text-muted-foreground text-sm">未找到配置类别：{category}</p>
+        </div>
       </div>
     )
   }
@@ -240,81 +237,73 @@ export function ServiceConfig() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(PATHS.ADMIN_SETTINGS)} className="gap-1">
-          <ArrowLeft className="size-4" />
-          返回设置
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate(PATHS.ADMIN_SETTINGS)} className="gap-1">
+            <ArrowLeft className="size-4" />
+            返回设置
+          </Button>
+          <div className="w-px h-5 bg-border" />
+          <h1 className="text-xl font-semibold">{schema.title}</h1>
+          <Badge variant="outline" className="text-[11px]">{category}</Badge>
+        </div>
+        <Button size="sm" onClick={handleSave} disabled={isSaving}>
+          {isSaving ? (
+            <Loader2 className="mr-1.5 size-4 animate-spin" />
+          ) : (
+            <Save className="mr-1.5 size-4" />
+          )}
+          保存配置
         </Button>
-        <div className="w-px h-5 bg-border" />
-        <h1 className="text-xl font-semibold">{schema.title}</h1>
-        <Badge variant="outline" className="text-[11px]">{category}</Badge>
       </div>
       <p className="text-muted-foreground text-sm">{schema.description}</p>
 
       {!hasFields ? (
-        <Card>
-          <CardContent className="pt-12 pb-12 text-center">
-            <p className="text-muted-foreground text-sm">该类别暂无配置项</p>
-          </CardContent>
-        </Card>
+        <div className="border border-border rounded-lg p-12 text-center">
+          <p className="text-muted-foreground text-sm">该类别暂无配置项</p>
+        </div>
       ) : (
-        <Card>
-          <CardHeader className="py-3 px-4 border-b border-border">
-            <CardTitle className="text-[13px] font-semibold">配置参数</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 py-4">
-            {isLoading && category !== 'system' ? (
-              <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-                <Loader2 className="size-4 animate-spin mr-2" />
-                加载中...
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {schema.fields.map((field) => {
-                  const isSecret = field.secret
-                  const showKey = `show_${field.key}`
-                  return (
-                    <div
-                      key={field.key}
-                      className={field.fullWidth ? 'sm:col-span-2 space-y-1.5' : 'space-y-1.5'}
-                    >
-                      <Label className="text-xs text-muted-foreground">{field.label}</Label>
-                      <div className="relative">
-                        <Input
-                          type={isSecret && !showSecrets[showKey] ? 'password' : 'text'}
-                          value={getDisplayValue(field)}
-                          onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                          placeholder={field.placeholder ?? `请输入${field.label}`}
-                          className={isSecret ? 'pr-10' : ''}
-                        />
-                        {isSecret && (
-                          <button
-                            type="button"
-                            onClick={() => setShowSecrets((prev) => ({ ...prev, [showKey]: !prev[showKey] }))}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showSecrets[showKey] ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <div className="flex justify-end pt-4 mt-4 border-t border-border">
-              <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? (
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
-                ) : (
-                  <Save className="mr-1.5 size-4" />
-                )}
-                保存配置
-              </Button>
+        <div className="border border-border rounded-lg">
+          {isLoading && category !== 'system' ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
+              <Loader2 className="size-4 animate-spin mr-2" />
+              加载中...
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 p-6">
+              {schema.fields.map((field) => {
+                const isSecret = field.secret
+                const showKey = `show_${field.key}`
+                return (
+                  <div
+                    key={field.key}
+                    className={field.fullWidth ? 'sm:col-span-2 space-y-1.5' : 'space-y-1.5'}
+                  >
+                    <Label className="text-xs text-muted-foreground">{field.label}</Label>
+                    <div className="relative">
+                      <Input
+                        type={isSecret && !showSecrets[showKey] ? 'password' : 'text'}
+                        value={getDisplayValue(field)}
+                        onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                        placeholder={field.placeholder ?? `请输入${field.label}`}
+                        className={isSecret ? 'pr-10' : ''}
+                      />
+                      {isSecret && (
+                        <button
+                          type="button"
+                          onClick={() => setShowSecrets((prev) => ({ ...prev, [showKey]: !prev[showKey] }))}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showSecrets[showKey] ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

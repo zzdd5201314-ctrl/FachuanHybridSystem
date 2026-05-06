@@ -99,6 +99,7 @@ _HIDDEN_APP_LABELS = {
     "core",
     "reminders",
     "message_hub",
+    "workbench",
 }
 
 # "其他工具"聚合页应用列表
@@ -138,6 +139,7 @@ _OTHER_TOOLS_APPS = [
     {"app_label": "core", "name": _("核心系统"), "url": "/admin/core/"},
     {"app_label": "reminders", "name": _("重要日期提醒"), "url": "/admin/reminders/"},
     {"app_label": "message_hub", "name": _("信息中转站"), "url": "/admin/message_hub/"},
+    {"app_label": "workbench", "name": _("工作台"), "url": "/admin/workbench/"},
 ]
 
 # 新用户默认收藏的子工具 URL（首次访问「其他工具」页时自动创建）
@@ -188,7 +190,11 @@ def _sorted_get_app_list(self: admin.AdminSite, request: HttpRequest, app_label:
     # 注入虚拟「办案」顶级菜单（侧边栏仅显示3个核心入口，Hub 页展示全部子入口）
     if app_label is None and not any(a.get("app_label") == "case_handling" for a in app_list):
         case_handling_models: list[dict[str, Any]] = []
-        sidebar_labels = {"当事人": "/admin/client/client/", "合同": "/admin/contracts/contract/", "案件": "/admin/cases/case/"}
+        sidebar_labels = {
+            "当事人": "/admin/client/client/",
+            "合同": "/admin/contracts/contract/",
+            "案件": "/admin/cases/case/",
+        }
         for label, url in sidebar_labels.items():
             case_handling_models.append(
                 {
