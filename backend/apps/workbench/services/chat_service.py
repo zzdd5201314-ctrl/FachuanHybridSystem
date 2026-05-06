@@ -171,8 +171,7 @@ async def _maybe_create_summary(
             WorkbenchMessage.objects.filter(
                 session_id=session_id,
                 role__in=[WorkbenchMessage.Role.USER, WorkbenchMessage.Role.ASSISTANT],
-            )
-            .order_by("-created_at")[:20]
+            ).order_by("-created_at")[:20]
         )
     )
     recent.reverse()
@@ -181,10 +180,7 @@ async def _maybe_create_summary(
         return None
 
     # 构建摘要请求
-    conversation_text = "\n".join(
-        f"{'用户' if m.role == 'user' else '助手'}: {m.content[:200]}"
-        for m in recent
-    )
+    conversation_text = "\n".join(f"{'用户' if m.role == 'user' else '助手'}: {m.content[:200]}" for m in recent)
 
     summary_agent = Agent(
         model or "openai:gpt-4o-mini",
@@ -199,9 +195,7 @@ async def _maybe_create_summary(
         summary = result.output
 
         # 存储到 session metadata
-        await WorkbenchSession.objects.filter(id=session_id).aupdate(
-            metadata={"conversation_summary": summary}
-        )
+        await WorkbenchSession.objects.filter(id=session_id).aupdate(metadata={"conversation_summary": summary})
 
         return summary
     except Exception:
@@ -274,9 +268,7 @@ class WorkbenchChatService:
         logger.info("加载 %d 条历史消息 (session=%d)", len(message_history), session_id)
 
         # 自动摘要（异步，不阻塞当前请求）
-        summary_task = asyncio.create_task(
-            _maybe_create_summary(session_id, len(message_history) + 1, model_name)
-        )
+        summary_task = asyncio.create_task(_maybe_create_summary(session_id, len(message_history) + 1, model_name))
 
         # 获取已有的会话摘要
         conversation_summary = ""
@@ -295,14 +287,17 @@ class WorkbenchChatService:
             conversation_summary=conversation_summary,
         )
 
-        # 设置审批事件队列
-        set_event_queue(event_queue)
+        # 设置审批事件队列（ContextVar，per-request 隔离）
+        agent_name = agent_type or "triage"
+        set_event_queue(event_queue, agent_name=agent_name)
 
         # 构建模型
         model = build_model(model_name) if model_name else None
 
         # 流式运行 Agent
         full_response: list[str] = []
+        # tool_call_id -> WorkbenchMessage.id，用于关联 tool_result
+        tool_msg_map: dict[str, int] = {}
         try:
             async for event in self._run_agent(
                 agent=agent,
@@ -311,9 +306,36 @@ class WorkbenchChatService:
                 deps=deps,
                 event_queue=event_queue,
                 message_history=message_history,
+                agent_name=agent_name,
             ):
                 if event["type"] == "delta":
                     full_response.append(event.get("content", ""))
+                elif event["type"] == "tool_call":
+                    # 持久化工具调用消息
+                    tc_id = event.get("tool_call_id", "")
+                    tool_msg = await WorkbenchMessage.objects.acreate(
+                        session_id=session_id,
+                        role=WorkbenchMessage.Role.TOOL,
+                        content=f"调用工具: {event.get('name', '')}",
+                        tool_call_id=tc_id,
+                        tool_name=event.get("name", ""),
+                        tool_input=event.get("arguments", {}),
+                        tool_output={},
+                    )
+                    if tc_id:
+                        tool_msg_map[tc_id] = tool_msg.id
+                elif event["type"] == "tool_result":
+                    # 更新工具结果
+                    tc_id = event.get("tool_call_id", "")
+                    msg_id = tool_msg_map.get(tc_id)
+                    if msg_id:
+                        result = event.get("result", "")
+                        success = event.get("success", True)
+                        await WorkbenchMessage.objects.filter(id=msg_id).aupdate(
+                            content=f"工具 {event.get('name', '')}: {'成功' if success else '失败'}",
+                            tool_output={"result": result, "success": success},
+                            metadata={"success": success},
+                        )
                 yield event
         except Exception:
             logger.exception("Agent 运行失败")
@@ -364,6 +386,7 @@ class WorkbenchChatService:
         deps: WorkbenchDeps,
         event_queue: asyncio.Queue[dict[str, Any] | None],
         message_history: list[ModelMessage] | None = None,
+        agent_name: str = "triage",
     ) -> AsyncIterator[dict[str, Any]]:
         """运行 Agent 并流式输出 SSE 事件
 
@@ -371,6 +394,7 @@ class WorkbenchChatService:
         - Agent 任务：运行 agent.iter()，将工具事件推入队列
         - 主循环：从队列消费事件，yield 给 SSE 响应
         """
+
         # Agent 任务：推事件到队列
         async def agent_task() -> None:
             try:
@@ -394,14 +418,25 @@ class WorkbenchChatService:
                                                 args = json.loads(args)
                                             except (json.JSONDecodeError, TypeError):
                                                 pass
+                                        tool_name = event.part.tool_name
                                         await event_queue.put(
                                             {
                                                 "type": "tool_call",
                                                 "tool_call_id": event.part.tool_call_id or "",
-                                                "name": event.part.tool_name,
+                                                "name": tool_name,
                                                 "arguments": args,
                                             }
                                         )
+                                        # 检测 handoff 工具调用
+                                        if "handoff" in tool_name:
+                                            target = tool_name.replace("_handoff_to_", "")
+                                            await event_queue.put(
+                                                {
+                                                    "type": "handoff",
+                                                    "from_agent": agent_name,
+                                                    "to_agent": target,
+                                                }
+                                            )
                                     elif isinstance(event, FunctionToolResultEvent):
                                         # 工具结果
                                         result_content = event.content
@@ -428,9 +463,7 @@ class WorkbenchChatService:
                             if run.result and run.result.output:
                                 output = run.result.output
                                 if isinstance(output, str) and output:
-                                    await event_queue.put(
-                                        {"type": "delta", "content": output}
-                                    )
+                                    await event_queue.put({"type": "delta", "content": output})
 
                             # 追踪 token 用量
                             if run.result and run.result.usage():

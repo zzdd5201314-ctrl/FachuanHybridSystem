@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
@@ -71,22 +72,42 @@ def _build_instructions(base: str, deps: WorkbenchDeps) -> str:
     return f"{base}\n\n{context}"
 
 
-# ─── 审批事件队列（per-request） ──────────────────────────────────────────────
+# ─── 审批事件队列（per-request，ContextVar 隔离并发请求） ─────────────────────
 
-_current_event_queue: asyncio.Queue[dict[str, Any] | None] | None = None
+_current_event_queue: ContextVar[asyncio.Queue[dict[str, Any] | None] | None] = ContextVar(
+    "_current_event_queue",
+    default=None,
+)
+_current_agent_name: ContextVar[str] = ContextVar("_current_agent_name", default="triage")
 
 
-def set_event_queue(queue: asyncio.Queue[dict[str, Any] | None] | None) -> None:
-    """设置当前请求的事件队列（stream_chat 调用前设置）"""
-    global _current_event_queue
-    _current_event_queue = queue
+def set_event_queue(
+    queue: asyncio.Queue[dict[str, Any] | None] | None,
+    agent_name: str = "triage",
+) -> None:
+    """设置当前请求的事件队列和 agent 名称（stream_chat 调用前设置）"""
+    _current_event_queue.set(queue)
+    _current_agent_name.set(agent_name)
 
 
 async def _process_tool_call(ctx: Any, call_tool: Any, name: str, tool_args: dict[str, Any]) -> Any:
     """MCP process_tool_call 回调：拦截高风险工具，推入审批事件"""
-    queue = _current_event_queue
+    queue = _current_event_queue.get()
     if queue is None:
         return await call_tool(name, tool_args)
+
+    # 检测 handoff 工具调用，发送 handoff 事件
+    if "handoff" in name:
+        target = name.replace("_handoff_to_", "")
+        source = _current_agent_name.get()
+        await queue.put(
+            {
+                "type": "handoff",
+                "from_agent": source,
+                "to_agent": target,
+            }
+        )
+
     return await process_tool_call_with_approval(ctx, call_tool, name, tool_args, queue)
 
 
@@ -156,10 +177,7 @@ def _contract_filter(ctx: Any, tool_def: Any) -> bool:
 
 def _research_filter(ctx: Any, tool_def: Any) -> bool:
     name = tool_def.name.lower()
-    return any(
-        kw in name
-        for kw in ["search", "research", "enterprise", "company", "bidding", "person", "profile"]
-    )
+    return any(kw in name for kw in ["search", "research", "enterprise", "company", "bidding", "person", "profile"])
 
 
 # ─── 专业 Agent ──────────────────────────────────────────────────────────────
@@ -254,13 +272,16 @@ async def _handoff_to_research(ctx: RunContext[WorkbenchDeps], query: str) -> st
     return result.output
 
 
-TRIAGE_PROMPT = BASE_SYSTEM_PROMPT + """\n\n你是分诊助手。根据用户意图，使用 handoff 工具将请求路由到专业助手：
+TRIAGE_PROMPT = (
+    BASE_SYSTEM_PROMPT
+    + """\n\n你是分诊助手。根据用户意图，使用 handoff 工具将请求路由到专业助手：
 - 案件相关（创建、查询、修改案件）→ handoff_to_case
 - 合同相关（查询、下载、生成合同）→ handoff_to_contract
 - 法律检索、企业查询 → handoff_to_research
 - 其他或不确定 → 直接回复或使用通用工具
 
 重要：你也可以直接使用 MCP 工具完成简单操作，不必总是委托。"""
+)
 
 triage_agent = Agent(
     None,

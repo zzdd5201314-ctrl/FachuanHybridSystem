@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Bot, User, AlertCircle, ChevronDown, ChevronRight, CheckCircle2, XCircle, Loader2, ArrowRight } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import type { WorkbenchMessage, StreamingMessage, ToolCallState } from '../types'
 
@@ -45,7 +47,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               : 'bg-muted',
         )}
       >
-        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        {isUser ? (
+          <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        ) : (
+          <MarkdownContent content={message.content} isSystem={isSystem} />
+        )}
         {message.llm_model && (
           <div className="mt-1 text-[10px] opacity-50">{message.llm_model}</div>
         )}
@@ -137,7 +143,7 @@ export function StreamingBubble({ message }: { message: StreamingMessage }) {
 
         {/* 文本内容 */}
         {message.content && (
-          <div className="whitespace-pre-wrap break-words">{message.content}</div>
+          <MarkdownContent content={message.content} />
         )}
 
         {/* 流式光标 */}
@@ -173,6 +179,28 @@ function HandoffBadge({ from, to }: { from: string; to: string }) {
       <span>{from}</span>
       <ArrowRight className="size-3" />
       <span>{to}</span>
+    </div>
+  )
+}
+
+/** Markdown 内容渲染 */
+function MarkdownContent({ content, isSystem }: { content: string; isSystem?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'prose prose-sm dark:prose-invert max-w-none',
+        'prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0',
+        'prose-pre:my-2 prose-pre:rounded-md prose-pre:bg-background/80 prose-pre:p-3 prose-pre:text-xs',
+        'prose-code:before:content-none prose-code:after:content-none',
+        'prose-code:bg-background/80 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs',
+        'prose-table:text-xs prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1',
+        'prose-hr:my-2 prose-blockquote:my-1 prose-blockquote:border-l-2',
+        isSystem && 'prose-red',
+      )}
+    >
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
     </div>
   )
 }

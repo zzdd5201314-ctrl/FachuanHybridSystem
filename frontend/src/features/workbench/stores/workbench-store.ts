@@ -15,6 +15,9 @@ import * as api from '../api'
 
 const FAVORITE_MODEL_KEY = 'workbench_favorite_model'
 
+// 用于中断正在进行的流式请求
+let _abortController: AbortController | null = null
+
 function loadFavoriteModel(): string {
   try {
     return localStorage.getItem(FAVORITE_MODEL_KEY) || ''
@@ -55,6 +58,7 @@ interface WorkbenchState {
   setCurrentSession: (session: WorkbenchSession | null) => void
   fetchMessages: (sessionId: number) => Promise<void>
   sendMessage: (content: string) => Promise<void>
+  abortStream: () => void
   handleSSEEvent: (event: SSEEvent) => void
   respondApproval: (approved: boolean) => Promise<void>
   reset: () => void
@@ -153,6 +157,7 @@ export const useWorkbenchStore = create<WorkbenchState>()((set, get) => ({
     set((state) => ({ messages: [...state.messages, userMsg] }))
 
     // 开始流式请求
+    _abortController = new AbortController()
     set({
       isStreaming: true,
       streamingMessage: { role: 'assistant', content: '', toolCalls: [], handoffs: [] },
@@ -165,6 +170,7 @@ export const useWorkbenchStore = create<WorkbenchState>()((set, get) => ({
 
       const response = await fetch(url, {
         method: 'POST',
+        signal: _abortController.signal,
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -208,8 +214,28 @@ export const useWorkbenchStore = create<WorkbenchState>()((set, get) => ({
 
       // 流结束 - 将 streamingMessage 转为正式消息
       const { streamingMessage } = get()
+      const newMessages: WorkbenchMessage[] = []
+
+      // 保存工具调用消息
+      if (streamingMessage) {
+        for (const tc of streamingMessage.toolCalls) {
+          newMessages.push({
+            id: Date.now() + Math.random(),
+            role: 'tool',
+            content: `工具 ${tc.name}: ${tc.status === 'success' ? '成功' : tc.status === 'error' ? '失败' : '执行中'}`,
+            llm_model: '',
+            tool_call_id: tc.toolCallId,
+            tool_name: tc.name,
+            tool_input: tc.arguments,
+            tool_output: tc.result ? { result: tc.result, success: tc.success } : {},
+            metadata: { success: tc.success ?? (tc.status === 'success') },
+            created_at: new Date().toISOString(),
+          })
+        }
+      }
+
       if (streamingMessage && streamingMessage.content) {
-        const assistantMsg: WorkbenchMessage = {
+        newMessages.push({
           id: Date.now() + 1,
           role: 'assistant',
           content: streamingMessage.content,
@@ -220,24 +246,49 @@ export const useWorkbenchStore = create<WorkbenchState>()((set, get) => ({
           tool_output: {},
           metadata: {},
           created_at: new Date().toISOString(),
-        }
-        set((state) => ({ messages: [...state.messages, assistantMsg] }))
+        })
+      }
+
+      if (newMessages.length > 0) {
+        set((state) => ({ messages: [...state.messages, ...newMessages] }))
       }
     } catch (err) {
-      const errorMsg: WorkbenchMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: `请求失败: ${err instanceof Error ? err.message : '未知错误'}`,
-        llm_model: '',
-        tool_call_id: '',
-        tool_name: '',
-        tool_input: {},
-        tool_output: {},
-        metadata: {},
-        created_at: new Date().toISOString(),
+      // 用户主动中断不显示错误
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // 中断时保留已有的流式内容
+        const { streamingMessage: sm } = get()
+        if (sm && sm.content) {
+          const partialMsg: WorkbenchMessage = {
+            id: Date.now() + 1,
+            role: 'assistant',
+            content: sm.content + '\n\n[已中断]',
+            llm_model: sm.model || '',
+            tool_call_id: '',
+            tool_name: '',
+            tool_input: {},
+            tool_output: {},
+            metadata: { aborted: true },
+            created_at: new Date().toISOString(),
+          }
+          set((state) => ({ messages: [...state.messages, partialMsg] }))
+        }
+      } else {
+        const errorMsg: WorkbenchMessage = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: `请求失败: ${err instanceof Error ? err.message : '未知错误'}`,
+          llm_model: '',
+          tool_call_id: '',
+          tool_name: '',
+          tool_input: {},
+          tool_output: {},
+          metadata: {},
+          created_at: new Date().toISOString(),
+        }
+        set((state) => ({ messages: [...state.messages, errorMsg] }))
       }
-      set((state) => ({ messages: [...state.messages, errorMsg] }))
     } finally {
+      _abortController = null
       set({ isStreaming: false, streamingMessage: null })
     }
   },
@@ -327,6 +378,13 @@ export const useWorkbenchStore = create<WorkbenchState>()((set, get) => ({
     })
   },
 
+  abortStream: () => {
+    if (_abortController) {
+      _abortController.abort()
+      _abortController = null
+    }
+  },
+
   respondApproval: async (approved) => {
     const { pendingApproval } = get()
     if (!pendingApproval) return
@@ -337,12 +395,18 @@ export const useWorkbenchStore = create<WorkbenchState>()((set, get) => ({
     } catch { /* ignore */ }
   },
 
-  reset: () =>
+  reset: () => {
+    // 重置时也中断进行中的请求
+    if (_abortController) {
+      _abortController.abort()
+      _abortController = null
+    }
     set({
       currentSession: null,
       messages: [],
       isStreaming: false,
       streamingMessage: null,
       pendingApproval: null,
-    }),
+    })
+  },
 }))

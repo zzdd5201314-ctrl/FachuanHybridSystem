@@ -26,7 +26,7 @@ interface ChatInputProps {
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [content, setContent] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { isStreaming, selectedAgent, setSelectedAgent } = useWorkbenchStore()
+  const { isStreaming, selectedAgent, setSelectedAgent, abortStream } = useWorkbenchStore()
 
   useEffect(() => {
     if (!disabled) textareaRef.current?.focus()
@@ -88,7 +88,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           <Button
             size="icon"
             variant="destructive"
-            onClick={() => useWorkbenchStore.getState().reset()}
+            onClick={() => abortStream()}
             className="shrink-0"
           >
             <Square className="size-4" />
