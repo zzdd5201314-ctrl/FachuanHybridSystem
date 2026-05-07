@@ -422,6 +422,15 @@ function HandoffBadge({ from, to }: { from: string; to: string }) {
   )
 }
 
+/** 预处理：将代码块中的【案例元数据汇总】转为普通文本 */
+function preprocessContent(content: string): string {
+  // 匹配 ``` 包裹的【案例元数据汇总】块，去掉代码块标记
+  return content.replace(
+    /```\s*\n([\s\S]*?【案例元数据汇总】[\s\S]*?)\n```/g,
+    (_, inner: string) => inner.trim(),
+  )
+}
+
 /** Markdown 内容渲染 */
 function MarkdownContent({ content, isSystem }: { content: string; isSystem?: boolean }) {
   return (
@@ -429,9 +438,9 @@ function MarkdownContent({ content, isSystem }: { content: string; isSystem?: bo
       className={cn(
         'prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden',
         'prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0',
-        'prose-pre:my-2 prose-pre:rounded-md prose-pre:bg-background/80 prose-pre:p-3 prose-pre:text-xs prose-pre:overflow-x-auto',
+        'prose-pre:my-2 prose-pre:rounded-md prose-pre:border prose-pre:border-border/50 prose-pre:bg-card prose-pre:p-3 prose-pre:text-xs prose-pre:overflow-x-auto',
         'prose-code:before:content-none prose-code:after:content-none',
-        'prose-code:bg-background/80 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs',
+        'prose-code:bg-card prose-code:border prose-code:border-border/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs',
         'prose-table:text-xs prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1',
         'prose-hr:my-2 prose-blockquote:my-1 prose-blockquote:border-l-2',
         // 统一文字颜色，确保所有元素清晰可读
@@ -440,7 +449,7 @@ function MarkdownContent({ content, isSystem }: { content: string; isSystem?: bo
       )}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]}>
-        {content}
+        {preprocessContent(content)}
       </ReactMarkdown>
     </div>
   )
