@@ -148,7 +148,7 @@ export function BatchAnalysisDialog({ modelName, onSubmit, disabled }: BatchAnal
           <FolderOpen className="size-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>批量文档分析</DialogTitle>
           <DialogDescription>
@@ -156,31 +156,73 @@ export function BatchAnalysisDialog({ modelName, onSubmit, disabled }: BatchAnal
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           {/* 文件选择 */}
           <div className="space-y-2">
-            <Label>选择文件</Label>
-            <div
-              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-                dragging ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
-              }`}
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              {dragging ? (
-                <Upload className="size-8 mx-auto text-primary mb-2" />
-              ) : (
-                <FolderOpen className="size-8 mx-auto text-muted-foreground mb-2" />
+            <div className="flex items-center justify-between">
+              <Label>选择文件</Label>
+              {files.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  继续添加
+                </Button>
               )}
-              <p className="text-sm text-muted-foreground">
-                点击选择文件，或拖拽文件/文件夹到此处
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                支持 .doc 和 .docx 格式，拖入文件夹会自动提取其中的文档
-              </p>
             </div>
+
+            {/* 未选文件时显示 drop zone，已选文件时折叠为紧凑样式 */}
+            {files.length === 0 ? (
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                  dragging ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                }`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                {dragging ? (
+                  <Upload className="size-8 mx-auto text-primary mb-2" />
+                ) : (
+                  <FolderOpen className="size-8 mx-auto text-muted-foreground mb-2" />
+                )}
+                <p className="text-sm text-muted-foreground">
+                  点击选择文件，或拖拽文件/文件夹到此处
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  支持 .doc 和 .docx 格式，拖入文件夹会自动提取其中的文档
+                </p>
+              </div>
+            ) : (
+              <div
+                className={`rounded-md border transition-colors ${dragging ? 'border-primary bg-primary/5' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <div className="max-h-40 overflow-y-auto divide-y">
+                  {files.map((f, i) => (
+                    <div key={`${f.name}-${i}`} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+                      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate flex-1">{f.name}</span>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {f.name.endsWith('.doc') ? 'DOC' : 'DOCX'}
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -189,28 +231,6 @@ export function BatchAnalysisDialog({ modelName, onSubmit, disabled }: BatchAnal
               className="hidden"
               onChange={handleFileChange}
             />
-
-            {/* 已选文件列表 */}
-            {files.length > 0 && (
-              <div className="max-h-40 overflow-y-auto space-y-1 rounded-md border p-2">
-                {files.map((f, i) => (
-                  <div key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm">
-                    <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate flex-1">{f.name}</span>
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {f.name.endsWith('.doc') ? 'DOC' : 'DOCX'}
-                    </Badge>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(i)}
-                      className="shrink-0 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* 分析要求 */}
