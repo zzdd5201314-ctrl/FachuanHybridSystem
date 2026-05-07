@@ -149,7 +149,7 @@ function AdminLayoutContent() {
 
       {/* 主内容区域 */}
       <div
-        className="flex min-h-screen flex-col transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
+        className="relative z-10 flex min-h-screen flex-col transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{ marginLeft: mainMarginLeft }}
       >
         <Navbar onMenuClick={handleMobileMenuClick} />
