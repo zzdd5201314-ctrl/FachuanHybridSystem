@@ -174,8 +174,17 @@ export const useWorkbenchStore = create<WorkbenchState>()((set, get) => ({
   fetchMessages: async (sessionId) => {
     set({ messagesLoading: true })
     try {
-      const res = await api.listMessages(sessionId)
-      set({ messages: res.items, messagesLoading: false })
+      const PAGE_SIZE = 50
+      const first = await api.listMessages(sessionId, 1)
+      let allItems = first.items
+      const totalPages = Math.ceil(first.count / PAGE_SIZE)
+      if (totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) => api.listMessages(sessionId, i + 2)),
+        )
+        allItems = [...allItems, ...rest.flatMap((r) => r.items)]
+      }
+      set({ messages: allItems, messagesLoading: false })
     } catch {
       set({ messagesLoading: false })
     }
