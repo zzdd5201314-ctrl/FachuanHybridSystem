@@ -13,7 +13,7 @@ import asyncio
 import concurrent.futures
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -35,7 +35,9 @@ ANALYSIS_SYSTEM_PROMPT = (
     "1. 基于文档中的具体事实和法律依据\n"
     "2. 指出关键的法律问题和争议焦点\n"
     "3. 给出清晰的分析结论\n"
-    "4. 使用专业但易懂的语言"
+    "4. 使用专业但易懂的语言\n"
+    "5. 使用清晰的结构化格式\n"
+    "6. 最后详细列出所有案例的案号、案由、法官和书记员姓名、关于用户查询的问题在本案中的结论"
 )
 SUMMARY_SYSTEM_PROMPT = (
     "你是一位法律研究助理。请根据多个案例的分析结论，撰写一份综合研究报告。"
@@ -44,7 +46,8 @@ SUMMARY_SYSTEM_PROMPT = (
     "2. 指出各案例之间的异同点\n"
     "3. 提炼出有价值的法律见解\n"
     "4. 使用清晰的结构化格式\n"
-    f"5. 报告日期使用今天的实际日期（{datetime.now(timezone.utc).strftime('%Y 年 %m 月 %d 日')}），不要编造日期"
+    f"5. 报告日期使用今天的实际日期（{datetime.now(UTC).strftime('%Y年%m月%d日')}），不要编造日期\n"
+    "6. 最后要添加附件部分，把每个案例的分析结论和案号、案由、法官和书记员姓名、关于用户查询的问题在本案中的结论列出来"
 )
 
 
