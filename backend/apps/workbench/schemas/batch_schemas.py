@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, field_validator
 
 
 class BatchItemOut(BaseModel):
@@ -38,10 +38,14 @@ class BatchJobOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
-    @staticmethod
-    def resolve_summary_file(obj: object) -> str:
-        if hasattr(obj, "summary_file") and obj.summary_file:
-            return obj.summary_file.url  # type: ignore[union-attr]
+    @field_validator("summary_file", mode="before")
+    @classmethod
+    def _resolve_summary_file(cls, v: object) -> str:
+        if v and hasattr(v, "url"):
+            try:
+                return str(v.url)  # type: ignore[union-attr]
+            except ValueError:
+                return ""
         return ""
 
 
