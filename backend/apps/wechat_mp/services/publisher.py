@@ -10,13 +10,7 @@ from typing import TYPE_CHECKING
 from apps.automation.services.scraper.config.browser_config import BrowserConfig
 from apps.automation.services.scraper.core.browser_manager import BrowserManager
 
-from .auth_handler import (
-    capture_qr_code,
-    check_login_status,
-    load_cookies,
-    save_cookies,
-    wait_for_qr_scan,
-)
+from .auth_handler import capture_qr_code, check_login_status, load_cookies, save_cookies, wait_for_qr_scan
 from .markdown_converter import convert_markdown_to_wechat_html
 
 if TYPE_CHECKING:
