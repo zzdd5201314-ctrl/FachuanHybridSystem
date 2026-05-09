@@ -17,9 +17,9 @@
 
 | 层级 | 技术 |
 |:---|:---|
-| **前端** | React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui |
-| **后端** | Django + Django Ninja + Celery + Redis |
-| **数据库** | PostgreSQL |
+| **前端** | React 19 + TypeScript + Vite + Tailwind CSS + shadcn/ui |
+| **后端** | Django 6 + Django Ninja + Django Q2 + Channels |
+| **数据库** | PostgreSQL + Redis |
 | **AI/LLM** | OpenAI API 兼容 · Ollama 本地模型 · WebSocket 流式对话 |
 | **部署** | Docker · 私有化部署 · 数据自持 |
 
