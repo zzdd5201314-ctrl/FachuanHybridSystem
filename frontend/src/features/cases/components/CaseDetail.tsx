@@ -6,6 +6,7 @@ import {
   FileText, FolderOpen, Landmark, Paperclip, Users,
 } from 'lucide-react'
 import { formatDateOnly } from '@/lib/date'
+import { formatAmount } from '@/lib/format'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { PATHS, generatePath } from '@/routes/paths'
+import { DetailField } from '@/components/shared/DetailField'
+import { DetailCard } from '@/components/shared/DetailCard'
 
 import { useCase } from '../hooks/use-case'
 import { useCaseMutations } from '../hooks/use-case-mutations'
@@ -41,31 +44,6 @@ export interface CaseDetailProps { caseId: string }
 
 /* ── Shared helpers ── */
 
-function DetailField({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
-  return (
-    <div>
-      <div className="text-muted-foreground mb-0.5 text-xs">{label}</div>
-      <div className={`text-[13px] ${mono ? 'font-mono' : ''}`}>{value || '—'}</div>
-    </div>
-  )
-}
-
-function DetailCard({ title, children, extra }: { title: string; children: React.ReactNode; extra?: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-border/60 p-[18px] mb-4 bg-card">
-      {extra ? (
-        <div className="flex items-center justify-between mb-3.5">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {extra}
-        </div>
-      ) : (
-        <h3 className="text-sm font-semibold text-foreground mb-3.5">{title}</h3>
-      )}
-      {children}
-    </div>
-  )
-}
-
 function StatusBadge({ status, label }: { status: string | null; label?: string | null }) {
   if (!status) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">未设置</span>
   const cls = status === 'active'
@@ -74,11 +52,6 @@ function StatusBadge({ status, label }: { status: string | null; label?: string 
       ? 'bg-muted text-muted-foreground'
       : 'bg-amber-50 text-amber-700'
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${cls}`}>{label || status}</span>
-}
-
-function formatAmount(amount: number | null | undefined): string {
-  if (amount == null) return '—'
-  return `¥ ${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
 }
 
 const PLATFORM_LABELS: Record<string, string> = {

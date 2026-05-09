@@ -32,7 +32,11 @@ import 'highlight.js/styles/github-dark.css'
 hljs.registerLanguage('json', json)
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { copyToClipboard } from '@/lib/clipboard'
+import { API_BASE_URL } from '@/lib/api'
+import { getAccessToken } from '@/lib/token'
 import { formatDate } from '@/lib/date'
+import { downloadBlob } from '@/lib/download'
 import { Textarea } from '@/components/ui/textarea'
 import { useWorkbenchStore } from '../stores/workbench-store'
 import type { WorkbenchMessage, StreamingMessage, ToolCallState } from '../types'
@@ -361,11 +365,7 @@ function MessageActions({ message }: { message: WorkbenchMessage }) {
   const isStreaming = useWorkbenchStore((s) => s.isStreaming)
   const setQuotedContent = useWorkbenchStore((s) => s.setQuotedContent)
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(message.content).then(() => {
-      toast.success('已复制')
-    })
-  }
+  const handleCopy = () => copyToClipboard(message.content)
 
   const handleQuote = () => {
     const preview = message.content.length > 200 ? message.content.slice(0, 200) + '...' : message.content
@@ -526,9 +526,8 @@ function CodeBlockWithCopy({ children, ...props }: React.HTMLAttributes<HTMLPreE
 
   const handleCopy = () => {
     const text = codeRef.current?.textContent || ''
-    navigator.clipboard.writeText(text).then(() => {
+    copyToClipboard(text).then(() => {
       setCopied(true)
-      toast.success('已复制')
       setTimeout(() => setCopied(false), 2000)
     })
   }
@@ -690,8 +689,8 @@ function BatchDownloadButton({ jobId }: { jobId: string }) {
   const handleDownload = async (type: 'csv' | 'zip') => {
     setDownloading(type)
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api/v1'
-      const token = localStorage.getItem('access_token')
+      const baseUrl = API_BASE_URL
+      const token = getAccessToken()
       const endpoint = type === 'csv' ? 'download' : 'download-detail'
       const response = await fetch(`${baseUrl}/workbench/batch/${jobId}/${endpoint}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -704,16 +703,10 @@ function BatchDownloadButton({ jobId }: { jobId: string }) {
         throw new Error(`HTTP ${response.status}`)
       }
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = type === 'csv'
+      const filename = type === 'csv'
         ? `案例分析汇总_${jobId.slice(0, 8)}.csv`
         : `案例分析详情_${jobId.slice(0, 8)}.zip`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      downloadBlob(blob, filename)
     } catch {
       toast.error('下载失败')
     } finally {

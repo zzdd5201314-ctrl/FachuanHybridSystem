@@ -3,8 +3,8 @@
  */
 
 import { useNavigate } from 'react-router'
+import { copyToClipboard } from '@/lib/clipboard'
 import { Users, User, Building2, Landmark, Copy } from 'lucide-react'
-import { toast } from 'sonner'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -129,8 +129,7 @@ export function ClientTable({ clients, isLoading = false }: ClientTableProps) {
                       className="size-8"
                       onClick={(e) => {
                         e.stopPropagation()
-                        navigator.clipboard.writeText(formatClientText(client))
-                        toast.success('已复制当事人信息')
+                        copyToClipboard(formatClientText(client), '已复制当事人信息')
                       }}
                     >
                       <Copy className="size-3.5" />

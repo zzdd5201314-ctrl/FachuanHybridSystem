@@ -1,6 +1,7 @@
 /** 工作台页面 */
 
 import { useEffect, useCallback, useState, useRef, useMemo } from 'react'
+import { formatFileSize } from '@/lib/file-utils'
 import { useParams, useNavigate } from 'react-router'
 import { Plus, Trash2, Loader2, Pencil, Search, X, PanelLeftClose, PanelLeft, Menu, History, Download, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,7 +17,6 @@ import { ApprovalDialog } from './components/ApprovalDialog'
 import { BatchAnalysisDialog } from './components/BatchAnalysisDialog'
 import { BatchProgressCard } from './components/BatchProgressCard'
 import { BatchHistoryPanel } from './components/BatchHistoryPanel'
-import { SuggestedPrompts } from './components/SuggestedPrompts'
 import { WorkbenchWelcome } from './components/WorkbenchWelcome'
 import { WorkbenchCommandPalette } from './components/WorkbenchCommandPalette'
 import { useContextUsage } from './hooks/use-context-usage'
@@ -44,7 +44,6 @@ export function WorkbenchPage() {
     submitBatchAnalysis,
     cancelBatchAnalysis,
     messages,
-    messagesLoading,
     abortStream,
   } = useWorkbenchStore()
 
@@ -445,11 +444,6 @@ export function WorkbenchPage() {
           <>
             <MessageList />
 
-            {/* 空状态建议提示 */}
-            {messages.length === 0 && !messagesLoading && !isStreaming && (
-              <SuggestedPrompts onSelect={handleSend} />
-            )}
-
             {/* 批量分析进度 */}
             {batchProgress && (
               <div className="px-4 pb-2">
@@ -531,7 +525,7 @@ function SessionItem({
   onSelect,
   onDelete,
 }: {
-  session: { id: number; title: string; last_message_preview: string }
+  session: { id: number; title: string; last_message_preview: string; message_count?: number; storage_bytes?: number }
   isActive: boolean
   onSelect: () => void
   onDelete: () => void
@@ -559,6 +553,11 @@ function SessionItem({
       {session.last_message_preview && (
         <span className="text-[11px] text-muted-foreground truncate mt-0.5">
           {session.last_message_preview}
+        </span>
+      )}
+      {session.message_count !== undefined && (
+        <span className="text-[10px] text-muted-foreground/60 mt-0.5">
+          {session.message_count} 条消息 · {formatFileSize(session.storage_bytes || 0)}
         </span>
       )}
     </div>

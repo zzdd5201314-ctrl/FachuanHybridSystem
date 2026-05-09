@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -21,6 +22,10 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet'
 import { PATHS, generatePath } from '@/routes/paths'
+import { DetailField } from '@/components/shared/DetailField'
+import { DetailCard } from '@/components/shared/DetailCard'
+import { formatAmount, formatAmountInt } from '@/lib/format'
+import { downloadBlob } from '@/lib/download'
 
 import { useContract } from '../hooks/use-contract'
 import { useContractMutations } from '../hooks/use-contract-mutations'
@@ -40,31 +45,6 @@ export interface ContractDetailProps { contractId: string }
 
 /* ── Shared helpers ── */
 
-function DetailField({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
-  return (
-    <div>
-      <div className="text-muted-foreground mb-0.5 text-xs">{label}</div>
-      <div className={`text-[13px] ${mono ? 'font-mono' : ''}`}>{value || '—'}</div>
-    </div>
-  )
-}
-
-function DetailCard({ title, children, extra }: { title: string; children: React.ReactNode; extra?: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-border/60 p-[18px] mb-4 bg-card">
-      {extra ? (
-        <div className="flex items-center justify-between mb-3.5">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {extra}
-        </div>
-      ) : (
-        <h3 className="text-sm font-semibold text-foreground mb-3.5">{title}</h3>
-      )}
-      {children}
-    </div>
-  )
-}
-
 function StatusBadge({ status, label }: { status: string | null; label?: string | null }) {
   if (!status) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">未设置</span>
   const cls = status === 'active'
@@ -73,11 +53,6 @@ function StatusBadge({ status, label }: { status: string | null; label?: string 
       ? 'bg-muted text-muted-foreground'
       : 'bg-amber-50 text-amber-700'
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${cls}`}>{label || status}</span>
-}
-
-function formatAmount(amount: number | null | undefined): string {
-  if (amount == null) return '—'
-  return `¥ ${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
 }
 
 /* ── Tabs config ── */
@@ -134,12 +109,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             toast.success(data.message || '合同已生成并保存')
           } else {
             const blob = await res.blob()
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `合同_${contract?.name ?? contractId}.docx`
-            a.click()
-            URL.revokeObjectURL(url)
+            downloadBlob(blob, `合同_${contract?.name ?? contractId}.docx`)
             toast.success('合同生成成功，已开始下载')
           }
           break
@@ -309,7 +279,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                       <span className="font-medium flex-1 truncate">{cs.name}</span>
                       {cs.cause_of_action && <span className="text-muted-foreground text-xs shrink-0">{cs.cause_of_action}</span>}
                       {cs.status_label && <Badge variant="outline" className="text-[11px] px-2 py-0.5 shrink-0">{cs.status_label}</Badge>}
-                      {cs.target_amount != null && <span className="text-muted-foreground shrink-0">¥{cs.target_amount.toLocaleString()}</span>}
+                      {cs.target_amount != null && <span className="text-muted-foreground shrink-0">{formatAmountInt(cs.target_amount)}</span>}
                     </div>
                   ))}
                 </div>
@@ -394,7 +364,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                         <span className="text-[13px] font-mono text-right flex-1 min-w-0 truncate">{value}</span>
                         <button
                           className="ml-2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                          onClick={() => { navigator.clipboard.writeText(value); toast.success('已复制') }}
+                          onClick={() => copyToClipboard(String(value))}
                         >
                           <Copy className="size-3" />
                         </button>
@@ -461,7 +431,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                                   d.address ? `住所地：${d.address}` : null,
                                 ]
                             const text = lines.filter(Boolean).join('\n')
-                            if (text) { navigator.clipboard.writeText(text); toast.success('已复制全部信息') }
+                            if (text) copyToClipboard(text, '已复制全部信息')
                           }}
                         >
                           <Copy className="size-3" />复制全部
@@ -500,7 +470,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                         <span className="text-[13px] text-right flex-1 min-w-0 truncate">{selectedLawyer.lawyer_name}</span>
                         <button
                           className="ml-2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                          onClick={() => { navigator.clipboard.writeText(selectedLawyer.lawyer_name); toast.success('已复制') }}
+                          onClick={() => copyToClipboard(selectedLawyer.lawyer_name)}
                         >
                           <Copy className="size-3" />
                         </button>
@@ -510,7 +480,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                         <span className="text-[13px] font-mono text-right flex-1 min-w-0 truncate">{selectedLawyer.lawyer_id}</span>
                         <button
                           className="ml-2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                          onClick={() => { navigator.clipboard.writeText(String(selectedLawyer.lawyer_id)); toast.success('已复制') }}
+                          onClick={() => copyToClipboard(String(selectedLawyer.lawyer_id))}
                         >
                           <Copy className="size-3" />
                         </button>
@@ -527,7 +497,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                             `角色：${selectedLawyer.is_primary ? '主办律师' : '协办律师'}`,
                             `律师 ID：${selectedLawyer.lawyer_id}`,
                           ].join('\n')
-                          navigator.clipboard.writeText(lines)
+                          copyToClipboard(lines, '已复制全部信息')
                           toast.success('已复制全部信息')
                         }}
                       >
