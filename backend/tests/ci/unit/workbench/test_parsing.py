@@ -6,13 +6,7 @@ import json
 
 import pytest
 
-from apps.workbench.tasks.parsing import (
-    build_case_info,
-    chunk_text,
-    merge_chunk_results,
-    parse_llm_result,
-)
-
+from apps.workbench.tasks.parsing import build_case_info, chunk_text, merge_chunk_results, parse_llm_result
 
 # ─── chunk_text ──────────────────────────────────────────────────────────────
 

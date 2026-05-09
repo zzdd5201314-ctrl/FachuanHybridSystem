@@ -14,6 +14,7 @@ from ninja import File, Form, Router, Schema
 from ninja.files import UploadedFile
 
 from apps.core.dto.request_context import extract_request_context
+from apps.core.infrastructure.service_locator import ServiceLocator
 from apps.core.security.auth import JWTOrSessionAuth
 
 from ..models import BatchJobItem, BatchJobStatus
@@ -27,7 +28,6 @@ from ..schemas import (
     SessionOut,
     SessionUpdateIn,
 )
-from apps.core.infrastructure.service_locator import ServiceLocator
 
 logger = logging.getLogger(__name__)
 

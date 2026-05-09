@@ -7,11 +7,11 @@ import logging
 from typing import Any
 
 from .constants import (
+    _CONCLUSION_RE,
     CHUNK_OVERLAP,
     CHUNK_SIZE,
     METADATA_BLOCK_RE,
     METADATA_FIELD_RE,
-    _CONCLUSION_RE,
     CaseAnalysisResult,
 )
 
