@@ -245,12 +245,9 @@ class BatchAnalysisService(PermissionMixin):
             return job
 
         # 尝试即时取消 asyncio task
-        from apps.workbench.tasks import _active_tasks
+        from ..tasks import task_registry
 
-        active_task = _active_tasks.get(str(job_id))
-        if active_task and not active_task.done():
-            active_task.cancel()
-            logger.info("已取消 asyncio task: job=%s", job_id)
+        task_registry.cancel(str(job_id))
 
         cancel_result: dict[str, Any] = {}
         if job.task_id:
