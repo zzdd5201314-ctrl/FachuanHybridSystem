@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -57,18 +57,16 @@ const PLATFORM_LABELS: Record<string, string> = {
   feishu: '飞书', wechat: '微信', dingtalk: '钉钉',
 }
 
-/* ── Tabs config (matches backend order) ── */
+/* ── Tabs config ── */
 
-const TABS = [
+const BASE_TABS = [
   { value: 'basic', label: '基本信息' },
   { value: 'parties', label: '当事人与律师' },
   { value: 'progress', label: '案件进展' },
   { value: 'documents', label: '文档生成' },
   { value: 'party_materials', label: '当事人材料' },
   { value: 'non_party_materials', label: '非当事人材料' },
-  { value: 'court_filing', label: '一张网立案' },
   { value: 'contacts', label: '工作人员' },
-  { value: 'folder', label: '文件夹' },
 ]
 
 const tabVariants = {
@@ -171,6 +169,19 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
   const { deleteCase } = useCaseMutations()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('basic')
+
+  const isOurPartyAllDefendant = useMemo(() => {
+    const ourParties = caseData?.parties?.filter(p => p.client_detail?.is_our_client) ?? []
+    return ourParties.length > 0 && ourParties.every(p => p.legal_status === 'defendant')
+  }, [caseData?.parties])
+
+  const tabs = useMemo(() => {
+    const list = [...BASE_TABS]
+    if (!isOurPartyAllDefendant) {
+      list.splice(6, 0, { value: 'court_filing', label: '一张网立案' })
+    }
+    return list
+  }, [isOurPartyAllDefendant])
   const [selectedParty, setSelectedParty] = useState<CaseParty | null>(null)
   const [selectedLawyer, setSelectedLawyer] = useState<CaseAssignment | null>(null)
 
@@ -249,7 +260,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
       {/* ── Tabs ── */}
       <div className="border-b border-border mb-5">
         <div className="flex gap-0 -mb-px overflow-x-auto">
-          {TABS.map(tab => (
+          {tabs.map(tab => (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
@@ -321,6 +332,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         {/* ════════════════════════════════════════════ */}
         {activeTab === 'parties' && (
           <motion.div key="parties" {...tabVariants} transition={tabTransition}>
+            <div className="grid gap-4 lg:grid-cols-2">
             <DetailCard title="案件当事人">
               {caseData.parties?.length ? (
                 <div className="flex flex-col gap-2">
@@ -376,6 +388,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
                 <p className="text-muted-foreground text-[13px]">暂无指派律师</p>
               )}
             </DetailCard>
+            </div>
           </motion.div>
         )}
 
@@ -426,6 +439,13 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
               <CaseTemplateSection
                 categories={templateBindings?.categories ?? []}
                 parties={caseData.parties ?? []}
+                caseId={Number(caseId)}
+              />
+            </DetailCard>
+
+            <DetailCard title="文件夹管理" extra={<FolderOpen className="text-muted-foreground size-4" />}>
+              <CaseFolderSection
+                binding={folderBinding}
                 caseId={Number(caseId)}
               />
             </DetailCard>
@@ -487,19 +507,6 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
           </motion.div>
         )}
 
-        {/* ════════════════════════════════════════════ */}
-        {/*  Tab: 文件夹                                  */}
-        {/* ════════════════════════════════════════════ */}
-        {activeTab === 'folder' && (
-          <motion.div key="folder" {...tabVariants} transition={tabTransition}>
-            <DetailCard title="文件夹管理" extra={<FolderOpen className="text-muted-foreground size-4" />}>
-              <CaseFolderSection
-                binding={folderBinding}
-                caseId={Number(caseId)}
-              />
-            </DetailCard>
-          </motion.div>
-        )}
       </AnimatePresence>
 
       {/* ── Side Panels ── */}
