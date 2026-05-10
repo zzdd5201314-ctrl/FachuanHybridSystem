@@ -61,12 +61,11 @@ const PLATFORM_LABELS: Record<string, string> = {
 
 const BASE_TABS = [
   { value: 'basic', label: '基本信息' },
-  { value: 'parties', label: '当事人与律师' },
+  { value: 'parties', label: '案件人员' },
   { value: 'progress', label: '案件进展' },
   { value: 'documents', label: '文档生成' },
   { value: 'party_materials', label: '当事人材料' },
   { value: 'non_party_materials', label: '非当事人材料' },
-  { value: 'contacts', label: '工作人员' },
 ]
 
 const tabVariants = {
@@ -331,67 +330,75 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         )}
 
         {/* ════════════════════════════════════════════ */}
-        {/*  Tab: 当事人与律师                             */}
+        {/*  Tab: 案件人员                                 */}
         {/* ════════════════════════════════════════════ */}
         {activeTab === 'parties' && (
           <motion.div key="parties" {...tabVariants} transition={tabTransition}>
             <div className="grid gap-4 lg:grid-cols-2">
-            <DetailCard title="案件当事人">
-              {caseData.parties?.length ? (
-                <div className="flex flex-col gap-2">
-                  {caseData.parties.map(party => {
-                    const name = party.client_detail?.name ?? '未知当事人'
-                    const legalStatusLabel = party.legal_status
-                      ? (LEGAL_STATUS_LABELS[party.legal_status as keyof typeof LEGAL_STATUS_LABELS]?.zh ?? party.legal_status)
-                      : null
-                    const isOur = party.client_detail?.is_our_client
-                    const roleColor = isOur ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
-                    return (
+              <DetailCard title="案件当事人">
+                {caseData.parties?.length ? (
+                  <div className="flex flex-col gap-2">
+                    {caseData.parties.map(party => {
+                      const name = party.client_detail?.name ?? '未知当事人'
+                      const legalStatusLabel = party.legal_status
+                        ? (LEGAL_STATUS_LABELS[party.legal_status as keyof typeof LEGAL_STATUS_LABELS]?.zh ?? party.legal_status)
+                        : null
+                      const isOur = party.client_detail?.is_our_client
+                      const roleColor = isOur ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
+                      return (
+                        <button
+                          key={party.id}
+                          type="button"
+                          onClick={() => setSelectedParty(party)}
+                          className="flex items-center gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-3 text-[13px] cursor-pointer hover:bg-muted/50 transition-colors text-left w-full"
+                        >
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${roleColor}`}>
+                            {isOur ? '我方' : '对方'}
+                          </span>
+                          <span className="font-semibold flex-1">{name}</span>
+                          {legalStatusLabel && (
+                            <Badge variant="outline" className="text-[11px] px-2 py-0.5">{legalStatusLabel}</Badge>
+                          )}
+                          <span className="text-muted-foreground text-xs">{party.client_detail?.client_type === 'natural' ? '自然人' : '法人/组织'}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-[13px]">暂无当事人</p>
+                )}
+              </DetailCard>
+
+              <DetailCard title="律师指派">
+                {caseData.assignments?.length ? (
+                  <div className="flex flex-col gap-2">
+                    {caseData.assignments.map(a => (
                       <button
-                        key={party.id}
+                        key={a.id}
                         type="button"
-                        onClick={() => setSelectedParty(party)}
+                        onClick={() => setSelectedLawyer(a)}
                         className="flex items-center gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-3 text-[13px] cursor-pointer hover:bg-muted/50 transition-colors text-left w-full"
                       >
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${roleColor}`}>
-                          {isOur ? '我方' : '对方'}
-                        </span>
-                        <span className="font-semibold flex-1">{name}</span>
-                        {legalStatusLabel && (
-                          <Badge variant="outline" className="text-[11px] px-2 py-0.5">{legalStatusLabel}</Badge>
+                        <span className="font-semibold flex-1">{a.lawyer_detail?.real_name || a.lawyer_detail?.username || '未知'}</span>
+                        {a.lawyer_detail?.phone && (
+                          <span className="text-muted-foreground text-xs">{a.lawyer_detail.phone}</span>
                         )}
-                        <span className="text-muted-foreground text-xs">{party.client_detail?.client_type === 'natural' ? '自然人' : '法人/组织'}</span>
                       </button>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-[13px]">暂无当事人</p>
-              )}
-            </DetailCard>
-
-            <DetailCard title="律师指派">
-              {caseData.assignments?.length ? (
-                <div className="flex flex-col gap-2">
-                  {caseData.assignments.map(a => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => setSelectedLawyer(a)}
-                      className="flex items-center gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-3 text-[13px] cursor-pointer hover:bg-muted/50 transition-colors text-left w-full"
-                    >
-                      <span className="font-semibold flex-1">{a.lawyer_detail?.real_name || a.lawyer_detail?.username || '未知'}</span>
-                      {a.lawyer_detail?.phone && (
-                        <span className="text-muted-foreground text-xs">{a.lawyer_detail.phone}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-[13px]">暂无指派律师</p>
-              )}
-            </DetailCard>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-[13px]">暂无指派律师</p>
+                )}
+              </DetailCard>
             </div>
+
+            <DetailCard title="案件工作人员" extra={<Users className="text-muted-foreground size-4" />}>
+              <CaseContactSection
+                contacts={caseData.contacts ?? []}
+                caseId={Number(caseId)}
+                editable={true}
+              />
+            </DetailCard>
           </motion.div>
         )}
 
@@ -504,20 +511,6 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         )}
 
         {/* ════════════════════════════════════════════ */}
-        {/*  Tab: 工作人员                                */}
-        {/* ════════════════════════════════════════════ */}
-        {activeTab === 'contacts' && (
-          <motion.div key="contacts" {...tabVariants} transition={tabTransition}>
-            <DetailCard title="案件工作人员" extra={<Users className="text-muted-foreground size-4" />}>
-              <CaseContactSection
-                contacts={caseData.contacts ?? []}
-                caseId={Number(caseId)}
-                editable={true}
-              />
-            </DetailCard>
-          </motion.div>
-        )}
-
       </AnimatePresence>
 
       {/* ── Side Panels ── */}
