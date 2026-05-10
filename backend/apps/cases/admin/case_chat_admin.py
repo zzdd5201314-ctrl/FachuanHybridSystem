@@ -20,6 +20,8 @@ class CaseChatAdmin(CaseAdminServiceMixin, admin.ModelAdmin[CaseChat]):
     """案件群聊管理"""
 
     list_display = ("name", "chat_id_display", "platform_display", "case_link", "status_display", "created_at")
+    list_select_related = ("case",)
+    list_per_page = 50
 
     list_filter = ("platform", "is_active", "created_at")
 

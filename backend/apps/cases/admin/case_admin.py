@@ -229,6 +229,7 @@ class CaseAdmin(
         "start_date",
     )
     list_display_links = None
+    list_per_page = 50
     list_filter = ("status", "case_type", "current_stage")
     search_fields = ("name", "filing_number", "case_numbers__number", "cause_of_action")
     ordering = ("-start_date",)

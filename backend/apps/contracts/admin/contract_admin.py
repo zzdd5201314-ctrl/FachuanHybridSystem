@@ -111,6 +111,7 @@ class ContractAdmin(
         "fixed_amount",
         "risk_rate",
     )
+    list_per_page = 50
     list_filter = ("case_type", "status", "fee_mode", "is_filed", ("specified_date", admin.DateFieldListFilter))
     search_fields = ("name", "filing_number", "contract_parties__client__name")
     date_hierarchy = "specified_date"
