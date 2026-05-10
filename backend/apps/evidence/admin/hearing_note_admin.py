@@ -24,8 +24,8 @@ class HearingNoteAdmin(admin.ModelAdmin):
         return obj.content[:50] + "..." if len(obj.content) > 50 else obj.content
 
     def get_queryset(self, request: Any) -> QuerySet[HearingNote]:
-        return super().get_queryset(request).annotate(evidence_count=Count("evidence_items"))
+        return super().get_queryset(request).annotate(evidence_count=Count("evidence_items"))  # type: ignore[no-any-return]
 
     @admin.display(description=_("关联证据"), ordering="evidence_count")
     def evidence_count(self, obj: HearingNote) -> int:
-        return obj.evidence_count  # type: ignore[attr-defined]
+        return obj.evidence_count  # type: ignore[attr-defined,no-any-return]

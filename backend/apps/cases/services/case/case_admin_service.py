@@ -311,6 +311,7 @@ class CaseAdminService:
                         .order_by("-created_at"),
                     ),
                     "chats",
+                    "contacts__authority",
                 )
                 .get(pk=case_id)
             )

@@ -183,6 +183,7 @@ class ExpressQueryTaskAdmin(admin.ModelAdmin[ExpressQueryTask]):
         "created_by",
         "created_at",
     )
+    list_per_page = 50
     list_filter = ("status", "carrier_type", "created_at")
     search_fields = ("title", "tracking_number", "ocr_text", "error_message")
     readonly_fields = (

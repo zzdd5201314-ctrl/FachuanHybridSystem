@@ -64,22 +64,27 @@ class GsxtReportTaskInline(admin.TabularInline[Any]):  # type: ignore[type-arg]
         return _get_gsxt_report_task_model()
 
     def inbox_link(self, obj: Any) -> str:
-        """收件箱链接，使用端口获取状态检查。"""
+        """收件箱链接，使用端口获取状态检查（结果缓存避免每行重复查询）。"""
         gsxt_port: GsxtReportPort = get_gsxt_report_port()
         credential_port: CredentialPort = get_credential_port()
 
-        # 获取状态选项用于比较
-        status_choices = gsxt_port.get_task_status_choices()
-        waiting_email_value = next(
-            (v for v, label in status_choices if "waiting_email" in v),
-            "waiting_email",
-        )
+        # 缓存 status_choices（同一请求内不变）
+        if not hasattr(self, "_cached_waiting_email_value"):
+            status_choices = gsxt_port.get_task_status_choices()
+            self._cached_waiting_email_value = next(
+                (v for v, label in status_choices if "waiting_email" in v),
+                "waiting_email",
+            )
 
-        if obj.status != waiting_email_value:
+        if obj.status != self._cached_waiting_email_value:
             return "—"
 
-        credential = credential_port.get_gsxt_credential()
-        email = credential.account if credential else None
+        # 缓存 credential（同一请求内不变）
+        if not hasattr(self, "_cached_gsxt_email"):
+            credential = credential_port.get_gsxt_credential()
+            self._cached_gsxt_email = credential.account if credential else None
+
+        email = self._cached_gsxt_email
         if not email:
             return "—"
         return format_html(
