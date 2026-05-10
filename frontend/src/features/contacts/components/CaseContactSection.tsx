@@ -34,10 +34,11 @@ export interface CaseContactSectionProps {
   contacts: CaseContact[]
   editable?: boolean
   caseId?: number
+  onContactClick?: (contact: CaseContact) => void
 }
 
 export const CaseContactSection = forwardRef<CaseContactSectionRef, CaseContactSectionProps>(
-  function CaseContactSection({ contacts, editable, caseId }, ref) {
+  function CaseContactSection({ contacts, editable, caseId, onContactClick }, ref) {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [form, setForm] = useState({
       name: '',
@@ -99,8 +100,11 @@ export const CaseContactSection = forwardRef<CaseContactSectionRef, CaseContactS
                 ? (CASE_STAGE_LABELS[contact.stage as CaseStage]?.zh ?? contact.stage)
                 : null
               return (
-                <div key={contact.id} className="group flex items-start gap-2 py-1.5">
-                  <div className="min-w-0 flex-1">
+                <div key={contact.id} className={`group flex items-start gap-2 py-1.5 ${onContactClick ? 'cursor-pointer hover:bg-muted/30 -mx-1 px-1 rounded' : ''}`}>
+                  <div
+                    className="min-w-0 flex-1"
+                    onClick={onContactClick ? () => onContactClick(contact) : undefined}
+                  >
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[13px] font-medium">{contact.name}</span>
                       <span className="text-[11px] text-muted-foreground">{contact.role_display || contact.role}</span>

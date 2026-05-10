@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft, Edit, Trash2, FileWarning, Hash, Building2, MessageSquare,
-  FileText, FolderOpen, Plus, FileCheck, Shield,
+  FileText, FolderOpen, Plus, FileCheck, Shield, Phone,
 } from 'lucide-react'
 import { formatDateOnly } from '@/lib/date'
 import { formatAmount } from '@/lib/format'
@@ -32,7 +32,7 @@ import { CaseMaterialSection, type CaseMaterialSectionRef } from './CaseMaterial
 import { CaseTemplateSection } from './CaseTemplateSection'
 import { CaseFolderSection } from './CaseFolderSection'
 import { AuthoritySection } from './AuthoritySection'
-import { CaseContactSection, type CaseContactSectionRef } from '@/features/contacts'
+import { CaseContactSection, type CaseContactSectionRef, type CaseContact } from '@/features/contacts'
 import { CourtFilingSection } from './CourtFilingSection'
 import { CourtGuaranteeSection } from './CourtGuaranteeSection'
 import { AuthorizationMaterialsSection } from './AuthorizationMaterialsSection'
@@ -151,6 +151,70 @@ function LawyerDetailSheet({
           {lawyer?.username && <DetailField label="用户名" value={lawyer.username} />}
           {lawyer?.real_name && <DetailField label="姓名" value={lawyer.real_name} />}
           {lawyer?.phone && <DetailField label="电话" value={lawyer.phone} mono />}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+/* ── Contact Detail Sheet ── */
+
+function ContactDetailSheet({
+  contact, open, onClose,
+}: {
+  contact: import('@/features/contacts').CaseContact | null; open: boolean; onClose: () => void
+}) {
+  if (!contact) return null
+
+  const stageLabel = contact.stage
+    ? (CASE_STAGE_LABELS[contact.stage as CaseStage]?.zh ?? contact.stage)
+    : null
+
+  const handleCopy = () => {
+    const lines = [
+      `姓名: ${contact.name}`,
+      `角色: ${contact.role_display || contact.role}`,
+      contact.phone ? `电话: ${contact.phone}` : '',
+      contact.address ? `收件地址: ${contact.address}` : '',
+      stageLabel ? `阶段: ${stageLabel}` : '',
+      contact.authority_name ? `主管机关: ${contact.authority_name}` : '',
+      contact.note ? `备注: ${contact.note}` : '',
+    ].filter(Boolean)
+    navigator.clipboard.writeText(lines.join('\n'))
+    toast.success('已复制到剪贴板')
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader className="pb-0">
+          <SheetTitle className="text-base">{contact.name}</SheetTitle>
+          <SheetDescription>{contact.role_display || contact.role}</SheetDescription>
+        </SheetHeader>
+        <div className="space-y-4 px-4 pb-4">
+          {stageLabel && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{stageLabel}</Badge>
+            </div>
+          )}
+          <div className="space-y-3 text-sm">
+            {contact.phone && <DetailField label="电话" value={contact.phone} mono />}
+            {contact.address && <DetailField label="收件地址" value={contact.address} />}
+            {contact.authority_name && <DetailField label="主管机关" value={contact.authority_name} />}
+            {contact.note && <DetailField label="备注" value={contact.note} />}
+          </div>
+          <div className="flex gap-2">
+            {contact.phone && (
+              <Button variant="outline" size="sm" className="flex-1" asChild>
+                <a href={`tel:${contact.phone}`}>
+                  <Phone className="size-3.5 mr-1.5" />拨打电话
+                </a>
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="flex-1" onClick={handleCopy}>
+              <FileCheck className="size-3.5 mr-1.5" />全部复制
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
@@ -406,6 +470,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
                 contacts={caseData.contacts ?? []}
                 caseId={Number(caseId)}
                 editable={true}
+                onContactClick={setSelectedContact}
               />
             </DetailCard>
           </motion.div>
@@ -535,6 +600,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
       {/* ── Side Panels ── */}
       <PartyDetailSheet party={selectedParty} open={!!selectedParty} onClose={() => setSelectedParty(null)} />
       <LawyerDetailSheet assignment={selectedLawyer} open={!!selectedLawyer} onClose={() => setSelectedLawyer(null)} />
+      <ContactDetailSheet contact={selectedContact} open={!!selectedContact} onClose={() => setSelectedContact(null)} />
 
       {/* ── Delete Dialog ── */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
