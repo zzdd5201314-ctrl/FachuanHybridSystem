@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, MapPin, User, Clock, Pencil, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -131,7 +131,7 @@ function EventDetailDialog({
   )
 }
 
-export function CalendarCard() {
+export const CalendarCard = memo(function CalendarCard() {
   const queryClient = useQueryClient()
   const { deleteMutation } = useReminderMutations()
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear())
@@ -142,7 +142,7 @@ export function CalendarCard() {
   const [formReminder, setFormReminder] = useState<Reminder | undefined>(undefined)
   const [formDate, setFormDate] = useState<Date | undefined>(undefined)
   const [deleteConfirm, setDeleteConfirm] = useState<CalendarEvent | null>(null)
-  const today = new Date()
+  const [today] = useState(() => new Date())
 
   const { data: reminders } = useQuery({ queryKey: ['dashboard-reminders'], queryFn: () => reminderApi.list(), staleTime: 60_000 })
   const eventsByDate = useMemo(() => mergeReminders(reminders ?? []), [reminders])
@@ -373,4 +373,4 @@ export function CalendarCard() {
       </Dialog>
     </>
   )
-}
+})
