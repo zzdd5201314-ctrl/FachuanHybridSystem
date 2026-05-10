@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 @admin.register(LegalResearchTask)
-class LegalResearchTaskAdmin(admin.ModelAdmin[LegalResearchTask]):
+class LegalResearchTaskAdmin(admin.ModelAdmin):
     change_form_template = "admin/legal_research/legalresearchtask/change_form.html"
     WEIKE_SITE_FILTER = (
         Q(site_name__icontains="wkxx")

@@ -13,7 +13,7 @@ from apps.pdf_splitting.models import PdfSplitJob, PdfSplittingTool
 
 
 @admin.register(PdfSplittingTool)
-class PdfSplittingToolAdmin(admin.ModelAdmin[PdfSplittingTool]):
+class PdfSplittingToolAdmin(admin.ModelAdmin):
     def changelist_view(
         self,
         request: HttpRequest,
@@ -41,7 +41,7 @@ class PdfSplittingToolAdmin(admin.ModelAdmin[PdfSplittingTool]):
 
 
 @admin.register(PdfSplitJob)
-class PdfSplitJobAdmin(admin.ModelAdmin[PdfSplitJob]):
+class PdfSplitJobAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "status_display",

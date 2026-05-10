@@ -4,12 +4,12 @@
  * Requirements: 4.2-4.11, 5.3, 5.4, 10.3, 10.5, 10.6
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useNavigate } from 'react-router'
-import { Loader2, Save, X, Plus, Trash2, FileCheck } from 'lucide-react'
+import { Loader2, Save, ArrowLeft, Plus, Trash2, FileCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -30,7 +30,9 @@ import { FeeCalculator } from './FeeCalculator'
 import { CasePartySection } from './CasePartySection'
 import { CaseAssignmentSection } from './CaseAssignmentSection'
 import { CaseLogSection } from './CaseLogSection'
+import type { CaseLogSectionRef } from './CaseLogSection'
 import { CaseNumberSection } from './CaseNumberSection'
+import type { CaseNumberSectionRef } from './CaseNumberSection'
 import { AuthoritySection } from './AuthoritySection'
 import { generatePath, PATHS } from '@/routes/paths'
 import {
@@ -191,6 +193,9 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
     }
   }
 
+  const caseNumberRef = useRef<CaseNumberSectionRef>(null)
+  const caseLogRef = useRef<CaseLogSectionRef>(null)
+
   if (isEditMode && isLoadingCase) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -211,51 +216,56 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
   const isPending = createCaseFull.isPending || updateCase.isPending
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav className="text-sm" aria-label="Breadcrumb">
-        <ol className="flex items-center gap-1.5">
-          <li>
-            <span
-              className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-              onClick={() => navigate(PATHS.ADMIN_CASES)}
-            >
-              案件
-            </span>
-          </li>
-          <li className="text-muted-foreground">/</li>
-          {isEditMode && caseData ? (
-            <>
-              <li>
-                <span
-                  className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors truncate max-w-[200px] inline-block align-bottom"
-                  onClick={() => navigate(generatePath.caseDetail(caseId!))}
-                >
-                  {caseData.name}
-                </span>
-              </li>
-              <li className="text-muted-foreground">/</li>
-              <li className="text-foreground">编辑</li>
-            </>
-          ) : (
-            <li className="text-foreground">新建</li>
-          )}
-        </ol>
-      </nav>
+    <div className="space-y-3">
+      {/* Page Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <button
+          type="button"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          onClick={() => navigate(isEditMode && caseId ? generatePath.caseDetail(caseId) : PATHS.ADMIN_CASES)}
+        >
+          <ArrowLeft className="size-4" />
+          <span className="text-sm font-medium">
+            {isEditMode ? '编辑案件' : '新建案件'}
+          </span>
+        </button>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => navigate(isEditMode && caseId ? generatePath.caseDetail(caseId) : PATHS.ADMIN_CASES)}
+            disabled={isPending}
+          >
+            取消
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            className="h-8 text-xs"
+            form="case-form"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <><Loader2 className="mr-1 size-3.5 animate-spin" /> 保存中...</>
+            ) : (
+              <><Save className="mr-1 size-3.5" /> 保存</>
+            )}
+          </Button>
+        </div>
+      </div>
 
-      {/* Basic Info Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{isEditMode ? '编辑案件信息' : '案件信息'}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* name */}
+      <Form {...form}>
+        <form id="case-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+          {/* 案件信息 — 3列紧凑网格 */}
+          <Card className="py-4">
+            <CardContent className="px-4">
+              <div className="text-xs font-medium text-muted-foreground mb-3">案件信息</div>
+              <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
                 <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>案件名称 <span className="text-destructive">*</span></FormLabel>
+                  <FormItem className="lg:col-span-2">
+                    <FormLabel className="text-xs text-muted-foreground">案件名称 <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="请输入案件名称" disabled={isPending} {...field} />
                     </FormControl>
@@ -263,202 +273,162 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
                   </FormItem>
                 )} />
 
-                {/* case_type */}
-                <FormField control={form.control} name="case_type" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>案件类型</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isPending}>
+                  <FormField control={form.control} name="case_type" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-muted-foreground">案件类型</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isPending}>
+                        <FormControl>
+                          <SelectTrigger className="w-full"><SelectValue placeholder="请选择案件类型" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(SIMPLE_CASE_TYPE_LABELS).map(([v, l]) => (
+                            <SelectItem key={v} value={v}>{l.zh}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="status" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-muted-foreground">状态</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isPending}>
+                        <FormControl>
+                          <SelectTrigger className="w-full"><SelectValue placeholder="请选择状态" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(CASE_STATUS_LABELS).map(([v, l]) => (
+                            <SelectItem key={v} value={v}>{l.zh}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="cause_of_action" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-muted-foreground">案由</FormLabel>
                       <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="请选择案件类型" />
-                        </SelectTrigger>
+                        <CauseSelector value={field.value ?? null} onChange={field.onChange} caseType={watchCaseType} disabled={isPending} />
                       </FormControl>
-                      <SelectContent>
-                        {Object.entries(SIMPLE_CASE_TYPE_LABELS).map(([v, l]) => (
-                          <SelectItem key={v} value={v}>{l.zh}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                      <FormMessage />
+                    </FormItem>
+                  )} />
 
-                {/* status */}
-                <FormField control={form.control} name="status" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>状态</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={isPending}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="请选择状态" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.entries(CASE_STATUS_LABELS).map(([v, l]) => (
-                          <SelectItem key={v} value={v}>{l.zh}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* cause_of_action */}
-                <FormField control={form.control} name="cause_of_action" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>案由</FormLabel>
-                    <FormControl>
-                      <CauseSelector
-                        value={field.value ?? null}
-                        onChange={field.onChange}
-                        caseType={watchCaseType}
-                        disabled={isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* current_stage */}
-                <FormField control={form.control} name="current_stage" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>当前阶段</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isPending}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="请选择阶段" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.entries(CASE_STAGE_LABELS).map(([v, l]) => (
-                          <SelectItem key={v} value={v}>{l.zh}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* target_amount */}
-                <FormField control={form.control} name="target_amount" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>标的金额</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="请输入标的金额"
-                        disabled={isPending}
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* preservation_amount */}
-                <FormField control={form.control} name="preservation_amount" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>保全金额</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="请输入保全金额"
-                        disabled={isPending}
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* effective_date */}
+                  <FormField control={form.control} name="current_stage" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-muted-foreground">当前阶段</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isPending}>
+                        <FormControl>
+                          <SelectTrigger className="w-full"><SelectValue placeholder="请选择阶段" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(CASE_STAGE_LABELS).map(([v, l]) => (
+                            <SelectItem key={v} value={v}>{l.zh}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                 <FormField control={form.control} name="effective_date" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>生效日期</FormLabel>
+                    <FormLabel className="text-xs text-muted-foreground">生效日期</FormLabel>
                     <FormControl>
-                      <Input
-                        type="date"
-                        disabled={isPending}
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value || null)}
-                      />
+                      <Input type="date" disabled={isPending} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || null)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
 
-                {/* specified_date */}
                 <FormField control={form.control} name="specified_date" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>指定日期</FormLabel>
+                    <FormLabel className="text-xs text-muted-foreground">指定日期</FormLabel>
                     <FormControl>
-                      <Input
-                        type="date"
-                        disabled={isPending}
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value || null)}
-                      />
+                      <Input type="date" disabled={isPending} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || null)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
 
-                {/* is_filed */}
-                <FormField control={form.control} name="is_filed" render={({ field }) => (
-                  <FormItem className="flex flex-row items-center gap-3 space-y-0 pt-6">
+                <FormField control={form.control} name="target_amount" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-muted-foreground">标的金额</FormLabel>
                     <FormControl>
-                      <Switch
-                        checked={field.value ?? false}
-                        onCheckedChange={field.onChange}
-                        disabled={isPending}
-                      />
+                      <Input type="number" placeholder="请输入" disabled={isPending} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="preservation_amount" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-muted-foreground">保全金额</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="请输入" disabled={isPending} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="is_filed" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-2.5 space-y-0 pt-5">
+                    <FormControl>
+                      <Switch checked={field.value ?? false} onCheckedChange={field.onChange} disabled={isPending} />
                     </FormControl>
                     <div className="flex items-center gap-1.5">
-                      <FileCheck className="size-4 text-muted-foreground" />
-                      <FormLabel className="text-sm font-normal cursor-pointer">已建档</FormLabel>
+                      <FileCheck className="size-3.5 text-muted-foreground" />
+                      <FormLabel className="text-xs text-muted-foreground font-normal cursor-pointer">已建档</FormLabel>
                     </div>
                     <FormMessage />
                   </FormItem>
                 )} />
               </div>
 
-              {/* Dynamic lists - create mode only */}
-              {!isEditMode && (
-                <div className="space-y-6">
-                  {/* Parties */}
-                  <div className="space-y-3">
+              <div className="mt-2.5">
+                <FeeCalculator
+                  targetAmount={watchTargetAmount}
+                  preservationAmount={watchPreservationAmount}
+                  caseType={watchCaseType}
+                  causeOfAction={watchCauseOfAction ?? undefined}
+                  embedded
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Create mode: 当事人 + 律师并排 */}
+          {!isEditMode && (
+            <>
+              <div className="grid gap-3 lg:grid-cols-2">
+                <Card className="py-4">
+                  <CardHeader className="px-4 py-0 pb-1.5">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium">当事人</h3>
-                      <Button type="button" variant="outline" size="sm" onClick={() => appendParty({ client_id: 0, legal_status: '' })}>
-                        <Plus className="mr-1 size-3" /> 添加
+                      <CardTitle className="text-xs font-medium text-muted-foreground">当事人</CardTitle>
+                      <Button type="button" variant="outline" size="xs" className="h-5 px-1.5 text-[11px]" onClick={() => appendParty({ client_id: 0, legal_status: '' })}>
+                        <Plus className="size-3 mr-0.5" /> 添加
                       </Button>
                     </div>
+                  </CardHeader>
+                  <CardContent className="px-4 space-y-1.5">
+                    {partyFields.length === 0 && <p className="text-muted-foreground text-xs">暂无当事人</p>}
                     {partyFields.map((field, index) => (
-                      <div key={field.id} className="flex items-end gap-3">
+                      <div key={field.id} className="flex items-end gap-2">
                         <FormField control={form.control} name={`parties.${index}.client_id`} render={({ field: f }) => (
                           <FormItem className="flex-1">
-                            {index === 0 && <FormLabel>客户ID</FormLabel>}
                             <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="客户ID"
-                                value={f.value || ''}
-                                onChange={(e) => f.onChange(e.target.value ? Number(e.target.value) : 0)}
-                              />
+                              <Input type="number" placeholder="客户ID" className="h-8 text-xs" value={f.value || ''} onChange={(e) => f.onChange(e.target.value ? Number(e.target.value) : 0)} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={form.control} name={`parties.${index}.legal_status`} render={({ field: f }) => (
                           <FormItem className="flex-1">
-                            {index === 0 && <FormLabel>诉讼地位</FormLabel>}
                             <Select onValueChange={f.onChange} value={f.value ?? ''}>
                               <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="选择地位" />
-                                </SelectTrigger>
+                                <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="诉讼地位" /></SelectTrigger>
                               </FormControl>
                               <SelectContent>
                                 {Object.entries(LEGAL_STATUS_LABELS).map(([v, l]) => (
@@ -468,124 +438,143 @@ export function CaseForm({ caseId, mode }: CaseFormProps) {
                             </Select>
                           </FormItem>
                         )} />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeParty(index)}>
-                          <Trash2 className="text-muted-foreground size-4" />
+                        <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeParty(index)}>
+                          <Trash2 className="text-muted-foreground size-3" />
                         </Button>
                       </div>
                     ))}
-                  </div>
+                  </CardContent>
+                </Card>
 
-                  {/* Assignments */}
-                  <div className="space-y-3">
+                <Card className="py-4">
+                  <CardHeader className="px-4 py-0 pb-1.5">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium">指派律师</h3>
-                      <Button type="button" variant="outline" size="sm" onClick={() => appendAssignment({ lawyer_id: 0 })}>
-                        <Plus className="mr-1 size-3" /> 添加
+                      <CardTitle className="text-xs font-medium text-muted-foreground">指派律师</CardTitle>
+                      <Button type="button" variant="outline" size="xs" className="h-5 px-1.5 text-[11px]" onClick={() => appendAssignment({ lawyer_id: 0 })}>
+                        <Plus className="size-3 mr-0.5" /> 添加
                       </Button>
                     </div>
+                  </CardHeader>
+                  <CardContent className="px-4 space-y-1.5">
+                    {assignmentFields.length === 0 && <p className="text-muted-foreground text-xs">暂未指派律师</p>}
                     {assignmentFields.map((field, index) => (
-                      <div key={field.id} className="flex items-end gap-3">
+                      <div key={field.id} className="flex items-end gap-2">
                         <FormField control={form.control} name={`assignments.${index}.lawyer_id`} render={({ field: f }) => (
                           <FormItem className="flex-1">
-                            {index === 0 && <FormLabel>律师ID</FormLabel>}
                             <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="律师ID"
-                                value={f.value || ''}
-                                onChange={(e) => f.onChange(e.target.value ? Number(e.target.value) : 0)}
-                              />
+                              <Input type="number" placeholder="律师ID" className="h-8 text-xs" value={f.value || ''} onChange={(e) => f.onChange(e.target.value ? Number(e.target.value) : 0)} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeAssignment(index)}>
-                          <Trash2 className="text-muted-foreground size-4" />
+                        <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeAssignment(index)}>
+                          <Trash2 className="text-muted-foreground size-3" />
                         </Button>
                       </div>
                     ))}
-                  </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-                  {/* Authorities */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium">主管机关</h3>
-                      <Button type="button" variant="outline" size="sm" onClick={() => appendAuthority({ name: '', authority_type: '' })}>
-                        <Plus className="mr-1 size-3" /> 添加
+              <Card className="py-4">
+                <CardHeader className="px-4 py-0 pb-1.5">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xs font-medium text-muted-foreground">主管机关</CardTitle>
+                    <Button type="button" variant="outline" size="xs" className="h-5 px-1.5 text-[11px]" onClick={() => appendAuthority({ name: '', authority_type: '' })}>
+                      <Plus className="size-3 mr-0.5" /> 添加
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 space-y-1.5">
+                  {authorityFields.length === 0 && <p className="text-muted-foreground text-xs">暂无主管机关</p>}
+                  {authorityFields.map((field, index) => (
+                    <div key={field.id} className="flex items-end gap-2">
+                      <FormField control={form.control} name={`authorities.${index}.name`} render={({ field: f }) => (
+                        <FormItem className="flex-1">
+                          <FormControl>
+                            <Input placeholder="机关名称" className="h-8 text-xs" {...f} value={f.value ?? ''} />
+                          </FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name={`authorities.${index}.authority_type`} render={({ field: f }) => (
+                        <FormItem className="flex-1">
+                          <Select onValueChange={f.onChange} value={f.value ?? ''}>
+                            <FormControl>
+                              <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="机关性质" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {Object.entries(AUTHORITY_TYPE_LABELS).map(([v, l]) => (
+                                <SelectItem key={v} value={v}>{l.zh}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                      <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeAuthority(index)}>
+                        <Trash2 className="text-muted-foreground size-3" />
                       </Button>
                     </div>
-                    {authorityFields.map((field, index) => (
-                      <div key={field.id} className="flex items-end gap-3">
-                        <FormField control={form.control} name={`authorities.${index}.name`} render={({ field: f }) => (
-                          <FormItem className="flex-1">
-                            {index === 0 && <FormLabel>机关名称</FormLabel>}
-                            <FormControl>
-                              <Input placeholder="机关名称" {...f} value={f.value ?? ''} />
-                            </FormControl>
-                          </FormItem>
-                        )} />
-                        <FormField control={form.control} name={`authorities.${index}.authority_type`} render={({ field: f }) => (
-                          <FormItem className="flex-1">
-                            {index === 0 && <FormLabel>机关性质</FormLabel>}
-                            <Select onValueChange={f.onChange} value={f.value ?? ''}>
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="选择性质" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {Object.entries(AUTHORITY_TYPE_LABELS).map(([v, l]) => (
-                                  <SelectItem key={v} value={v}>{l.zh}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        )} />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeAuthority(index)}>
-                          <Trash2 className="text-muted-foreground size-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                  ))}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </form>
+      </Form>
 
-              {/* Actions */}
-              <div className="flex flex-col-reverse gap-3 md:flex-row md:justify-end">
-                <Button type="button" variant="outline" onClick={() => navigate(PATHS.ADMIN_CASES)} disabled={isPending}>
-                  <X className="mr-1 size-4" /> 取消
-                </Button>
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? (
-                    <><Loader2 className="mr-1 size-4 animate-spin" /> 保存中...</>
-                  ) : (
-                    <><Save className="mr-1 size-4" /> 保存</>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-
-      {/* Editable sections in edit mode */}
+      {/* Edit mode: related sections */}
       {isEditMode && caseData && (
         <>
-          <CasePartySection parties={caseData.parties ?? []} editable caseId={caseData.id} />
-          <CaseAssignmentSection assignments={caseData.assignments ?? []} editable caseId={caseData.id} />
-          <CaseLogSection logs={caseData.logs ?? []} editable caseId={caseData.id} />
-          <CaseNumberSection caseNumbers={caseData.case_numbers ?? []} editable caseId={caseData.id} />
-          <AuthoritySection authorities={caseData.supervising_authorities ?? []} editable caseId={caseData.id} />
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Card className="py-4">
+              <CardContent className="px-4">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">案件当事人</div>
+                <CasePartySection parties={caseData.parties ?? []} editable caseId={caseData.id} />
+              </CardContent>
+            </Card>
+
+            <Card className="py-4">
+              <CardContent className="px-4">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">律师指派</div>
+                <CaseAssignmentSection assignments={caseData.assignments ?? []} editable caseId={caseData.id} />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="py-4">
+            <CardContent className="px-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium text-muted-foreground">案件日志</span>
+                <Button type="button" variant="outline" size="xs" className="h-5 px-1.5 text-[11px]" onClick={() => caseLogRef.current?.openDialog()}>
+                  <Plus className="size-3 mr-0.5" /> 添加
+                </Button>
+              </div>
+              <CaseLogSection ref={caseLogRef} logs={caseData.logs ?? []} editable caseId={caseData.id} />
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Card className="py-4">
+              <CardContent className="px-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">案号</span>
+                  <Button type="button" variant="outline" size="xs" className="h-5 px-1.5 text-[11px]" onClick={() => caseNumberRef.current?.openAdd()}>
+                    <Plus className="size-3 mr-0.5" /> 添加
+                  </Button>
+                </div>
+                <CaseNumberSection ref={caseNumberRef} caseNumbers={caseData.case_numbers ?? []} editable caseId={caseData.id} />
+              </CardContent>
+            </Card>
+
+            <Card className="py-4">
+              <CardContent className="px-4">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">主管机关</div>
+                <AuthoritySection authorities={caseData.supervising_authorities ?? []} editable caseId={caseData.id} />
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
-
-      {/* Fee Calculator */}
-      <FeeCalculator
-        targetAmount={watchTargetAmount}
-        preservationAmount={watchPreservationAmount}
-        caseType={watchCaseType}
-        causeOfAction={watchCauseOfAction ?? undefined}
-      />
     </div>
   )
 }

@@ -51,7 +51,7 @@ class SolutionSectionInline(admin.TabularInline):
 
 
 @admin.register(SolutionTask)
-class SolutionTaskAdmin(admin.ModelAdmin[SolutionTask]):
+class SolutionTaskAdmin(admin.ModelAdmin):
     list_display = ["id", "case_summary_short", "status", "progress", "created_at"]
     list_filter = ["status", "created_at"]
     search_fields = ["id", "case_summary", "keyword"]

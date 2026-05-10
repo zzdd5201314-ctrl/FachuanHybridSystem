@@ -15,7 +15,7 @@ from apps.chat_records.models import ChatRecordExportTask, ChatRecordProject, Ch
 
 
 @admin.register(ChatRecordProject)
-class ChatRecordProjectAdmin(admin.ModelAdmin[ChatRecordProject]):
+class ChatRecordProjectAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "created_by", "created_at", "workbench_link")
     search_fields = ("name",)
     readonly_fields = ("created_at", "updated_at")
@@ -49,7 +49,7 @@ class ChatRecordProjectAdmin(admin.ModelAdmin[ChatRecordProject]):
 
 
 @admin.register(ChatRecordScreenshot)
-class ChatRecordScreenshotAdmin(admin.ModelAdmin[ChatRecordScreenshot]):
+class ChatRecordScreenshotAdmin(admin.ModelAdmin):
     list_display = ("id", "project", "ordering", "title", "created_at")
     search_fields = ("title", "note", "sha256")
     list_filter = ("project",)
@@ -57,7 +57,7 @@ class ChatRecordScreenshotAdmin(admin.ModelAdmin[ChatRecordScreenshot]):
 
 
 @admin.register(ChatRecordExportTask)
-class ChatRecordExportTaskAdmin(admin.ModelAdmin[ChatRecordExportTask]):
+class ChatRecordExportTaskAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "project",
@@ -89,7 +89,7 @@ class ChatRecordExportTaskAdmin(admin.ModelAdmin[ChatRecordExportTask]):
 
 
 @admin.register(ChatRecordRecording)
-class ChatRecordRecordingAdmin(admin.ModelAdmin[ChatRecordRecording]):
+class ChatRecordRecordingAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "project",

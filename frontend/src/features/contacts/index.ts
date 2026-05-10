@@ -1,4 +1,5 @@
 export { CaseContactSection } from './components/CaseContactSection'
+export type { CaseContactSectionRef } from './components/CaseContactSection'
 export { ContactSearchPage } from './components/ContactSearchPage'
 export { useContacts } from './hooks/use-contacts'
 export { useContactMutations } from './hooks/use-contact-mutations'

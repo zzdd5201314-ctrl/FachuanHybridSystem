@@ -1,11 +1,9 @@
-import { useMemo, useState } from 'react'
-import { FileText, Paperclip, Bell, Clock, Plus, Trash2, Loader2, Download } from 'lucide-react'
+import { forwardRef, useImperativeHandle, useMemo, useState } from 'react'
+import { Paperclip, Trash2, Loader2, Download, Bell } from 'lucide-react'
 import { formatDate } from '@/lib/date'
 import { resolveMediaUrl } from '@/lib/api'
 import { toast } from 'sonner'
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -30,24 +28,22 @@ export interface CaseLogSectionProps {
   caseId?: number
 }
 
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-8">
-      <div className="bg-muted flex size-10 items-center justify-center rounded-full">
-        <FileText className="text-muted-foreground size-5" />
-      </div>
-      <p className="text-muted-foreground mt-3 text-sm">暂无案件日志</p>
-    </div>
-  )
+export interface CaseLogSectionRef {
+  openDialog: () => void
 }
 
-export function CaseLogSection({ logs, editable, caseId }: CaseLogSectionProps) {
+export const CaseLogSection = forwardRef<CaseLogSectionRef, CaseLogSectionProps>(function CaseLogSection(
+  { logs, editable, caseId },
+  ref,
+) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [newContent, setNewContent] = useState('')
   const [reminderType, setReminderType] = useState('')
   const [reminderTime, setReminderTime] = useState('')
 
   const mutations = useLogMutations(caseId ?? 0)
+
+  useImperativeHandle(ref, () => ({ openDialog: () => setDialogOpen(true) }), [])
 
   const sortedLogs = useMemo(
     () => [...logs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
@@ -91,14 +87,8 @@ export function CaseLogSection({ logs, editable, caseId }: CaseLogSectionProps) 
   return (
     <div className="space-y-3">
       {editable && caseId && (
-        <div className="flex justify-end">
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm() }}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="mr-1 size-3" /> 添加日志
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm() }}>
+          <DialogContent>
               <DialogHeader>
                 <DialogTitle>添加案件日志</DialogTitle>
               </DialogHeader>
@@ -152,35 +142,39 @@ export function CaseLogSection({ logs, editable, caseId }: CaseLogSectionProps) 
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
       )}
 
       {sortedLogs.length === 0 ? (
-        <EmptyState />
+        <p className="text-muted-foreground text-xs">暂无案件日志</p>
       ) : (
-        sortedLogs.map((log) => {
-          const actorName = log.actor_detail?.real_name || log.actor_detail?.username || '未知'
-          const attachCount = log.attachments?.length ?? 0
-          const reminderCount = log.reminders?.length ?? 0
+        <div className="relative">
+          {/* Timeline vertical line */}
+          <div className="absolute left-[5px] top-2 bottom-2 w-px bg-border" />
 
-          return (
-            <Card key={log.id} className="gap-0 py-0">
-              <CardHeader className="pb-0 pt-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="text-muted-foreground size-4 shrink-0" />
-                    <span className="text-muted-foreground text-xs">{actorName}</span>
+          <div className="space-y-0">
+            {sortedLogs.map((log, index) => {
+              const actorName = log.actor_detail?.real_name || log.actor_detail?.username || '未知'
+              const attachCount = log.attachments?.length ?? 0
+              const reminderCount = log.reminders?.length ?? 0
+
+              return (
+                <div key={log.id} className="group relative pl-7 pb-3 last:pb-0">
+                  {/* Timeline dot */}
+                  <div className={`absolute left-0 top-[5px] size-[11px] rounded-full border-2 bg-background ${
+                    index === 0 ? 'border-primary' : 'border-border'
+                  }`}>
+                    {index === 0 && <div className="absolute inset-[2px] rounded-full bg-primary" />}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 text-muted-foreground shrink-0">
-                      <Clock className="size-3" />
-                      <span className="text-xs">{formatDate(log.created_at)}</span>
-                    </div>
+
+                  {/* Header: actor + time + delete */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium text-foreground">{actorName}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(log.created_at)}</span>
                     {editable && caseId && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon-xs">
-                            <Trash2 className="text-muted-foreground size-3" />
+                          <Button variant="ghost" size="icon-xs" className="size-5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive">
+                            <Trash2 className="size-3" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent size="sm">
@@ -190,71 +184,61 @@ export function CaseLogSection({ logs, editable, caseId }: CaseLogSectionProps) 
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>取消</AlertDialogCancel>
-                            <AlertDialogAction variant="destructive" onClick={() => handleDelete(log.id)}>
-                              删除
-                            </AlertDialogAction>
+                            <AlertDialogAction variant="destructive" onClick={() => handleDelete(log.id)}>删除</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                     )}
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pb-4 pt-2">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{log.content}</p>
 
-                {/* Attachments with download links */}
-                {attachCount > 0 && (
-                  <div className="mt-3 space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Paperclip className="size-3" />
-                      <span>{attachCount} 附件</span>
+                  {/* Content */}
+                  <p className="text-[13px] leading-snug whitespace-pre-wrap text-foreground">{log.content}</p>
+
+                  {/* Reminders */}
+                  {reminderCount > 0 && (
+                    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      {log.reminders?.map((r) => (
+                        <span key={r.id} className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
+                          <Bell className="size-3" />
+                          {CASE_LOG_REMINDER_TYPE_LABELS[r.reminder_type as keyof typeof CASE_LOG_REMINDER_TYPE_LABELS]?.zh ?? r.reminder_type}
+                          <span className="text-amber-600 ml-0.5">{formatDate(r.due_at)}</span>
+                          {r.is_completed && <span className="text-green-600 ml-0.5">✓</span>}
+                        </span>
+                      ))}
                     </div>
-                    <div className="ml-4 space-y-1">
+                  )}
+
+                  {/* Attachments */}
+                  {attachCount > 0 && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <Paperclip className="size-3 text-muted-foreground shrink-0" />
                       {log.attachments?.map((att) => {
                         const url = att.media_url || att.file_path
-                        return (
-                          <div key={att.id} className="flex items-center gap-2 text-xs">
-                            {url ? (
-                              <a
-                                href={resolveMediaUrl(url) ?? url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline flex items-center gap-1"
-                              >
-                                <Download className="size-3" />
-                                附件 #{att.id}
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground">附件 #{att.id}</span>
-                            )}
-                          </div>
+                        return url ? (
+                          <a
+                            key={att.id}
+                            href={resolveMediaUrl(url) ?? url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <Download className="size-3" />
+                            附件 #{att.id}
+                          </a>
+                        ) : (
+                          <span key={att.id} className="text-xs text-muted-foreground">附件 #{att.id}</span>
                         )
                       })}
                     </div>
-                  </div>
-                )}
-
-                {/* Reminders */}
-                {reminderCount > 0 && (
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    {log.reminders?.map((r) => (
-                      <Badge key={r.id} variant="outline" className="gap-1 text-xs">
-                        <Bell className="size-3" />
-                        {CASE_LOG_REMINDER_TYPE_LABELS[r.reminder_type as keyof typeof CASE_LOG_REMINDER_TYPE_LABELS]?.zh ?? r.reminder_type}
-                        <span className="text-muted-foreground ml-1">{formatDate(r.due_at)}</span>
-                        {r.is_completed && <span className="text-green-600 ml-1">✓</span>}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
     </div>
   )
-}
+})
 
 export default CaseLogSection

@@ -190,7 +190,7 @@ class ClientAdminForm(forms.ModelForm[Client]):
 
 
 @admin.register(Client)
-class ClientAdmin(SimpleHistoryAdmin, AdminImportExportMixin, admin.ModelAdmin[Client]):
+class ClientAdmin(SimpleHistoryAdmin, AdminImportExportMixin, admin.ModelAdmin):
     list_display = ("id", "name", "client_type", "is_our_client", "phone", "legal_representative")  # type: ignore[assignment]
     list_per_page = 50
     search_fields = ("name", "phone", "id_number")  # type: ignore[assignment]

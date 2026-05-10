@@ -21,7 +21,7 @@ from apps.organization.models import AccountCredential
 
 
 @admin.register(AccountCredential)
-class AccountCredentialAdmin(admin.ModelAdmin[AccountCredential]):
+class AccountCredentialAdmin(admin.ModelAdmin):
     list_display: ClassVar[list[str]] = [
         "id",
         "lawyer",

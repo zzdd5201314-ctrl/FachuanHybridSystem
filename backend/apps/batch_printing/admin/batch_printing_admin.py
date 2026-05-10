@@ -11,9 +11,9 @@ from django.utils.safestring import SafeString
 from django.utils.translation import gettext_lazy as _
 
 from apps.batch_printing.models import (
+    BatchPrintingTool,
     BatchPrintItem,
     BatchPrintJob,
-    BatchPrintingTool,
     PrintKeywordRule,
     PrintPresetSnapshot,
 )
@@ -34,7 +34,7 @@ class PrintKeywordRuleAdminForm(forms.ModelForm):
 
 
 @admin.register(BatchPrintingTool)
-class BatchPrintingToolAdmin(admin.ModelAdmin[BatchPrintingTool]):
+class BatchPrintingToolAdmin(admin.ModelAdmin):
     def changelist_view(  # type: ignore[override]
         self,
         request: HttpRequest,
@@ -62,7 +62,7 @@ class BatchPrintingToolAdmin(admin.ModelAdmin[BatchPrintingTool]):
 
 
 @admin.register(PrintPresetSnapshot)
-class PrintPresetSnapshotAdmin(admin.ModelAdmin[PrintPresetSnapshot]):
+class PrintPresetSnapshotAdmin(admin.ModelAdmin):
     list_display = ["printer_name", "preset_name", "last_synced_at", "updated_at"]
     list_filter = ["printer_name", "last_synced_at"]
     search_fields = ["printer_name", "preset_name"]
@@ -85,7 +85,7 @@ class PrintPresetSnapshotAdmin(admin.ModelAdmin[PrintPresetSnapshot]):
 
 
 @admin.register(PrintKeywordRule)
-class PrintKeywordRuleAdmin(admin.ModelAdmin[PrintKeywordRule]):
+class PrintKeywordRuleAdmin(admin.ModelAdmin):
     form = PrintKeywordRuleAdminForm
     list_display = ["keyword", "priority", "enabled", "printer_name", "preset_snapshot", "updated_at"]
     list_filter = ["enabled", "printer_name"]
@@ -127,7 +127,7 @@ class BatchPrintItemInline(admin.TabularInline[BatchPrintItem]):
 
 
 @admin.register(BatchPrintJob)
-class BatchPrintJobAdmin(admin.ModelAdmin[BatchPrintJob]):
+class BatchPrintJobAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "status_display",

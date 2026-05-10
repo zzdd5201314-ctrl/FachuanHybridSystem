@@ -15,7 +15,7 @@ from apps.message_hub.models import MessageSource, SyncStatus
 
 
 @admin.register(MessageSource)
-class MessageSourceAdmin(admin.ModelAdmin[MessageSource]):
+class MessageSourceAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "display_name",
@@ -72,6 +72,7 @@ class MessageSourceAdmin(admin.ModelAdmin[MessageSource]):
 
     def _sync_view(self, request: HttpRequest, pk: int) -> HttpResponse:
         from django.shortcuts import redirect
+
         from apps.core.tasking import submit_task
 
         submit_task("apps.message_hub.tasks.sync_source_by_id", pk)

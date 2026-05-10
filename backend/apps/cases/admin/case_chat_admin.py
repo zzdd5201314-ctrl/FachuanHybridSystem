@@ -16,7 +16,7 @@ from apps.cases.models import CaseChat
 
 
 @admin.register(CaseChat)
-class CaseChatAdmin(CaseAdminServiceMixin, admin.ModelAdmin[CaseChat]):
+class CaseChatAdmin(CaseAdminServiceMixin, admin.ModelAdmin):
     """案件群聊管理"""
 
     list_display = ("name", "chat_id_display", "platform_display", "case_link", "status_display", "created_at")

@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.oa_filing.models import FilingSession
 
 
-class FilingSessionAdmin(admin.ModelAdmin[FilingSession]):
+class FilingSessionAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "contract",

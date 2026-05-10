@@ -31,7 +31,7 @@ def _get_case_service() -> Any:
     return ServiceLocator.get_case_service()
 
 
-class CourtSMSAdminBase(admin.ModelAdmin[CourtSMS]):
+class CourtSMSAdminBase(admin.ModelAdmin):
     """法院短信管理基础配置"""
 
     # 列表显示字段

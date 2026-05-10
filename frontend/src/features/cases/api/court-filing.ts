@@ -5,29 +5,30 @@ const client = createFeatureApiClient('court-filing')
 export interface CourtFilingCaseInfo {
   case_id: number
   case_name: string
+  cause_of_action: string | null
   court_name: string | null
-  filing_type: string | null
-  filing_type_display: string | null
+  target_amount: string | null
+  plaintiff_name: string | null
+  defendant_name: string | null
+  our_party_is_plaintiff_side: boolean
+  has_court_credential: boolean
+  has_http_plugin: boolean
   suggested_filing_type: string | null
-  filing_engine: string | null
-  parties: { name: string; role: string; id_number: string | null }[]
-  has_credentials: boolean
+  default_filing_engine: string
   material_slots: { slot_name: string; matched_file: string | null; required: boolean }[]
 }
 
 export interface CourtFilingExecuteRequest {
   case_id: number
-  filing_type: 'civil' | 'execution'
-  engine?: 'api' | 'playwright'
+  filing_type?: 'civil' | 'execution' | null
+  filing_engine?: 'api' | 'playwright' | null
 }
 
 export interface CourtFilingSession {
-  session_id: string
-  status: string
-  progress: number
-  current_step: string
-  result: Record<string, unknown> | null
-  error: string | null
+  success: boolean
+  message: string
+  session_id: number | null
+  status: string | null
 }
 
 export const courtFilingApi = {

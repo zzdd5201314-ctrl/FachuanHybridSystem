@@ -1,29 +1,30 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Landmark, Loader2, Play, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
+import { Landmark, Loader2, RefreshCw } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
 import { DetailCard } from '@/components/shared'
 import { formatAmount } from '@/lib/format'
 import { caseApi } from '../api'
 import type { Case } from '../types'
-import type { CourtFilingCaseInfo, CourtFilingSession } from '../api/court-filing'
+import type { CourtFilingCaseInfo } from '../api/court-filing'
 
 interface Props {
   caseId: number
   caseData: Case
 }
 
+const FILING_TYPE_LABELS: Record<string, string> = {
+  civil: '民事一审',
+  execution: '申请执行',
+}
+
 export function CourtFilingSection({ caseId, caseData }: Props) {
   const [filingInfo, setFilingInfo] = useState<CourtFilingCaseInfo | null>(null)
   const [loadingInfo, setLoadingInfo] = useState(false)
-  const [filingType, setFilingType] = useState<string>('')
+  const [filingEngine, setFilingEngine] = useState<string>('playwright')
   const [executing, setExecuting] = useState(false)
-  const [session, setSession] = useState<CourtFilingSession | null>(null)
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   const courtName = caseData.supervising_authorities?.find(a => a.authority_type === 'trial')?.name
@@ -33,9 +34,9 @@ export function CourtFilingSection({ caseId, caseData }: Props) {
     try {
       const info = await caseApi.getCourtFilingInfo(caseId)
       setFilingInfo(info)
-      if (info.suggested_filing_type) setFilingType(info.suggested_filing_type)
+      setFilingEngine(info.default_filing_engine || 'playwright')
     } catch {
-      // silently fail - info is optional enhancement
+      // silently fail
     } finally {
       setLoadingInfo(false)
     }
@@ -52,131 +53,161 @@ export function CourtFilingSection({ caseId, caseData }: Props) {
     pollRef.current = setInterval(async () => {
       try {
         const s = await caseApi.getCourtFilingSession(sessionId)
-        setSession(s)
+        setResult({ success: s.success, message: s.message })
         if (s.status === 'completed' || s.status === 'failed') {
           if (pollRef.current) clearInterval(pollRef.current)
-          if (s.status === 'completed') toast.success('立案完成')
-          else toast.error(`立案失败: ${s.error}`)
           setExecuting(false)
         }
       } catch {
         if (pollRef.current) clearInterval(pollRef.current)
         setExecuting(false)
       }
-    }, 2000)
+    }, 3000)
   }, [])
 
   const handleExecute = async () => {
-    if (!filingType) {
-      toast.error('请选择立案类型')
-      return
-    }
     setExecuting(true)
+    setResult(null)
     try {
-      const result = await caseApi.executeCourtFiling({
+      const res = await caseApi.executeCourtFiling({
         case_id: caseId,
-        filing_type: filingType as 'civil' | 'execution',
+        filing_type: (filingInfo?.suggested_filing_type || 'civil') as 'civil' | 'execution',
+        filing_engine: filingEngine as 'api' | 'playwright',
       })
-      setSession(result)
-      if (result.status === 'running' || result.status === 'pending') {
-        pollSession(result.session_id)
+      setResult({ success: res.success, message: res.message })
+      if (res.session_id && (res.status === 'in_progress' || res.status === 'running')) {
+        pollSession(String(res.session_id))
+      } else {
+        setExecuting(false)
       }
     } catch {
-      toast.error('启动立案失败')
+      setResult({ success: false, message: '启动立案失败' })
       setExecuting(false)
     }
   }
 
-  const statusColor = session?.status === 'completed' ? 'bg-green-50 text-green-700'
-    : session?.status === 'failed' ? 'bg-red-50 text-red-700'
-    : session?.status === 'running' ? 'bg-blue-50 text-blue-700'
-    : 'bg-muted text-muted-foreground'
+  // 条件判断
+  const noCourt = !filingInfo?.court_name && !courtName
+  const notPlaintiff = filingInfo != null && !filingInfo.our_party_is_plaintiff_side
+  const noCredential = filingInfo != null && !filingInfo.has_court_credential
+  const canExecute = filingInfo && !noCourt && !notPlaintiff && !noCredential && !executing
+
+  const showHint = filingInfo && !executing
+  const hint = noCourt ? '请先设置管辖法院（案件管辖机关）'
+    : notPlaintiff ? '我方当事人为被告/被申请人，无需立案'
+    : noCredential ? '您没有一张网账号密码，请先在律师管理中添加'
+    : null
+
+  const filingTypeLabel = FILING_TYPE_LABELS[filingInfo?.suggested_filing_type ?? ''] ?? '民事一审'
 
   return (
     <DetailCard title="法院一张网在线立案" extra={<Landmark className="text-muted-foreground size-4" />}>
-      <div className="space-y-4">
-        <div key="case-info" className="rounded-md border border-border/60 bg-muted/30 px-4 py-3">
-          <div className="grid gap-3 sm:grid-cols-3 text-[13px]">
-            <div>
-              <span className="text-muted-foreground">案由：</span>
-              <span className="font-medium">{caseData.cause_of_action || '—'}</span>
+      {loadingInfo ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* 案件信息摘要 */}
+          <div className="rounded-md border border-border/60 bg-muted/30 px-4 py-3 space-y-2">
+            <div className="grid gap-2 sm:grid-cols-3 text-[13px]">
+              <div>
+                <span className="text-muted-foreground">案由：</span>
+                <span className="font-medium">{filingInfo?.cause_of_action || caseData.cause_of_action || '—'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">管辖法院：</span>
+                <span className="font-medium">{filingInfo?.court_name || courtName || '未设置'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">标的额：</span>
+                <span className="font-medium">{formatAmount(filingInfo?.target_amount ? Number(filingInfo.target_amount) : caseData.target_amount)}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-muted-foreground">管辖法院：</span>
-              <span className="font-medium">{courtName || '未设置'}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">标的额：</span>
-              <span className="font-medium">{formatAmount(caseData.target_amount)}</span>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span>立案类型：<span className="font-medium text-foreground">{filingTypeLabel}</span></span>
+              <span className="flex items-center gap-3">
+                立案引擎：
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="filing_engine"
+                    value="api"
+                    checked={filingEngine === 'api'}
+                    onChange={() => setFilingEngine('api')}
+                    disabled={executing || !filingInfo?.has_http_plugin}
+                    className="accent-primary"
+                  />
+                  <span>HTTP主链路{filingInfo?.has_http_plugin ? '（默认）' : ''}</span>
+                </label>
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="filing_engine"
+                    value="playwright"
+                    checked={filingEngine === 'playwright'}
+                    onChange={() => setFilingEngine('playwright')}
+                    disabled={executing}
+                    className="accent-primary"
+                  />
+                  <span>Playwright{!filingInfo?.has_http_plugin ? '（默认）' : ''}</span>
+                </label>
+              </span>
             </div>
           </div>
-        </div>
 
-        {filingInfo && (
-          <div key="filing-info" className="space-y-3">
-            {filingInfo?.has_credentials === false && (
-              <div key="credentials-warning" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                缺少法院登录凭证，请先在系统设置中配置
-              </div>
-            )}
-            {filingInfo.material_slots && filingInfo.material_slots.length > 0 && (
-              <div key="material-slots" className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">材料匹配</p>
+          {/* 材料匹配 */}
+          {filingInfo?.material_slots && filingInfo.material_slots.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">材料匹配</p>
+              <div className="space-y-1">
                 {filingInfo.material_slots.map((slot, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs">
                     <span className="text-muted-foreground">{slot.slot_name}</span>
                     {slot.matched_file ? (
-                      <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">{slot.matched_file}</Badge>
+                      <span className="text-green-700">{slot.matched_file}</span>
                     ) : (
-                      <Badge variant="outline" className="text-[10px]">{slot.required ? '未匹配（必需）' : '未匹配'}</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {slot.required ? '未匹配（必需）' : '未匹配'}
+                      </Badge>
                     )}
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 操作按钮 */}
+          <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canExecute}
+              onClick={handleExecute}
+            >
+              {executing ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <span className="mr-1">🚀</span>}
+              {executing ? '执行中...' : '开始一张网立案'}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={loadingInfo} onClick={loadInfo}>
+              <RefreshCw className={`size-3.5 ${loadingInfo ? 'animate-spin' : ''}`} />
+            </Button>
+            {showHint && hint && (
+              <span className="text-xs text-red-600">{hint}</span>
             )}
           </div>
-        )}
 
-        <div key="controls" className="flex items-center gap-3">
-          <Select value={filingType} onValueChange={setFilingType}>
-            <SelectTrigger className="w-[160px] h-8">
-              <SelectValue placeholder="立案类型" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="civil">民事立案</SelectItem>
-              <SelectItem value="execution">执行立案</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={executing || !filingType}
-            onClick={handleExecute}
-          >
-            {executing ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Play className="size-3.5 mr-1" />}
-            开始立案
-          </Button>
-          <Button size="sm" variant="ghost" disabled={loadingInfo} onClick={loadInfo}>
-            <RefreshCw className={`size-3.5 ${loadingInfo ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        {session && (
-          <div key="session" className="rounded-md border border-border/60 bg-muted/30 px-4 py-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">状态：</span>
-              <Badge variant="outline" className={`text-[11px] ${statusColor}`}>
-                {session.status === 'completed' ? '已完成' : session.status === 'failed' ? '失败' : session.status === 'running' ? '执行中' : session.status}
-              </Badge>
-              {session.progress > 0 && (
-                <span className="text-xs text-muted-foreground">{session.progress}%</span>
-              )}
+          {/* 执行结果 */}
+          {result && (
+            <div className={`rounded-md px-3 py-2 text-xs ${
+              result.success
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-red-50 border border-red-200 text-red-700'
+            }`}>
+              {result.success ? '✓' : '✗'} {result.message}
             </div>
-            {session.current_step && <p className="text-xs text-muted-foreground">{session.current_step}</p>}
-            {session.error && <p className="text-xs text-red-600">{session.error}</p>}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </DetailCard>
   )
 }

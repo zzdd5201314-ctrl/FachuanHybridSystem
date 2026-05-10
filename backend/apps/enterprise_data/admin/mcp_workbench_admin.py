@@ -13,7 +13,7 @@ from apps.enterprise_data.services import McpWorkbenchService
 
 
 @admin.register(McpWorkbench)
-class McpWorkbenchAdmin(admin.ModelAdmin[McpWorkbench]):
+class McpWorkbenchAdmin(admin.ModelAdmin):
     """MCP tools 调试页。"""
 
     def has_module_permission(self, request: Any) -> bool:

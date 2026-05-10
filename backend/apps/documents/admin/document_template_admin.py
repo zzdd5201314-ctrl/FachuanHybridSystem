@@ -365,7 +365,7 @@ class DocumentTemplateForm(forms.ModelForm):
 
 
 @admin.register(DocumentTemplate)
-class DocumentTemplateAdmin(admin.ModelAdmin[DocumentTemplate]):
+class DocumentTemplateAdmin(admin.ModelAdmin):
     """
     文书模板管理
 

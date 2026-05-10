@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState, useMemo, useCallback } from 'react'
 import {
-  Upload, Link2, Trash2, FileText, Loader2, ChevronDown, ChevronRight,
-  FolderOpen, GripVertical, Pencil, Replace, Check, X,
+  Link2, Trash2, FileText, Loader2, ChevronDown, ChevronRight,
+  GripVertical, Pencil, Check, X, FolderOpen,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -14,7 +14,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-import { Card, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -33,7 +32,7 @@ import { useMaterialMutations } from '../hooks/use-material-mutations'
 import type {
   MaterialBindCandidate, MaterialBindItem, MaterialCategory, MaterialSide,
 } from '../types'
-import { MATERIAL_CATEGORY_LABELS, MATERIAL_SIDE_LABELS } from '../types'
+import { MATERIAL_CATEGORY_LABELS } from '../types'
 
 // ============================================================================
 // Types
@@ -63,77 +62,60 @@ function EmptyState() {
   )
 }
 
-function MaterialCard({
-  item, onDelete, deletePending, onReplace,
+function MaterialRow({
+  item, onDelete, deletePending,
 }: {
   item: MaterialBindCandidate
   onDelete: () => void
   deletePending: boolean
-  onReplace: (materialId: number) => void
 }) {
   const mat = item.material
-  const sideLabel = mat?.side ? (MATERIAL_SIDE_LABELS[mat.side]?.zh ?? mat.side) : null
 
   return (
-    <Card className="gap-0 py-0">
-      <CardHeader className="py-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <FileText className="text-muted-foreground size-4 shrink-0" />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{item.file_name}</span>
-                {mat && <Badge variant="secondary" className="shrink-0 text-xs">{mat.type_name}</Badge>}
-                {sideLabel && <Badge variant="outline" className="shrink-0 text-xs">{sideLabel}</Badge>}
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {item.actor_name} · {formatDateOnly(item.uploaded_at)}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            {item.file_url && (
-              <Button variant="ghost" size="icon-xs" asChild>
-                <a href={resolveMediaUrl(item.file_url) ?? undefined} target="_blank" rel="noopener noreferrer">
-                  <FileText className="size-3" />
-                </a>
-              </Button>
-            )}
-            {mat && (
-              <>
-                <Button variant="ghost" size="icon-xs" onClick={() => onReplace(mat.id)}>
-                  <Replace className="text-muted-foreground size-3" />
+    <div className="group flex items-center gap-2 py-1.5">
+      <FileText className="text-muted-foreground size-3.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <span className="text-[13px] font-medium truncate">{item.file_name}</span>
+        <span className="text-[11px] text-muted-foreground ml-2">{item.actor_name} · {formatDateOnly(item.uploaded_at)}</span>
+      </div>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {item.file_url && (
+          <Button variant="ghost" size="icon-xs" asChild>
+            <a href={resolveMediaUrl(item.file_url) ?? undefined} target="_blank" rel="noopener noreferrer">
+              <FileText className="size-3" />
+            </a>
+          </Button>
+        )}
+        {mat && (
+          <>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon-xs" disabled={deletePending}>
+                  {deletePending ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="text-muted-foreground size-3" />}
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon-xs" disabled={deletePending}>
-                      {deletePending ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="text-muted-foreground size-3" />}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent size="sm">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>确认删除材料</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        确定要删除「{item.file_name}」的材料绑定吗？附件文件不受影响。
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>取消</AlertDialogCancel>
-                      <AlertDialogAction variant="destructive" onClick={onDelete}>删除</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-    </Card>
+              </AlertDialogTrigger>
+              <AlertDialogContent size="sm">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确认删除材料</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    确定要删除「{item.file_name}」的材料绑定吗？附件文件不受影响。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>取消</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" onClick={onDelete}>删除</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
 function SortableGroupCard({
-  group, candidates, onRename, onDeleteAll, onBind, bindPending, onDeleteItem, onReplace,
+  group, candidates, onRename, onDeleteAll, onBind, bindPending, onDeleteItem,
 }: {
   group: MaterialGroup
   candidates: MaterialBindCandidate[]
@@ -142,7 +124,6 @@ function SortableGroupCard({
   onBind: (items: MaterialBindItem[]) => void
   bindPending: boolean
   onDeleteItem: (materialId: number) => void
-  onReplace: (materialId: number, newAttachmentId: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.key })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
@@ -152,9 +133,6 @@ function SortableGroupCard({
   const [selectedCandidates, setSelectedCandidates] = useState<Set<number>>(new Set())
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(group.typeName)
-  const [replaceTarget, setReplaceTarget] = useState<number | null>(null)
-
-  const sideLabel = group.side ? (MATERIAL_SIDE_LABELS[group.side]?.zh ?? group.side) : null
   const unbound = candidates.filter((c) => !c.material)
 
   const handleBind = () => {
@@ -178,40 +156,27 @@ function SortableGroupCard({
     setRenaming(false)
   }
 
-  const handleReplaceFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !replaceTarget) return
-    // Upload the file first, then replace
-    const formData = new FormData()
-    formData.append('files', file)
-    // We need to upload first, get attachment id, then call replace
-    // For simplicity, use the mutations directly
-    onReplace(replaceTarget, 0) // Will be handled by parent with upload flow
-    setReplaceTarget(null)
-    e.target.value = ''
-  }
-
   return (
-    <div ref={setNodeRef} style={style} className="space-y-2">
-      <div className="flex items-center gap-2">
+    <div ref={setNodeRef} style={style} className="space-y-1">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="size-4" />
+          <GripVertical className="size-3.5" />
         </button>
-        <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setExpanded(!expanded)}>
-          {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-        </Button>
+        <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setExpanded(!expanded)}>
+          {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+        </button>
 
         {renaming ? (
           <div className="flex items-center gap-1">
             <Input
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
-              className="h-7 w-[200px] text-sm"
+              className="h-6 w-[200px] text-xs"
               onKeyDown={(e) => { if (e.key === 'Enter') handleRenameConfirm(); if (e.key === 'Escape') setRenaming(false) }}
               autoFocus
             />
@@ -224,52 +189,52 @@ function SortableGroupCard({
           </div>
         ) : (
           <>
-            <span className="text-sm font-medium">{group.typeName}</span>
-            {sideLabel && <Badge variant="outline" className="text-xs">{sideLabel}</Badge>}
-            <Badge variant="secondary" className="text-xs">{group.items.length} 项</Badge>
+            <span className="text-xs font-medium text-muted-foreground">{group.typeName}</span>
+            <span className="text-[11px] text-muted-foreground">({group.items.length})</span>
           </>
         )}
 
         <div className="flex-1" />
 
-        {!renaming && group.typeId && (
-          <Button variant="ghost" size="icon-xs" onClick={() => { setRenameValue(group.typeName); setRenaming(true) }}>
-            <Pencil className="size-3" />
-          </Button>
-        )}
-        <Button variant="ghost" size="icon-xs" onClick={() => setShowBind(true)}>
-          <Link2 className="size-3" />
-        </Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon-xs">
-              <Trash2 className="text-muted-foreground size-3" />
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {!renaming && group.typeId && (
+            <Button variant="ghost" size="icon-xs" onClick={() => { setRenameValue(group.typeName); setRenaming(true) }}>
+              <Pencil className="size-3" />
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogTitle>删除分组</AlertDialogTitle>
-              <AlertDialogDescription>
-                确定要删除「{group.typeName}」下的所有 {group.items.length} 项材料绑定吗？
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={onDeleteAll}>删除全部</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          )}
+          <Button variant="ghost" size="icon-xs" onClick={() => setShowBind(true)}>
+            <Link2 className="size-3" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon-xs">
+                <Trash2 className="text-muted-foreground size-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent size="sm">
+              <AlertDialogHeader>
+                <AlertDialogTitle>删除分组</AlertDialogTitle>
+                <AlertDialogDescription>
+                  确定要删除「{group.typeName}」下的所有 {group.items.length} 项材料绑定吗？
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" onClick={onDeleteAll}>删除全部</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       {expanded && (
-        <div className="ml-6 space-y-1.5">
+        <div className="ml-6 divide-y divide-border/40">
           {group.items.map((item) => (
-            <MaterialCard
+            <MaterialRow
               key={item.attachment_id}
               item={item}
               onDelete={() => onDeleteItem(item.material?.id ?? 0)}
               deletePending={false}
-              onReplace={(materialId) => setReplaceTarget(materialId)}
             />
           ))}
         </div>
@@ -315,28 +280,6 @@ function SortableGroupCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Replace dialog */}
-      <Dialog open={replaceTarget !== null} onOpenChange={() => setReplaceTarget(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>替换文件</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <label className="block">
-              <input
-                type="file"
-                className="hidden"
-                onChange={handleReplaceFile}
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.xls,.xlsx"
-              />
-              <Button variant="outline" className="w-full" asChild>
-                <span><Upload className="size-3.5 mr-1.5" />选择新文件</span>
-              </Button>
-            </label>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
@@ -345,17 +288,25 @@ function SortableGroupCard({
 // Main Component
 // ============================================================================
 
+export interface CaseMaterialSectionRef {
+  openUpload: () => void
+}
+
 export interface CaseMaterialSectionProps {
   candidates: MaterialBindCandidate[]
   caseId: number
   categoryFilter?: MaterialCategory
 }
 
-export function CaseMaterialSection({ candidates, caseId, categoryFilter: externalFilter }: CaseMaterialSectionProps) {
-  const mutations = useMaterialMutations(caseId)
-  const [uploading, setUploading] = useState(false)
-  const [internalFilter, setInternalFilter] = useState<MaterialCategory | 'all'>('all')
-  const categoryFilter = externalFilter ?? internalFilter
+export const CaseMaterialSection = forwardRef<CaseMaterialSectionRef, CaseMaterialSectionProps>(
+  function CaseMaterialSection({ candidates, caseId, categoryFilter: externalFilter }, ref) {
+    const mutations = useMaterialMutations(caseId)
+    const categoryFilter = externalFilter ?? 'all'
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    useImperativeHandle(ref, () => ({
+      openUpload: () => fileInputRef.current?.click(),
+    }), [])
 
   const groups = useMemo((): MaterialGroup[] => {
     const map = new Map<string, MaterialGroup>()
@@ -391,14 +342,12 @@ export function CaseMaterialSection({ candidates, caseId, categoryFilter: extern
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
-    setUploading(true)
     try {
       await mutations.uploadMaterials.mutateAsync(Array.from(files))
       toast.success(`已上传 ${files.length} 个文件`)
     } catch {
       toast.error('上传失败')
     } finally {
-      setUploading(false)
       e.target.value = ''
     }
   }
@@ -425,14 +374,6 @@ export function CaseMaterialSection({ candidates, caseId, categoryFilter: extern
     })
   }
 
-  const handleReplace = async (materialId: number, newAttachmentId: number) => {
-    if (!newAttachmentId) return
-    mutations.replaceMaterial.mutate({ materialId, newAttachmentId }, {
-      onSuccess: () => toast.success('替换成功'),
-      onError: () => toast.error('替换失败'),
-    })
-  }
-
   const handleDeleteAll = (category: MaterialCategory) => {
     mutations.deleteAllMaterials.mutate(category, {
       onSuccess: (res) => toast.success(`已删除 ${res.deleted_count} 项材料`),
@@ -442,35 +383,14 @@ export function CaseMaterialSection({ candidates, caseId, categoryFilter: extern
 
   return (
     <div className="space-y-4">
-      {/* Header actions */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <label>
-          <input type="file" multiple className="hidden" onChange={handleUpload} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.xls,.xlsx" />
-          <Button size="sm" variant="outline" asChild>
-            <span>
-              {uploading ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Upload className="mr-1 size-3" />}
-              上传材料
-            </span>
-          </Button>
-        </label>
-
-        {!externalFilter && (
-          <select
-            value={internalFilter}
-            onChange={(e) => setInternalFilter(e.target.value as MaterialCategory | 'all')}
-            className="border-input bg-background h-8 rounded-md border px-3 text-sm"
-          >
-            <option value="all">全部分类</option>
-            {(Object.entries(MATERIAL_CATEGORY_LABELS) as [MaterialCategory, { zh: string }][]).map(([val, label]) => (
-              <option key={val} value={val}>{label.zh}</option>
-            ))}
-          </select>
-        )}
-
-        {unboundCount > 0 && (
-          <Badge variant="secondary" className="text-xs">{unboundCount} 个未绑定附件</Badge>
-        )}
-      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleUpload}
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.xls,.xlsx"
+      />
 
       {/* Material groups with drag-drop */}
       {groups.length === 0 && candidates.length === 0 ? (
@@ -498,7 +418,6 @@ export function CaseMaterialSection({ candidates, caseId, categoryFilter: extern
                   onBind={handleBind}
                   bindPending={mutations.bindMaterials.isPending}
                   onDeleteItem={handleDeleteItem}
-                  onReplace={handleReplace}
                 />
               ))}
             </div>
@@ -514,25 +433,22 @@ export function CaseMaterialSection({ candidates, caseId, categoryFilter: extern
             <span className="text-sm font-medium">未绑定附件</span>
             <Badge variant="secondary" className="text-xs">{unboundCount}</Badge>
           </div>
-          <div className="ml-6 space-y-1.5">
+          <div className="ml-6 divide-y divide-border/40">
             {candidates.filter((c) => !c.material).map((item) => (
-              <Card key={item.attachment_id} className="gap-0 py-0">
-                <CardHeader className="py-3">
-                  <div className="flex items-center gap-2">
-                    <FileText className="text-muted-foreground size-4 shrink-0" />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{item.file_name}</div>
-                      <div className="text-xs text-muted-foreground">{item.actor_name} · {formatDateOnly(item.uploaded_at)}</div>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
+              <div key={item.attachment_id} className="flex items-center gap-2 py-1.5">
+                <FileText className="text-muted-foreground size-3.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[13px] font-medium truncate">{item.file_name}</span>
+                  <span className="text-[11px] text-muted-foreground ml-2">{item.actor_name} · {formatDateOnly(item.uploaded_at)}</span>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       )}
     </div>
   )
-}
+  },
+)
 
 export default CaseMaterialSection

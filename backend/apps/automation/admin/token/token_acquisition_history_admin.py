@@ -32,7 +32,7 @@ def _get_token_history_admin_service() -> Any:
     return TokenAcquisitionHistoryAdminService()
 
 
-class TokenAcquisitionHistoryAdmin(admin.ModelAdmin[TokenAcquisitionHistory]):
+class TokenAcquisitionHistoryAdmin(admin.ModelAdmin):
     """
     一张网/保全系统 Token获取历史记录管理 Admin
 

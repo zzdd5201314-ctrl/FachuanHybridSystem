@@ -9,7 +9,7 @@ from apps.legal_research.services.task.feedback_loop import LegalResearchFeedbac
 
 
 @admin.register(LegalResearchResult)
-class LegalResearchResultAdmin(admin.ModelAdmin[LegalResearchResult]):
+class LegalResearchResultAdmin(admin.ModelAdmin):
     list_display: ClassVar[list[str]] = [
         "id",
         "task",

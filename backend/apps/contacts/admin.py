@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     BaseTabularInline: TypeAlias = admin.TabularInline[Any, Any]
-    BaseModelAdmin: TypeAlias = admin.ModelAdmin[Any]
+    BaseModelAdmin: TypeAlias = admin.ModelAdmin
 else:
     try:
         import nested_admin

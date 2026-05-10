@@ -12,7 +12,7 @@ from apps.story_viz.services.wiring import get_story_animation_job_service
 
 
 @admin.register(StoryAnimation)
-class StoryAnimationAdmin(admin.ModelAdmin[StoryAnimation]):
+class StoryAnimationAdmin(admin.ModelAdmin):
     change_form_template = "admin/story_viz/storyanimation/change_form.html"
     actions = ["requeue_selected", "delete_selected"]
     list_display = [

@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { contractApi } from '../api'
 import type { Contract } from '../types'
 import { SupplementaryAgreementList } from './SupplementaryAgreementList'
-import { FolderBindingManager } from './FolderBindingManager'
 import { DetailField, DetailCard } from '@/components/shared'
 
 function handleDownloadResponse(res: Response, filename: string) {
@@ -262,11 +261,6 @@ export function DocumentsTab({ contract: c }: { contract: Contract }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Folder Binding */}
-      <div className="rounded-lg border border-border/60 p-[18px] mb-4 bg-card">
-        <FolderBindingManager contractId={c.id} />
-      </div>
     </div>
   )
 }
