@@ -95,7 +95,7 @@ export function CourtFilingSection({ caseId, caseData }: Props) {
   return (
     <DetailCard title="法院一张网在线立案" extra={<Landmark className="text-muted-foreground size-4" />}>
       <div className="space-y-4">
-        <div className="rounded-md border border-border/60 bg-muted/30 px-4 py-3">
+        <div key="case-info" className="rounded-md border border-border/60 bg-muted/30 px-4 py-3">
           <div className="grid gap-3 sm:grid-cols-3 text-[13px]">
             <div>
               <span className="text-muted-foreground">案由：</span>
@@ -113,7 +113,7 @@ export function CourtFilingSection({ caseId, caseData }: Props) {
         </div>
 
         {filingInfo && (
-          <div className="space-y-3">
+          <div key="filing-info" className="space-y-3">
             {filingInfo?.has_credentials === false && (
               <div key="credentials-warning" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 缺少法院登录凭证，请先在系统设置中配置
@@ -137,7 +137,7 @@ export function CourtFilingSection({ caseId, caseData }: Props) {
           </div>
         )}
 
-        <div className="flex items-center gap-3">
+        <div key="controls" className="flex items-center gap-3">
           <Select value={filingType} onValueChange={setFilingType}>
             <SelectTrigger className="w-[160px] h-8">
               <SelectValue placeholder="立案类型" />
@@ -162,7 +162,7 @@ export function CourtFilingSection({ caseId, caseData }: Props) {
         </div>
 
         {session && (
-          <div className="rounded-md border border-border/60 bg-muted/30 px-4 py-3 space-y-2">
+          <div key="session" className="rounded-md border border-border/60 bg-muted/30 px-4 py-3 space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">状态：</span>
               <Badge variant="outline" className={`text-[11px] ${statusColor}`}>

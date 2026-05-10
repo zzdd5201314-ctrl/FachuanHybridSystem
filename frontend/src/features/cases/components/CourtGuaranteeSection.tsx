@@ -201,14 +201,14 @@ export function CourtGuaranteeSection({ caseId }: Props) {
         )}
 
         {/* Controls */}
-        <div className="space-y-3">
+        <div key="controls" className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
             {guaranteeInfo?.insurance_options && guaranteeInfo.insurance_options.length > 0 && (
               <Select key="insurer" value={insurerId} onValueChange={setInsurerId}>
                 <SelectTrigger className="h-8"><SelectValue placeholder="保险公司" /></SelectTrigger>
                 <SelectContent>
-                  {guaranteeInfo.insurance_options.map(opt => (
-                    <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>
+                  {guaranteeInfo.insurance_options.map((opt, i) => (
+                    <SelectItem key={opt.id ?? `insurer-${i}`} value={opt.id}>{opt.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -217,8 +217,8 @@ export function CourtGuaranteeSection({ caseId }: Props) {
               <Select key="respondent" value={respondentId} onValueChange={setRespondentId}>
                 <SelectTrigger className="h-8"><SelectValue placeholder="被申请人" /></SelectTrigger>
                 <SelectContent>
-                  {guaranteeInfo.respondent_options.map(opt => (
-                    <SelectItem key={opt.id} value={String(opt.id)}>{opt.name}</SelectItem>
+                  {guaranteeInfo.respondent_options.map((opt, i) => (
+                    <SelectItem key={opt.id ?? `respondent-${i}`} value={String(opt.id)}>{opt.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
