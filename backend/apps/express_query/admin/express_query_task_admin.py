@@ -25,7 +25,7 @@ _EMS_PATTERN: Final[re.Pattern[str]] = re.compile(r"(?<!\d)\d{13}(?!\d)")
 
 
 @admin.register(ExpressQueryTool)
-class ExpressQueryToolAdmin(admin.ModelAdmin[ExpressQueryTool]):
+class ExpressQueryToolAdmin(admin.ModelAdmin):
     def changelist_view(
         self,
         request: HttpRequest,
@@ -172,7 +172,7 @@ class ExpressQueryToolAdmin(admin.ModelAdmin[ExpressQueryTool]):
 
 
 @admin.register(ExpressQueryTask)
-class ExpressQueryTaskAdmin(admin.ModelAdmin[ExpressQueryTask]):
+class ExpressQueryTaskAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "title",

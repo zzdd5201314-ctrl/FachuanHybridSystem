@@ -184,7 +184,7 @@ class FolderTemplateForm(forms.ModelForm):
 
 
 @admin.register(FolderTemplate)
-class FolderTemplateAdmin(admin.ModelAdmin[FolderTemplate]):
+class FolderTemplateAdmin(admin.ModelAdmin):
     """
     文件夹模板管理
 

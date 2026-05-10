@@ -116,7 +116,7 @@ class AccountCredentialInline(admin.TabularInline[AccountCredential, AccountCred
 
 
 @admin.register(Lawyer)
-class LawyerAdmin(AdminImportExportMixin, admin.ModelAdmin[Lawyer]):
+class LawyerAdmin(AdminImportExportMixin, admin.ModelAdmin):
     form = LawyerAdminForm
     list_display = ("id", "username", "real_name", "phone", "is_admin", "is_active")
     search_fields = ("username", "real_name", "phone")

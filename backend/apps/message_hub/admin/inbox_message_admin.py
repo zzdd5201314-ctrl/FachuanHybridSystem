@@ -19,7 +19,7 @@ logger = logging.getLogger("apps.message_hub")
 
 
 @admin.register(InboxMessage)
-class InboxMessageAdmin(admin.ModelAdmin[InboxMessage]):
+class InboxMessageAdmin(admin.ModelAdmin):
     class Media:
         css = {"all": ("admin/css/inbox_message_admin.css",)}
 

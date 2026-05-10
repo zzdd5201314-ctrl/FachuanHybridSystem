@@ -18,7 +18,7 @@ logger = logging.getLogger("apps.invoice_recognition")
 
 
 @admin.register(InvoiceRecognitionTask)
-class InvoiceRecognitionTaskAdmin(admin.ModelAdmin[InvoiceRecognitionTask]):
+class InvoiceRecognitionTaskAdmin(admin.ModelAdmin):
     """发票识别任务管理。"""
 
     list_display = [

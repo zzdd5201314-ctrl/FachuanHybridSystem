@@ -26,7 +26,7 @@ class DocumentProcessorForm(forms.Form):
 
 
 # @admin.register(AutomationTool)  # 隐藏文档处理模块，不在Django后台显示
-class DocumentProcessorAdmin(admin.ModelAdmin[AutomationTool]):
+class DocumentProcessorAdmin(admin.ModelAdmin):
     """文档处理工具管理类"""
 
     change_list_template = None

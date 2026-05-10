@@ -99,7 +99,7 @@ class ClientPaymentRecordAdminForm(forms.ModelForm[ClientPaymentRecord]):
         return instance
 
 
-class ClientPaymentRecordAdmin(admin.ModelAdmin[ClientPaymentRecord]):
+class ClientPaymentRecordAdmin(admin.ModelAdmin):
     """客户回款记录 Admin"""
 
     form = ClientPaymentRecordAdminForm

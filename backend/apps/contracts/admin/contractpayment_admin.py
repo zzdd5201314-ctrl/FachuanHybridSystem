@@ -139,7 +139,7 @@ class ContractPaymentInline(BaseTabularInline[ContractPayment, ContractPayment])
         return FormSet
 
 
-class ContractPaymentAdmin(BaseModelAdmin[ContractPayment]):
+class ContractPaymentAdmin(BaseModelAdmin):
     change_form_template = "admin/contracts/contractpayment/change_form.html"
     list_display = ("id", "contract", "amount", "received_at", "invoice_status", "invoiced_amount")
     list_filter = ("invoice_status", "received_at")

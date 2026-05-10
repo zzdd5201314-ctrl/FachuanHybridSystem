@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @admin.register(ScraperTask)
-class ScraperTaskAdmin(admin.ModelAdmin[ScraperTask]):
+class ScraperTaskAdmin(admin.ModelAdmin):
     """爬虫任务管理"""
 
     def get_model_perms(self, request: HttpRequest) -> dict[str, bool]:

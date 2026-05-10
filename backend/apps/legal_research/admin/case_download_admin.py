@@ -53,7 +53,7 @@ class CaseDownloadResultInline(admin.TabularInline[CaseDownloadResult, CaseDownl
 
 
 @admin.register(CaseDownloadTask)
-class CaseDownloadTaskAdmin(admin.ModelAdmin[CaseDownloadTask]):
+class CaseDownloadTaskAdmin(admin.ModelAdmin):
     WEIKE_SITE_FILTER = (
         Q(site_name__icontains="wkxx")
         | Q(site_name__iexact="wk")

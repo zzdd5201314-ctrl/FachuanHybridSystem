@@ -36,7 +36,7 @@ def _get_document_delivery_schedule_service() -> Any:
 
 
 @admin.register(DocumentDeliverySchedule)
-class DocumentDeliveryScheduleAdmin(admin.ModelAdmin[DocumentDeliverySchedule]):
+class DocumentDeliveryScheduleAdmin(admin.ModelAdmin):
     """文书送达定时任务管理"""
 
     def get_model_perms(self, request: HttpRequest) -> dict[str, bool]:

@@ -15,7 +15,7 @@ from apps.message_hub.models import MessageSource, SyncStatus
 
 
 @admin.register(MessageSource)
-class MessageSourceAdmin(admin.ModelAdmin[MessageSource]):
+class MessageSourceAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "display_name",

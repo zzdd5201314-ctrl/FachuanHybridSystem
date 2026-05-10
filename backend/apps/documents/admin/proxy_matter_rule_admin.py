@@ -62,7 +62,7 @@ class ProxyMatterRuleAdminForm(forms.ModelForm[ProxyMatterRule]):
 
 
 @admin.register(ProxyMatterRule)
-class ProxyMatterRuleAdmin(admin.ModelAdmin[ProxyMatterRule]):
+class ProxyMatterRuleAdmin(admin.ModelAdmin):
     form = ProxyMatterRuleAdminForm
     change_list_template = "admin/documents/proxymatterrule/change_list.html"
 

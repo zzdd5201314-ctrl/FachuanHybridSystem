@@ -49,7 +49,7 @@ class PropertyClueAttachmentInline(admin.TabularInline[PropertyClueAttachment, P
 
 
 @admin.register(PropertyClue)
-class PropertyClueAdmin(admin.ModelAdmin[PropertyClue]):
+class PropertyClueAdmin(admin.ModelAdmin):
     """财产线索管理"""
 
     list_display = (

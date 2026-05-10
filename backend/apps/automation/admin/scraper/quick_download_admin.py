@@ -27,7 +27,7 @@ class QuickDownloadTool(NamerTool):
 
 
 # @admin.register(QuickDownloadTool)  # 隐藏快速下载页面，保留功能代码
-class QuickDownloadAdmin(admin.ModelAdmin[QuickDownloadTool]):
+class QuickDownloadAdmin(admin.ModelAdmin):
     """快速下载文书管理类"""
 
     change_list_template: ClassVar[str | None] = None

@@ -93,7 +93,7 @@ class ExternalTemplateFieldMappingInline(admin.TabularInline):
 
 
 @admin.register(ExternalTemplate)
-class ExternalTemplateAdmin(admin.ModelAdmin[ExternalTemplate]):
+class ExternalTemplateAdmin(admin.ModelAdmin):
     """
     外部模板管理
 

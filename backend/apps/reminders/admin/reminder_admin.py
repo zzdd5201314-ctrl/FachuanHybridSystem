@@ -57,7 +57,7 @@ class ReminderAdminForm(forms.ModelForm[Reminder]):
 
 
 @admin.register(Reminder)
-class ReminderAdmin(SimpleHistoryAdmin, admin.ModelAdmin[Reminder]):
+class ReminderAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     form = ReminderAdminForm
     list_display = (
         "id",

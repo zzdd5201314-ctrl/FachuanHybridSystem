@@ -31,7 +31,7 @@ class SupplementaryAgreementPartyInline(admin.TabularInline[SupplementaryAgreeme
 
 
 @admin.register(SupplementaryAgreement)
-class SupplementaryAgreementAdmin(admin.ModelAdmin[SupplementaryAgreement]):
+class SupplementaryAgreementAdmin(admin.ModelAdmin):
     """补充协议 Admin"""
 
     list_display = (

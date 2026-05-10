@@ -7,7 +7,7 @@ from django.contrib import admin
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    BaseModelAdmin: TypeAlias = admin.ModelAdmin[Any]
+    BaseModelAdmin: TypeAlias = admin.ModelAdmin
     BaseStackedInline: TypeAlias = admin.StackedInline[Any, Any]
     BaseTabularInline: TypeAlias = admin.TabularInline[Any, Any]
 else:

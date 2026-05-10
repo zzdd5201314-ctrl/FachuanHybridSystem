@@ -29,7 +29,7 @@ def _get_initialization_service() -> Any:
 
 
 @admin.register(Court)
-class CourtAdmin(admin.ModelAdmin[Court]):
+class CourtAdmin(admin.ModelAdmin):
     """
     法院管理 Admin
 
