@@ -112,7 +112,10 @@ def delete_session(request: Any, session_id: int) -> dict[str, str]:
 
 @router.get("/sessions/{session_id}/messages")
 def list_messages(
-    request: Any, session_id: int, page: int = 1, before_id: int | None = None,
+    request: Any,
+    session_id: int,
+    page: int = 1,
+    before_id: int | None = None,
 ) -> dict[str, Any]:
     """获取会话的消息列表"""
     ctx = extract_request_context(request)
@@ -404,7 +407,10 @@ async def stream_batch_progress(request: Any, job_id: UUID) -> StreamingHttpResp
                     started_items.add(item_id)
                     if item_id not in reported_items:
                         yield f"data: {json.dumps({'type': 'item_started', 'data': {'item_id': item_id, 'file_name': item['file_name']}}, ensure_ascii=False)}\n\n"
-                elif item["status"] in (BatchJobStatus.COMPLETED, BatchJobStatus.FAILED) and item_id not in reported_items:
+                elif (
+                    item["status"] in (BatchJobStatus.COMPLETED, BatchJobStatus.FAILED)
+                    and item_id not in reported_items
+                ):
                     reported_items.add(item_id)
                     event_type = "item_completed" if item["status"] == BatchJobStatus.COMPLETED else "item_failed"
                     data: dict[str, Any] = {

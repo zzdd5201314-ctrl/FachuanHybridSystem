@@ -110,12 +110,16 @@ async def _load_message_history(
     from ..models import WorkbenchMessage
 
     # 从最新消息向前加载（含工具调用结果），排除批量分析消息
-    messages_qs = WorkbenchMessage.objects.filter(
-        session_id=session_id,
-        role__in=[WorkbenchMessage.Role.USER, WorkbenchMessage.Role.ASSISTANT, WorkbenchMessage.Role.TOOL],
-    ).exclude(
-        metadata__source__in=["batch_item", "batch_analysis"],
-    ).order_by("-created_at")[:max_messages]
+    messages_qs = (
+        WorkbenchMessage.objects.filter(
+            session_id=session_id,
+            role__in=[WorkbenchMessage.Role.USER, WorkbenchMessage.Role.ASSISTANT, WorkbenchMessage.Role.TOOL],
+        )
+        .exclude(
+            metadata__source__in=["batch_item", "batch_analysis"],
+        )
+        .order_by("-created_at")[:max_messages]
+    )
 
     raw_messages = list(reversed(await _async_list(messages_qs)))
 
@@ -193,9 +197,11 @@ async def _maybe_create_summary(
             WorkbenchMessage.objects.filter(
                 session_id=session_id,
                 role__in=[WorkbenchMessage.Role.USER, WorkbenchMessage.Role.ASSISTANT],
-            ).exclude(
+            )
+            .exclude(
                 metadata__source__in=["batch_item", "batch_analysis"],
-            ).order_by("-created_at")[:20]
+            )
+            .order_by("-created_at")[:20]
         )
     )
     recent.reverse()
@@ -288,7 +294,8 @@ class WorkbenchChatService:
             content=user_message,
         )
         await WorkbenchSessionService.aincrement_storage(
-            session_id, _calc_message_bytes(content=user_message),
+            session_id,
+            _calc_message_bytes(content=user_message),
         )
 
         # 选择 Agent
@@ -359,7 +366,8 @@ class WorkbenchChatService:
                     if tc_id:
                         tool_msg_map[tc_id] = tool_msg.id
                     await WorkbenchSessionService.aincrement_storage(
-                        session_id, _calc_message_bytes(content=tc_content, tool_input=tc_args),
+                        session_id,
+                        _calc_message_bytes(content=tc_content, tool_input=tc_args),
                     )
                 elif event["type"] == "tool_result":
                     # 更新工具结果
@@ -374,7 +382,9 @@ class WorkbenchChatService:
                         # 计算 storage_bytes delta（旧值: content=f"调用工具: {name}", tool_output={}, metadata={}）
                         old_content = f"调用工具: {event.get('name', '')}"
                         delta = _calc_message_bytes(
-                            content=new_content, tool_output=new_tool_output, metadata=new_metadata,
+                            content=new_content,
+                            tool_output=new_tool_output,
+                            metadata=new_metadata,
                         ) - _calc_message_bytes(content=old_content)
                         await WorkbenchMessage.objects.filter(id=msg_id).aupdate(
                             content=new_content,
@@ -410,7 +420,8 @@ class WorkbenchChatService:
                 metadata=assistant_meta,
             )
             await WorkbenchSessionService.aincrement_storage(
-                session_id, _calc_message_bytes(content=content, metadata=assistant_meta),
+                session_id,
+                _calc_message_bytes(content=content, metadata=assistant_meta),
             )
 
         # 更新会话标题（如果是第一条消息）
