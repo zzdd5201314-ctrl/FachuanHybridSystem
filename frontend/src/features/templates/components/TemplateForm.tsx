@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { PATHS } from '@/routes/paths'
 import type { Template, TemplateType } from '../types'
+import { useTemplateLibraryFiles } from '../hooks/use-template-library-files'
 import {
   TEMPLATE_TYPE_LABELS,
   CONTRACT_SUB_TYPE_LABELS,
@@ -68,6 +69,7 @@ export function TemplateForm({ template, onSubmit }: TemplateFormProps) {
   const navigate = useNavigate()
   const isEdit = !!template
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { data: libraryFiles } = useTemplateLibraryFiles()
 
   const [name, setName] = useState(template?.name ?? '')
   const [isActive, setIsActive] = useState(template?.is_active ?? true)
@@ -114,7 +116,7 @@ export function TemplateForm({ template, onSubmit }: TemplateFormProps) {
       legal_statuses: legalStatuses,
       legal_status_match_mode: matchMode,
       applicable_institutions: institutions ? institutions.split(/[,，]/).map((s) => s.trim()).filter(Boolean) : [],
-      file_path: fileSource === 'path' ? filePath : '',
+      file_path: fileSource === 'path' || fileSource === 'existing' ? filePath : '',
     }
     onSubmit(data)
   }, [name, isActive, templateType, subType, caseTypes, caseStages, contractTypes, legalStatuses, matchMode, institutions, fileSource, filePath, onSubmit])
@@ -381,12 +383,14 @@ export function TemplateForm({ template, onSubmit }: TemplateFormProps) {
             </label>
             <select
               disabled={fileSource !== 'existing'}
+              value={fileSource === 'existing' ? filePath : ''}
+              onChange={(e) => setFilePath(e.target.value)}
               className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm disabled:opacity-50"
             >
               <option value="">-- 请选择模板文件 --</option>
-              <option value="case/pleading/民事起诉状通用.docx">case/pleading/民事起诉状通用.docx</option>
-              <option value="case/pleading/民事答辩状.docx">case/pleading/民事答辩状.docx</option>
-              <option value="contract/民商事合同通用范本.docx">contract/民商事合同通用范本.docx</option>
+              {libraryFiles?.map((f) => (
+                <option key={f.path} value={f.path}>{f.name}</option>
+              ))}
             </select>
           </div>
 
