@@ -32,7 +32,7 @@ def _get_initialization_service() -> CauseCourtInitializationService:
 
 
 @admin.register(CauseOfAction)
-class CauseOfActionAdmin(admin.ModelAdmin[CauseOfAction]):
+class CauseOfActionAdmin(admin.ModelAdmin):
     """
     案由管理 Admin
 

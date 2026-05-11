@@ -18,7 +18,7 @@ from apps.document_recognition.models import DocumentRecognitionStatus, Document
 
 
 @admin.register(DocumentRecognitionTool)
-class DocumentRecognitionToolAdmin(admin.ModelAdmin[DocumentRecognitionTool]):
+class DocumentRecognitionToolAdmin(admin.ModelAdmin):
     """Admin entry page for the recognition workbench."""
 
     def changelist_view(
@@ -48,7 +48,7 @@ class DocumentRecognitionToolAdmin(admin.ModelAdmin[DocumentRecognitionTool]):
 
 
 @admin.register(DocumentRecognitionTask)
-class DocumentRecognitionTaskAdmin(admin.ModelAdmin[DocumentRecognitionTask]):
+class DocumentRecognitionTaskAdmin(admin.ModelAdmin):
     """Document recognition task list and detail admin."""
 
     list_display: ClassVar[list[str]] = [

@@ -173,7 +173,7 @@ class InsuranceQuoteInline(admin.TabularInline[InsuranceQuote, InsuranceQuote]):
 
 
 @admin.register(PreservationQuote)
-class PreservationQuoteAdmin(admin.ModelAdmin[PreservationQuote]):
+class PreservationQuoteAdmin(admin.ModelAdmin):
     """财产保全询价管理 Admin"""
 
     list_display = [

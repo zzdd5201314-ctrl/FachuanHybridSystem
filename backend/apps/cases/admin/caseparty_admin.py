@@ -9,8 +9,10 @@ from apps.cases.models import CaseParty
 
 
 @admin.register(CaseParty)
-class CasePartyAdmin(admin.ModelAdmin[CaseParty]):
+class CasePartyAdmin(admin.ModelAdmin):
     list_display = ("id", "case", "client", "is_our_client", "legal_status")
+    list_select_related = ("case", "client")
+    list_per_page = 50
     list_filter = ("legal_status",)
     search_fields = ("case__name", "client__name")
 

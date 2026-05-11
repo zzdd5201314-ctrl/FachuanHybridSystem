@@ -20,7 +20,7 @@ _PARTY_FIELDS = ("party_a", "party_b", "party_c", "party_d")
 
 
 @admin.register(ReviewTask)
-class ReviewTaskAdmin(admin.ModelAdmin[ReviewTask]):
+class ReviewTaskAdmin(admin.ModelAdmin):
     list_display = ("contract_title", "user", "status", "current_step_display", "created_at")
     list_filter = ("status", "represented_party", "created_at")
     search_fields = ("contract_title", "party_a", "party_b")

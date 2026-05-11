@@ -43,7 +43,7 @@ class ClientIdentityDocForm(forms.ModelForm[ClientIdentityDoc]):
 
 
 @admin.register(ClientIdentityDoc)
-class ClientIdentityDocAdmin(admin.ModelAdmin[ClientIdentityDoc]):
+class ClientIdentityDocAdmin(admin.ModelAdmin):
     form = ClientIdentityDocForm
     list_display = ("id", "client", "doc_type", "uploaded_at", "file_link")
     search_fields = ("client__name", "file_path")

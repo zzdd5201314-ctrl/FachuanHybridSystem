@@ -36,7 +36,7 @@ class AutoNamerToolForm(forms.Form):
 
 
 @admin.register(NamerTool)
-class AutoNamerToolAdmin(admin.ModelAdmin[NamerTool]):
+class AutoNamerToolAdmin(admin.ModelAdmin):
     """自动命名工具管理类"""
 
     change_list_template = None

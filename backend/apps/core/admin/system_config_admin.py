@@ -22,7 +22,7 @@ from .forms import SystemConfigAdminForm
 
 
 @admin.register(SystemConfig)
-class SystemConfigAdmin(admin.ModelAdmin[SystemConfig]):
+class SystemConfigAdmin(admin.ModelAdmin):
     """系统配置 Admin"""
 
     show_in_index = False  # 不在左侧菜单显示，通过右上角快捷入口访问

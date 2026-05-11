@@ -85,7 +85,7 @@ class DocumentTemplateFolderBindingForm(forms.ModelForm[DocumentTemplateFolderBi
 
 
 @admin.register(DocumentTemplateFolderBinding)
-class DocumentTemplateFolderBindingAdmin(admin.ModelAdmin[DocumentTemplateFolderBinding]):
+class DocumentTemplateFolderBindingAdmin(admin.ModelAdmin):
     """文书模板文件夹绑定管理"""
 
     form = DocumentTemplateFolderBindingForm

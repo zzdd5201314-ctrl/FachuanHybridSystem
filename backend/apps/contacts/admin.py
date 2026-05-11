@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     BaseTabularInline: TypeAlias = admin.TabularInline[Any, Any]
-    BaseModelAdmin: TypeAlias = admin.ModelAdmin[Any]
+    BaseModelAdmin: TypeAlias = admin.ModelAdmin
 else:
     try:
         import nested_admin
@@ -121,6 +121,7 @@ class CaseContactInline(BaseTabularInline):
 class CaseContactAdmin(BaseModelAdmin):
     form = CaseContactAdminForm
     list_display = ("id", "case", "name", "role", "phone", "stage", "authority")
+    list_select_related = ("case", "authority")
     list_filter = ("role", "stage")
     search_fields = ("name", "phone", "case__name")
     autocomplete_fields = ("case",)
