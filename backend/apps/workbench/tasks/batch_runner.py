@@ -321,6 +321,13 @@ async def _run_batch_async(job_id: UUID) -> None:
 
             logger.warning("批量分析全部失败: job=%s", job_id)
 
+    except asyncio.CancelledError:
+        logger.info("批量分析任务被取消: job=%s", job_id)
+        cancel_event.set()
+        await sync_to_async(BatchJob.objects.filter(id=job_id).update)(
+            status=BatchJobStatus.CANCELLED,
+            finished_at=timezone.now(),
+        )
     except Exception as e:
         logger.exception("批量分析任务异常: job=%s", job_id)
         await sync_to_async(BatchJob.objects.filter(id=job_id).update)(
@@ -456,6 +463,13 @@ async def _run_batch_retry_async(job_id: UUID, item_ids: list[UUID]) -> None:
                 finished_at=timezone.now(),
             )
 
+    except asyncio.CancelledError:
+        logger.info("重试任务被取消: job=%s", job_id)
+        cancel_event.set()
+        await sync_to_async(BatchJob.objects.filter(id=job_id).update)(
+            status=BatchJobStatus.CANCELLED,
+            finished_at=timezone.now(),
+        )
     except Exception as e:
         logger.exception("重试任务异常: job=%s", job_id)
         await sync_to_async(BatchJob.objects.filter(id=job_id).update)(
