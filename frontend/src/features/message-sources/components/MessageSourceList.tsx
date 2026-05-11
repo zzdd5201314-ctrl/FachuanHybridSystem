@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, RefreshCw, Trash2, Power, PowerOff, Pencil } from 'lucide-react'
+import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { Button } from '@/components/ui/button'
@@ -34,8 +35,9 @@ export function MessageSourceList() {
     setSyncingIds((prev) => new Set(prev).add(id))
     try {
       await messageSourceApi.sync(id)
+      toast.success('同步任务已触发')
     } catch (e) {
-      console.error('Sync failed:', e)
+      toast.error(e instanceof Error ? e.message : '同步失败，请重试')
     } finally {
       setSyncingIds((prev) => {
         const next = new Set(prev)
@@ -48,8 +50,9 @@ export function MessageSourceList() {
   const handleSyncAll = async () => {
     try {
       await messageSourceApi.syncAll()
+      toast.success('全部同步任务已触发')
     } catch (e) {
-      console.error('Sync all failed:', e)
+      toast.error(e instanceof Error ? e.message : '全部同步失败，请重试')
     }
   }
 
