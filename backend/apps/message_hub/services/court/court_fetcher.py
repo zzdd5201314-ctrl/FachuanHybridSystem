@@ -410,11 +410,13 @@ class CourtInboxFetcher(MessageFetcher):
             filename = str(att.get("filename") or att.get("original_filename") or f"attachment_{part_index}")
             content_type = str(att.get("content_type") or "application/octet-stream")
 
+            # 1. 本地文件直接读取
             local_path = str(att.get("local_path", "")).strip()
             if local_path and Path(local_path).exists():
                 content = Path(local_path).read_bytes()
                 return content, filename, content_type
 
+            # 2. 推断路径
             inferred_local_path = Path(
                 att.get("local_path")
                 or (Path(settings.MEDIA_ROOT) / "message_hub" / "court_inbox" / message_id / filename)
@@ -427,7 +429,9 @@ class CourtInboxFetcher(MessageFetcher):
                 msg.save(update_fields=["attachments_meta"])
                 return inferred_local_path.read_bytes(), filename, content_type
 
-            wjlj = str(att.get("wjlj", "")).strip()
+            # 3. 刷新 wjlj（OSS 链接会过期，先从法院 API 获取新链接）
+            wjlj = self._refresh_wjlj(source, att, meta_list, msg)
+
             if not wjlj:
                 raise ValueError(f"附件无下载链接: part_index={part_index}")
 
@@ -448,6 +452,34 @@ class CourtInboxFetcher(MessageFetcher):
             return resp.content, filename, content_type
 
         raise ValueError(f"未找到 part_index={part_index} 的附件")
+
+    @staticmethod
+    def _refresh_wjlj(
+        source: MessageSource,
+        att: dict[str, Any],
+        meta_list: list[dict[str, Any]],
+        msg: InboxMessage,
+    ) -> str:
+        """尝试从法院 API 刷新 wjlj 下载链接（OSS 预签名 URL 会过期）。"""
+        sdbh = msg.message_id
+        try:
+            token = _acquire_token(source.credential.pk)
+            fresh_meta = _fetch_attachments_meta(token, sdbh)
+        except Exception as e:
+            logger.warning("刷新附件下载链接失败 sdbh=%s: %s", sdbh, e)
+            return str(att.get("wjlj", "")).strip()
+
+        target_index = int(att.get("part_index", -1))
+        for fresh in fresh_meta:
+            if int(fresh.get("part_index", -1)) == target_index:
+                new_wjlj = str(fresh.get("wjlj", "")).strip()
+                if new_wjlj:
+                    att["wjlj"] = new_wjlj
+                    msg.attachments_meta = meta_list
+                    msg.save(update_fields=["attachments_meta"])
+                    logger.info("已刷新附件下载链接 sdbh=%s part_index=%d", sdbh, target_index)
+                    return new_wjlj
+        return str(att.get("wjlj", "")).strip()
 
 
 def _invalidate_token(credential_id: int) -> None:

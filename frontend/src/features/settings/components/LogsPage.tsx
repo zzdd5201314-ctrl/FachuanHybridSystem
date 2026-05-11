@@ -18,6 +18,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import {
+  Tooltip, TooltipContent, TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatDate } from '@/lib/date'
 
 import { caseApi } from '@/features/cases/api'
@@ -271,15 +274,25 @@ export function LogsPage() {
                             <span className="text-muted-foreground text-xs">{actorName}</span>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Clock className="size-3" />
-                              <span className="text-xs">{formatDate(log.created_at).slice(11)}</span>
-                            </div>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <Clock className="size-3" />
+                                  <span className="text-xs">{formatDate(log.created_at).slice(11)}</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>创建时间：{formatDate(log.created_at)}</TooltipContent>
+                            </Tooltip>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon-xs">
-                                  <Trash2 className="text-muted-foreground size-3" />
-                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon-xs">
+                                      <Trash2 className="text-muted-foreground size-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>删除日志</TooltipContent>
+                                </Tooltip>
                               </AlertDialogTrigger>
                               <AlertDialogContent size="sm">
                                 <AlertDialogHeader>
@@ -302,18 +315,31 @@ export function LogsPage() {
                         {(attachCount > 0 || (log.reminders && log.reminders.length > 0)) && (
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             {attachCount > 0 && (
-                              <Badge variant="outline" className="gap-1 text-[11px]">
-                                <Paperclip className="size-3" />
-                                {attachCount} 附件
-                              </Badge>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="gap-1 text-[11px]">
+                                    <Paperclip className="size-3" />
+                                    {attachCount} 附件
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>包含 {attachCount} 个附件</TooltipContent>
+                              </Tooltip>
                             )}
                             {log.reminders?.map((r) => (
-                              <Badge key={r.id} variant="outline" className="gap-1 text-[11px]">
-                                <Bell className="size-3" />
-                                {getReminderLabel(r.reminder_type)}
-                                <span className="text-muted-foreground ml-1">{formatDate(r.due_at)}</span>
-                                {r.is_completed && <span className="text-green-600 ml-1">✓</span>}
-                              </Badge>
+                              <Tooltip key={r.id}>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="gap-1 text-[11px]">
+                                    <Bell className="size-3" />
+                                    {getReminderLabel(r.reminder_type)}
+                                    <span className="text-muted-foreground ml-1">{formatDate(r.due_at)}</span>
+                                    {r.is_completed && <span className="text-green-600 ml-1">✓</span>}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  提醒：{getReminderLabel(r.reminder_type)} · {formatDate(r.due_at)}
+                                  {r.is_completed ? '（已完成）' : ''}
+                                </TooltipContent>
+                              </Tooltip>
                             ))}
                           </div>
                         )}

@@ -16,6 +16,7 @@ from apps.core.api.schema_utils import schema_to_update_dict
 from apps.core.security.auth import JWTOrSessionAuth
 from apps.documents.schemas import DocumentTemplateIn, DocumentTemplateOut, DocumentTemplateUpdate
 from apps.documents.services.template.template_service import DocumentTemplateService
+from apps.documents.storage import list_docx_templates_files
 
 logger = logging.getLogger("apps.documents.api")
 router = Router(auth=JWTOrSessionAuth())
@@ -45,6 +46,13 @@ def list_document_templates(
         is_active=is_active,
     )
     return templates
+
+
+@router.get("/templates/library-files", response=list[dict[str, str]])
+def list_template_library_files(request: Any) -> Any:
+    """列出模板库中可用的 docx 文件（用于前端下拉选择）"""
+    files = list_docx_templates_files()
+    return [{"path": path, "name": name} for path, name in files]
 
 
 @router.get("/templates/{template_id}", response=DocumentTemplateOut)
