@@ -181,9 +181,6 @@ class ContractAdmin(
         FinalizedMaterialInline,
     ]
 
-    class Media:
-        js = ("cases/admin_case_form.js",)
-
     change_form_template = "admin/contracts/contract/change_form.html"
     change_list_template = "admin/contracts/contract/change_list.html"
 

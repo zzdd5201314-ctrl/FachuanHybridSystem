@@ -149,8 +149,62 @@ class CaseAdminViewsMixin:
                 self.admin_site.admin_view(self.email_folder_import_view),  # type: ignore[attr-defined]
                 name="cases_case_email_folder_import",
             ),
+            path(
+                "<int:object_id>/preview-log-attachment/<int:attachment_id>/",
+                self.admin_site.admin_view(self.preview_log_attachment_view),  # type: ignore[attr-defined]
+                name="cases_case_preview_log_attachment",
+            ),
         ]
         return custom_urls + urls
+
+    def preview_log_attachment_view(self, request: HttpRequest, object_id: int, attachment_id: int) -> HttpResponse:
+        from pathlib import Path
+
+        from django.http import HttpResponse as DjangoHttpResponse, JsonResponse
+
+        from apps.cases.models import CaseLogAttachment
+        from apps.cases.services.log.case_log_attachment_storage_service import CaseLogAttachmentStorageService
+
+        if not self.has_view_permission(request):  # type: ignore[attr-defined]
+            raise PermissionDenied
+
+        try:
+            attachment = (
+                CaseLogAttachment.objects.select_related("log")
+                .filter(pk=attachment_id, log__case_id=object_id)
+                .first()
+            )
+            if not attachment:
+                return JsonResponse({"success": False, "error": "附件不存在"}, status=404)
+
+            resolved = CaseLogAttachmentStorageService().resolve_attachment(attachment)
+            file_path = Path(resolved.abs_path) if resolved.abs_path else None
+            if not resolved.exists or file_path is None or not file_path.exists():
+                return JsonResponse({"success": False, "error": "文件不存在"}, status=404)
+
+            content = file_path.read_bytes()
+            suffix = file_path.suffix.lower()
+            if suffix == ".pdf":
+                content_type = "application/pdf"
+            elif suffix in {".jpg", ".jpeg"}:
+                content_type = "image/jpeg"
+            elif suffix == ".png":
+                content_type = "image/png"
+            elif suffix == ".docx":
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            else:
+                content_type = "application/octet-stream"
+
+            import urllib.parse
+
+            filename = attachment.original_filename or file_path.name
+            response = DjangoHttpResponse(content, content_type=content_type)
+            encoded_filename = urllib.parse.quote(str(filename).encode("utf-8"))
+            response["Content-Disposition"] = f"inline; filename*=UTF-8''{encoded_filename}"
+            return response
+        except Exception as e:
+            logger.exception("预览案件日志附件失败: attachment_id=%s", attachment_id)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
 
     def mock_trial_view(self, request: HttpRequest, object_id: int) -> HttpResponse:
         case = self._get_case_with_relations(object_id)
