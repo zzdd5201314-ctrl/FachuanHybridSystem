@@ -277,32 +277,47 @@ export function CourtGuaranteeSection({ caseId }: Props) {
           <div className="px-4 py-3">
             {/* 询价结果表格 */}
             {quoteItems.length > 0 ? (
-              <div className="border border-blue-100 rounded-lg overflow-hidden bg-white">
+              <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
                 <div className="max-h-[220px] overflow-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr className="bg-blue-50 text-blue-800">
-                        <th className="text-center py-2 px-2 font-medium w-8">序号</th>
-                        <th className="text-left py-2 px-2 font-medium">担保机构</th>
-                        <th className="text-center py-2 px-2 font-medium">报价区间</th>
-                        <th className="text-right py-2 px-2 font-medium">最高保全金额</th>
+                      <tr className="bg-slate-50 text-slate-600">
+                        <th className="text-center py-1.5 px-2 font-medium" style={{ width: 36 }}>序号</th>
+                        <th className="text-left py-1.5 px-2 font-medium">担保机构</th>
+                        <th className="text-center py-1.5 px-2 font-medium">报价区间</th>
+                        <th className="text-right py-1.5 px-2 font-medium">最高保全金额</th>
+                        <th className="text-center py-1.5 px-2 font-medium">操作</th>
                       </tr>
                     </thead>
                     <tbody>
                       {quoteItems.map((item, idx) => (
-                        <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                          <td className="text-center py-2 px-2 text-muted-foreground">{idx + 1}</td>
-                          <td className="py-2 px-2">
-                            <span className="font-medium">{item.company_name}</span>
+                        <tr key={item.id} className="border-t border-slate-100">
+                          <td className="text-center py-1.5 px-2 text-muted-foreground">{idx + 1}</td>
+                          <td className="py-1.5 px-2">
+                            <span>{item.company_name}</span>
                             {item.is_recommended && (
-                              <span className="ml-1 text-green-600" title="推荐">🏆</span>
+                              <span className="ml-1 text-green-600">🏆</span>
                             )}
                           </td>
-                          <td className="text-center py-2 px-2 whitespace-nowrap">
+                          <td className="text-center py-1.5 px-2 whitespace-nowrap">
                             {formatQuoteRange(item.min_amount, item.max_amount)}
                           </td>
-                          <td className="text-right py-2 px-2">
+                          <td className="text-right py-1.5 px-2">
                             {formatMaxApplyAmount(item.max_apply_amount)}
+                          </td>
+                          <td className="text-center py-1.5 px-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[11px] px-2"
+                              disabled={executing}
+                              onClick={() => {
+                                setSelectedInsurer(item.company_name)
+                                toast.success(`已选用 ${item.company_name}`)
+                              }}
+                            >
+                              选用
+                            </Button>
                           </td>
                         </tr>
                       ))}
