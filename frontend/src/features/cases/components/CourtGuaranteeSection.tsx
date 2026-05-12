@@ -282,7 +282,7 @@ export function CourtGuaranteeSection({ caseId }: Props) {
                   <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                       <tr className="bg-slate-50 text-slate-600">
-                        <th className="text-center py-1.5 px-2 font-medium" style={{ width: 36 }}>序号</th>
+                        <th className="text-center py-1.5 px-2 font-medium whitespace-nowrap" style={{ width: 48 }}>序号</th>
                         <th className="text-left py-1.5 px-2 font-medium">担保机构</th>
                         <th className="text-center py-1.5 px-2 font-medium">报价区间</th>
                         <th className="text-right py-1.5 px-2 font-medium">最高保全金额</th>
@@ -417,6 +417,12 @@ export function CourtGuaranteeSection({ caseId }: Props) {
           <div className="px-4 py-3">
             {hasQuote ? (
               <div className="space-y-2.5">
+                {selectedInsurer && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">担保机构：</span>
+                    <span className="font-medium text-foreground">{selectedInsurer}</span>
+                  </div>
+                )}
                 <input
                   type="text"
                   className="border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-8 w-full rounded-md border px-3 text-xs shadow-xs outline-none focus-visible:ring-[3px]"
@@ -424,7 +430,7 @@ export function CourtGuaranteeSection({ caseId }: Props) {
                   value={consultantCode}
                   onChange={(e) => setConsultantCode(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">已获取报价，填写顾问代码后点击「开始申请」提交保全申请</p>
+                <p className="text-xs text-muted-foreground">填写顾问代码后点击「开始申请」提交保全申请</p>
               </div>
             ) : (
               <div className="text-center py-3">
