@@ -123,10 +123,17 @@ class CaseLogAttachmentInline(BaseTabularInline):
 class ReminderInline(BaseTabularInline):
     model = CaseLog.reminders.rel.related_model  # type: ignore[assignment]
     extra = 0
-    fields = ("reminder_type", "content", "due_at")
+    fields = ("reminder_type", "content", "due_at", "include_in_important_time")
     verbose_name = "重要日期提醒"
     verbose_name_plural = "重要日期提醒"
     ordering = ("due_at",)
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):  # type: ignore[no-untyped-def]
+        formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if db_field.name == "include_in_important_time" and formfield is not None:
+            formfield.label = _("同步到案件重要时间")
+            formfield.help_text = _("同步到案件重要时间：勾选后会在案件详情的重要时间中展示，不会复制生成新数据。")
+        return formfield
 
 
 @admin.register(CaseLog)

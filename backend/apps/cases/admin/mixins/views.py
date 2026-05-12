@@ -335,6 +335,8 @@ class CaseAdminViewsMixin:
                 "has_preservation_template": has_preservation_template,
                 "has_delay_delivery_template": has_delay_delivery_template,
                 "is_our_party_all_defendant": is_our_party_all_defendant,
+                "important_times": service.build_important_times_for_detail(case),
+                "important_time_type_options": service.get_important_time_type_options(),
                 "folder_path_auto_repaired": folder_path_auto_repaired,
                 "contacts": list(case.contacts.select_related("authority").all()),
                 "contact_role_choices": list(_get_contact_role_choices()),
