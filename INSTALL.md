@@ -2,12 +2,6 @@
 
 本文档包含法穿系统的安装、初始化、启动与常见运维命令。
 
-## 目录
-
-1. Docker 部署（推荐）
-2. 本地开发（macOS）
-3. 本地开发（Linux / Windows）
-
 ## 1. Docker 部署（推荐）
 
 适合快速体验与服务器部署。只需安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)。
