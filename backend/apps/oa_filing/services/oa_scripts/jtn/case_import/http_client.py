@@ -11,13 +11,8 @@ from urllib.parse import urljoin
 import httpx
 from lxml import html as lxml_html
 
-from ..models import (
-    OACaseData,
-    OAListCaseCandidate,
-    CaseListFormState,
-    CaseSearchItem,
-)
 from .. import html_parser
+from ..models import CaseListFormState, CaseSearchItem, OACaseData, OAListCaseCandidate
 
 logger = logging.getLogger("apps.oa_filing.jtn_case_import")
 
@@ -368,7 +363,9 @@ class JtnHttpClientMixin:
                 continue
             option_value = option.get("value")
             payload[name] = (
-                str(option_value) if option_value is not None else html_parser.normalize_text("".join(option.itertext()))
+                str(option_value)
+                if option_value is not None
+                else html_parser.normalize_text("".join(option.itertext()))
             )
 
         for textarea_node in form.xpath(".//textarea[@name]"):

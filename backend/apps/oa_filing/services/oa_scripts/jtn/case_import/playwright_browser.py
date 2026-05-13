@@ -13,12 +13,8 @@ import httpx
 from django.utils.translation import gettext_lazy as _
 from playwright.sync_api import Browser, BrowserContext, Frame, Page, Playwright, sync_playwright
 
-from ..models import (
-    OACaseData,
-    OAListCaseCandidate,
-    CaseSearchItem,
-)
 from .. import html_parser
+from ..models import CaseSearchItem, OACaseData, OAListCaseCandidate
 from .http_client import (
     _AJAX_WAIT,
     _BASE_URL,
