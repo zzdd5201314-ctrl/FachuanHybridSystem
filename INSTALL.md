@@ -6,6 +6,29 @@
 
 适合快速体验与服务器部署。只需安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)。
 
+### 1.1 配置镜像加速器（国内用户必做）
+
+国内访问 Docker Hub 经常超时（`Get "https://registry-1.docker.io/v2/": EOF`），需配置镜像源。
+
+编辑 Docker 配置文件：
+- macOS / Windows：Docker Desktop → Settings → Docker Engine
+- Linux：`/etc/docker/daemon.json`
+
+添加 `registry-mirrors`：
+
+```json
+{
+  "registry-mirrors": [
+    "https://docker.1ms.run",
+    "https://docker.xuanyuan.me"
+  ]
+}
+```
+
+保存后重启 Docker Desktop（或 `sudo systemctl restart docker`），再执行后续步骤。
+
+### 1.2 启动服务
+
 ```bash
 # 1) 克隆项目
 git clone --depth 1 https://github.com/Lawyer-ray/FachuanHybridSystem.git
@@ -14,7 +37,7 @@ cd FachuanHybridSystem/backend
 # 2) 配置环境变量
 cp .env.example .env
 # 必须修改 DJANGO_SECRET_KEY，生成命令：
-#   python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+#   python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 
 # 3) 构建并启动（首次会下载 Playwright 浏览器）
 docker compose up -d
