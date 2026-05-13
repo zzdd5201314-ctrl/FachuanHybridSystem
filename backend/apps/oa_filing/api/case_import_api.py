@@ -234,7 +234,7 @@ def batch_create_cases(request: HttpRequest, session_id: int) -> Any:
     for case_data in cases:
         case_no = case_data.get("case_no", "")
         try:
-            from apps.oa_filing.services.oa_scripts.jtn_case_import import OACaseData
+            from apps.oa_filing.services.oa_scripts.jtn.case_import import OACaseData
 
             # 构造 OACaseData
             oa_data = OACaseData(case_no=case_no, keyid="")

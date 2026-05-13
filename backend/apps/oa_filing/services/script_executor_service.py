@@ -96,7 +96,7 @@ class ScriptExecutorService:
     def _run_jtn(self, credential: Any, contract_id: int, case_id: int | None) -> None:
         """执行金诚同达 OA 立案。"""
         from apps.oa_filing.services.exceptions import ScriptExecutionError
-        from apps.oa_filing.services.oa_scripts.jtn_filing import (
+        from apps.oa_filing.services.oa_scripts.jtn.filing import (
             CaseInfo,
             ClientInfo,
             ConflictPartyInfo,

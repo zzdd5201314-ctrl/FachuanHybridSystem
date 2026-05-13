@@ -20,7 +20,7 @@ from apps.contracts.models import Contract, ContractOASyncSession, ContractOASyn
 from apps.core.dependencies.core import build_task_submission_service
 
 if TYPE_CHECKING:
-    from apps.oa_filing.services.oa_scripts.jtn_case_import import JtnCaseImportScript, OAListCaseCandidate
+    from apps.oa_filing.services.oa_scripts.jtn.case_import import JtnCaseImportScript, OAListCaseCandidate
     from apps.organization.models import AccountCredential
 
 logger = logging.getLogger(__name__)
@@ -208,7 +208,7 @@ class ContractOASyncService:
                 )
                 return
 
-            from apps.oa_filing.services.oa_scripts.jtn_case_import import JtnCaseImportScript
+            from apps.oa_filing.services.oa_scripts.jtn.case_import import JtnCaseImportScript
 
             script = JtnCaseImportScript(
                 account=credential.account,

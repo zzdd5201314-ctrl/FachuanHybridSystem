@@ -2,6 +2,29 @@
 
 本项目的所有重要更改都将记录在此文件中。
 
+## [26.48.9] - 2026-05-13
+
+### 后端
+
+#### 优化
+
+- **OA 脚本目录重构**：将 `oa_scripts/` 下散落的金诚同达专属文件（`jtn_case_html_parser.py`、`jtn_case_import_models.py`、`jtn_client_import.py`）归入统一的 `jtn/` 目录，与已有的 `jtn_case_import/`、`jtn_filing/` 子包保持一致。新增律所时只需创建一个新目录，无需辨认哪些文件属于哪个律所
+
+## [26.48.8] - 2026-05-13
+
+### 后端
+
+#### 修复
+
+- **法律检索迁移幂等修复**：`0013_add_llm_scoring_concurrency` 迁移在数据库列已存在时抛出 `DuplicateColumn` 错误，改用 `ADD COLUMN IF NOT EXISTS` 使迁移幂等
+- **迁移 help_text 对齐**：修正迁移中 `help_text` 文本（`397B` → `kimi26`），与模型定义一致，消除 `makemigrations` 的 pending changes 警告
+
+#### 依赖变更
+
+- **升级 pip** 26.0.1 → 26.1.1，修复 CVE-2026-3219 / CVE-2026-6357
+- **升级 ujson** 5.12.0 → 5.12.1，修复 CVE-2026-44660
+- **升级 twisted** 25.5.0 → 26.4.0，修复 CVE-2026-42304
+
 ## [26.48.7] - 2026-05-12
 
 ### 前端

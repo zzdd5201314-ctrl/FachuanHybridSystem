@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 # re-export 数据结构（保持外部 import 兼容）
-from ..jtn_case_import_models import (
-    OAConflictData,
+from ..models import (
+    CaseListFormState,
+    CaseSearchItem,
     OACaseCustomerData,
     OACaseData,
     OACaseInfoData,
+    OAConflictData,
     OAListCaseCandidate,
-    CaseListFormState,
-    CaseSearchItem,
 )
 
 # re-export facade
