@@ -6,7 +6,6 @@
 
 - 只想最快跑起来（推荐）：直接看 **Docker 部署（推荐）**。
 - 需要本地开发：先看 **本地 PostgreSQL 安装与初始化**，再看对应系统的 **本地开发** 章节。
-- 你是从 SQLite 升级：直接跳到 **SQLite 升级到 PostgreSQL（保留原有数据）**。
 - MCP 仅在你要对接 AI Agent 时需要：可最后看 **附录（可选）：MCP Server**。
 
 ## 目录
@@ -16,7 +15,6 @@
 - 本地开发（macOS）
 - 本地开发（Linux / Windows）
 - 环境变量
-- SQLite 升级到 PostgreSQL（保留原有数据）
 - 启动顺序与运行检查
 - 推送前本地检查（进阶，可选）
 - 附录（可选）：MCP Server（AI Agent 集成）
@@ -237,68 +235,6 @@ FACHUAN_BASE_URL=http://127.0.0.1:8002/api/v1
 FACHUAN_USERNAME=你的账号
 FACHUAN_PASSWORD=你的密码
 ```
-
-## SQLite 升级到 PostgreSQL（保留原有数据）
-
-适用于：你之前在本机用 `SQLite` 跑过系统，现在要切到 `PostgreSQL` 并保留历史数据。
-
-```bash
-# 0) 进入项目并激活虚拟环境
-cd backend
-source .venv/bin/activate
-
-# 1) 停掉本地服务（避免迁移过程中继续写入）
-pkill -f qcluster || true
-pkill -f uvicorn || true
-
-# 2) 备份 SQLite 与媒体文件
-TS=$(date +%Y%m%d_%H%M%S)
-BK=/tmp/fachuan_backup_$TS
-mkdir -p "$BK"
-cp apiSystem/db.sqlite3 "$BK/db.sqlite3.bak"
-cp -R apiSystem/media "$BK/media.bak" 2>/dev/null || true
-
-# 3) 从 SQLite 导出数据（排除系统表，避免 contenttypes 外键冲突）
-DB_ENGINE=sqlite DATABASE_PATH=apiSystem/db.sqlite3 \
-PYTHONPATH=apiSystem:. .venv/bin/python apiSystem/manage.py dumpdata \
-  --exclude contenttypes \
-  --exclude auth.permission \
-  --exclude admin.logentry \
-  --exclude sessions.session \
-  --indent 2 > "$BK/data.json"
-
-# 4) 切到 PostgreSQL（按本机实际账号调整）
-export DB_ENGINE=postgresql
-export DB_NAME=fachuan_dev
-export DB_USER=postgres
-export DB_PASSWORD=postgres
-export DB_HOST=127.0.0.1
-export DB_PORT=5432
-
-# 5) 迁移表结构
-PYTHONPATH=apiSystem:. .venv/bin/python apiSystem/manage.py migrate
-
-# 6) 导入历史数据
-PYTHONPATH=apiSystem:. .venv/bin/python apiSystem/manage.py loaddata "$BK/data.json"
-
-# 7) 重置序列（避免后续插入主键冲突）
-PYTHONPATH=apiSystem:. .venv/bin/python - <<'PY'
-import os, django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'apiSystem.settings')
-django.setup()
-from django.apps import apps
-from django.core.management.color import no_style
-from django.db import connection
-models=[m for m in apps.get_models() if m._meta.managed and not m._meta.proxy and not m._meta.auto_created]
-sqls=connection.ops.sequence_reset_sql(no_style(), models)
-with connection.cursor() as cur:
-    for s in sqls:
-        cur.execute(s)
-print('sequence_reset_sql_count', len(sqls))
-PY
-```
-
-> 完成后建议把 `backend/.env` 的 `DB_ENGINE/DB_*` 固定到 PostgreSQL，避免回落到 SQLite。
 
 ## 启动顺序与运行检查
 
