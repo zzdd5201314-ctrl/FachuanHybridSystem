@@ -81,27 +81,16 @@ def create_browser(
         profile = dataclasses.replace(profile, **kwargs)
 
     if profile.is_cdp:
-        # CDP 模式：同步包装异步调用
-        import asyncio
-
-        from .cdp_connector import connect_cdp_page
-
-        async def _run() -> tuple[Page, BrowserContext]:
-            async with connect_cdp_page(profile, auto_launch=True) as (page, ctx):
-                # 将 page 和 context 传递给调用方
-                result = (page, ctx)
-                yield result  # type: ignore[misc]
-
-        # CDP 模式需要异步上下文，这里用同步包装
-        # 实际使用时，CDP 场景建议直接用 create_browser_async
+        # CDP 模式需要异步上下文，同步场景不支持
         raise NotImplementedError(
             "CDP 模式请使用 create_browser_async()，"
             "或在异步函数中使用: async with create_browser_async('gsxt') as (page, ctx): ..."
         )
-    else:
-        from .launcher import launch_browser
 
-        yield from launch_browser(profile, session_id=session_id)
+    from .launcher import launch_browser
+
+    with launch_browser(profile, session_id=session_id) as (page, ctx):
+        yield page, ctx
 
 
 @asynccontextmanager
