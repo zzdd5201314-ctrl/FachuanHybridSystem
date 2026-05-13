@@ -42,6 +42,9 @@ services:
       - .env
     environment:
       DB_ENGINE: ${DB_ENGINE:-postgresql}
+      DB_NAME: ${DB_NAME:-fachuan_dev}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_HOST: postgres
       DB_PORT: ${DB_PORT:-5432}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -67,6 +70,9 @@ services:
       - .env
     environment:
       DB_ENGINE: ${DB_ENGINE:-postgresql}
+      DB_NAME: ${DB_NAME:-fachuan_dev}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_HOST: postgres
       DB_PORT: ${DB_PORT:-5432}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
