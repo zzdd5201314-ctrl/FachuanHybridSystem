@@ -104,6 +104,182 @@
     line-height: 1.4;
     color: #6b7280;
 }
+
+.caselog-material-sync-hidden {
+    display: none !important;
+}
+
+.column-material_category,
+.column-material_side,
+.column-material_parties,
+.column-material_supervising_authority,
+.column-material_type,
+.column-material_type_name,
+.field-material_category,
+.field-material_side,
+.field-material_parties,
+.field-material_supervising_authority,
+.field-material_type,
+.field-material_type_name {
+    display: none !important;
+}
+
+.caselog-material-sync-control {
+    display: grid;
+    gap: 6px;
+    min-width: 180px;
+}
+
+.caselog-material-sync-control input[type="checkbox"] {
+    display: none !important;
+}
+
+.caselog-material-sync-status {
+    font-size: 12px;
+    line-height: 1.4;
+    color: #6b7280;
+}
+
+.caselog-material-sync-status.is-synced {
+    color: #166534;
+    font-weight: 600;
+}
+
+.caselog-material-sync-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.caselog-material-sync-btn,
+.caselog-material-unsync-btn {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #1f2937;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 6px 9px;
+}
+
+.caselog-material-sync-btn:hover,
+.caselog-material-unsync-btn:hover {
+    border-color: #64748b;
+    background: #f8fafc;
+}
+
+.caselog-material-modal {
+    align-items: center;
+    background: rgba(15, 23, 42, 0.38);
+    inset: 0;
+    justify-content: center;
+    padding: 20px;
+    position: fixed;
+    z-index: 10001;
+}
+
+.caselog-material-dialog {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24);
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+    width: min(560px, calc(100vw - 32px));
+}
+
+.caselog-material-header {
+    align-items: flex-start;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+}
+
+.caselog-material-header h2 {
+    font-size: 18px;
+    margin: 0 0 6px;
+}
+
+.caselog-material-header p {
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.caselog-material-close {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+}
+
+.caselog-material-body {
+    display: grid;
+    gap: 14px;
+    padding: 18px 20px;
+}
+
+.caselog-material-field {
+    display: grid;
+    gap: 6px;
+}
+
+.caselog-material-field label {
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.caselog-material-required {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.caselog-material-required {
+    color: #b91c1c;
+}
+
+.caselog-material-field select,
+.caselog-material-field input {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-sizing: border-box;
+    min-height: 34px;
+    padding: 6px 8px;
+    width: 100%;
+}
+
+.caselog-material-field select[multiple] {
+    min-height: 92px;
+}
+
+.caselog-material-hint {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 10px 12px;
+}
+
+.caselog-material-footer {
+    align-items: center;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 14px 20px 18px;
+}
+
+.caselog-material-footer .spacer {
+    flex: 1;
+}
 </style>
 {% endblock %}
 
@@ -150,6 +326,68 @@
         </div>
     </div>
 </div>
+
+<div id="caselog-material-sync-modal" class="caselog-material-modal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="caselog-material-dialog">
+        <div class="caselog-material-header">
+            <div>
+                <h2>同步到案件材料</h2>
+                <p>只建立材料展示关系，不复制文件；保存日志后生效。取消同步只移除案件材料关系，日志附件仍保留。</p>
+            </div>
+            <button type="button" class="caselog-material-close" id="caselog-material-sync-close">&times;</button>
+        </div>
+
+        <div class="caselog-material-body">
+            <div class="caselog-material-field">
+                <label for="caselog-material-category">材料大类</label>
+                <select id="caselog-material-category"></select>
+            </div>
+
+            <div class="caselog-material-field caselog-material-party-only">
+                <label for="caselog-material-side">方向</label>
+                <select id="caselog-material-side"></select>
+            </div>
+
+            <div class="caselog-material-field caselog-material-non-party-only">
+                <label for="caselog-material-authority">主管机关</label>
+                <select id="caselog-material-authority"></select>
+                <div class="caselog-material-hint" id="caselog-material-authority-empty" style="display:none;">
+                    当前案件没有主管机关，请先在案件编辑页添加主管机关。
+                </div>
+            </div>
+
+            <div class="caselog-material-field" id="caselog-material-type-field">
+                <label for="caselog-material-type">类型名称</label>
+                <select id="caselog-material-type"></select>
+                <div class="caselog-material-hint" id="caselog-material-type-empty" style="display:none;">
+                    暂无可选类型名称，请先维护材料类型。
+                </div>
+            </div>
+
+            <div class="caselog-material-field" id="caselog-material-custom-type-field" style="display:none;">
+                <label for="caselog-material-type-name">
+                    自定义类型名称
+                    <span class="caselog-material-required">选择“其它材料”时必填</span>
+                </label>
+                <input type="text" id="caselog-material-type-name" placeholder="例如：微信聊天记录、保全保险保函、执行线索材料">
+            </div>
+        </div>
+
+        <div class="caselog-material-footer">
+            <button type="button" class="caselog-material-unsync-btn" id="caselog-material-sync-remove">取消同步</button>
+            <span class="spacer"></span>
+            <button type="button" class="button" id="caselog-material-sync-cancel">关闭</button>
+            <button type="button" class="button default" id="caselog-material-sync-confirm">确认同步</button>
+        </div>
+    </div>
+</div>
+
+{{ caselog_material_categories_json|json_script:"caselog-material-categories-data" }}
+{{ caselog_material_sides_json|json_script:"caselog-material-sides-data" }}
+{{ caselog_material_parties_json|json_script:"caselog-material-parties-data" }}
+{{ caselog_material_authorities_json|json_script:"caselog-material-authorities-data" }}
+{{ caselog_material_types_json|json_script:"caselog-material-types-data" }}
+{{ caselog_material_options_url|json_script:"caselog-material-options-url" }}
 
 <script>
 function _caselogGetCSRFToken() {
@@ -790,9 +1028,498 @@ function _caselogInitAttachmentSubdirPicker() {
     });
 }
 
+function _caselogInitAttachmentMaterialSync() {
+    var modal = document.getElementById("caselog-material-sync-modal");
+    if (!modal) {
+        return;
+    }
+
+    var modalCategory = document.getElementById("caselog-material-category");
+    var modalSide = document.getElementById("caselog-material-side");
+    var modalAuthority = document.getElementById("caselog-material-authority");
+    var modalType = document.getElementById("caselog-material-type");
+    var modalCustomTypeField = document.getElementById("caselog-material-custom-type-field");
+    var modalTypeName = document.getElementById("caselog-material-type-name");
+    var modalAuthorityEmpty = document.getElementById("caselog-material-authority-empty");
+    var modalTypeEmpty = document.getElementById("caselog-material-type-empty");
+    var closeBtn = document.getElementById("caselog-material-sync-close");
+    var cancelBtn = document.getElementById("caselog-material-sync-cancel");
+    var confirmBtn = document.getElementById("caselog-material-sync-confirm");
+    var removeBtn = document.getElementById("caselog-material-sync-remove");
+    var activeCheckInput = null;
+    var materialCategories = _caselogReadJsonScript("caselog-material-categories-data", []);
+    var materialSides = _caselogReadJsonScript("caselog-material-sides-data", []);
+    var materialParties = _caselogReadJsonScript("caselog-material-parties-data", []);
+    var materialAuthorities = _caselogReadJsonScript("caselog-material-authorities-data", []);
+    var materialTypes = _caselogReadJsonScript("caselog-material-types-data", []);
+    var materialOptionsUrl = _caselogReadJsonValue("caselog-material-options-url", "");
+    var materialOptionsCaseId = getCurrentCaseId();
+    var materialOptionsLoading = false;
+
+    function _caselogReadJsonScript(id, fallback) {
+        var el = document.getElementById(id);
+        if (!el) {
+            return fallback;
+        }
+        try {
+            var parsed = JSON.parse(el.textContent || "[]");
+            if (typeof parsed === "string") {
+                return JSON.parse(parsed || "[]");
+            }
+            return parsed;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function _caselogReadJsonValue(id, fallback) {
+        var el = document.getElementById(id);
+        if (!el) {
+            return fallback;
+        }
+        try {
+            return JSON.parse(el.textContent || "null") || fallback;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function dispatchChange(input) {
+        if (!input) {
+            return;
+        }
+        var evt = document.createEvent("HTMLEvents");
+        evt.initEvent("change", true, true);
+        input.dispatchEvent(evt);
+    }
+
+    function getRow(input) {
+        return input ? input.closest("tr, .inline-related, .form-row") : null;
+    }
+
+    function getFieldCell(row, fieldName) {
+        return row ? row.querySelector(".field-" + fieldName) : null;
+    }
+
+    function getRowField(row, fieldName) {
+        return row ? row.querySelector('[name$="-' + fieldName + '"]') : null;
+    }
+
+    function getCurrentCaseId() {
+        var caseField = document.getElementById("id_case");
+        return caseField ? (caseField.value || "").trim() : "";
+    }
+
+    function setSingleValue(input, value) {
+        if (!input) {
+            return;
+        }
+        input.value = value || "";
+        dispatchChange(input);
+    }
+
+    function setHiddenMultipleValue(input, values) {
+        setSingleValue(input, values.filter(Boolean).join(","));
+    }
+
+    function hiddenValues(row, fieldName) {
+        var value = (getRowField(row, fieldName) || {}).value || "";
+        return value.split(",").map(function(part) { return part.trim(); }).filter(Boolean);
+    }
+
+    function appendOption(select, item, selectedValues) {
+        var option = document.createElement("option");
+        option.value = String(item.value || "");
+        option.textContent = item.label || "";
+        option.dataset.category = item.category || "";
+        option.dataset.side = item.side || "";
+        option.dataset.name = item.name || "";
+        option.dataset.isOther = item.is_other || "";
+        option.selected = selectedValues.indexOf(String(item.value || "")) !== -1;
+        select.appendChild(option);
+    }
+
+    function renderOptions(target, items, selectedValues, includeBlank) {
+        target.innerHTML = "";
+        if (includeBlank) {
+            appendOption(target, { value: "", label: "请选择" }, selectedValues);
+        }
+        items.forEach(function(item) {
+            appendOption(target, item, selectedValues);
+        });
+    }
+
+    function selectableValues(select) {
+        return Array.prototype.slice.call(select.options)
+            .filter(function(option) { return option.value && !option.hidden; })
+            .map(function(option) { return option.value; });
+    }
+
+    function lookupLabel(items, value) {
+        var normalized = String(value || "");
+        for (var i = 0; i < items.length; i++) {
+            if (String(items[i].value || "") === normalized) {
+                return items[i].label || "";
+            }
+        }
+        return "";
+    }
+
+    function lookupLabels(items, values) {
+        return values.map(function(value) {
+            return lookupLabel(items, value);
+        }).filter(Boolean);
+    }
+
+    function typeLabel(row) {
+        var typeName = getRowField(row, "material_type_name");
+        if (typeName && typeName.value.trim()) {
+            return typeName.value.trim();
+        }
+        var typeId = (getRowField(row, "material_type") || {}).value || "";
+        var label = lookupLabel(materialTypes, typeId);
+        var parts = label.split("-");
+        return (parts[parts.length - 1] || label).trim();
+    }
+
+    function isTypeOptionForCategory(option, category) {
+        if (!option || !option.value) {
+            return true;
+        }
+        return !category || !option.dataset.category || option.dataset.category === category;
+    }
+
+    function refreshTypeOptions() {
+        var category = modalCategory.value || "";
+        var visibleCount = 0;
+        Array.prototype.slice.call(modalType.options).forEach(function(option) {
+            var isVisible = isTypeOptionForCategory(option, category);
+            option.hidden = !isVisible;
+            if (option.value && isVisible) {
+                visibleCount += 1;
+            }
+        });
+        if (modalType.selectedOptions.length && modalType.selectedOptions[0].hidden) {
+            modalType.value = "";
+        }
+        modalType.disabled = visibleCount === 0;
+        if (modalTypeEmpty) {
+            modalTypeEmpty.style.display = visibleCount === 0 ? "block" : "none";
+        }
+        refreshCustomTypeVisibility();
+    }
+
+    function isOtherTypeSelected() {
+        var selected = modalType.selectedOptions && modalType.selectedOptions.length ? modalType.selectedOptions[0] : null;
+        return Boolean(selected && selected.value && selected.dataset.isOther === "1");
+    }
+
+    function refreshCustomTypeVisibility() {
+        var show = isOtherTypeSelected();
+        if (modalCustomTypeField) {
+            modalCustomTypeField.style.display = show ? "grid" : "none";
+        }
+        if (!show) {
+            modalTypeName.value = "";
+        }
+    }
+
+    function refreshAuthorityOptions() {
+        if ((modalCategory.value || "") !== "non_party") {
+            return;
+        }
+        var authorityValues = selectableValues(modalAuthority);
+        if (!modalAuthority.value && authorityValues.length === 1) {
+            modalAuthority.value = authorityValues[0];
+        }
+        if (modalAuthorityEmpty) {
+            modalAuthorityEmpty.style.display = authorityValues.length ? "none" : "block";
+        }
+    }
+
+    function refreshModalVisibility() {
+        var category = modalCategory.value || "";
+        var showParty = category === "party";
+        var showNonParty = category === "non_party";
+        document.querySelectorAll(".caselog-material-party-only").forEach(function(el) {
+            el.style.display = showParty ? "grid" : "none";
+        });
+        document.querySelectorAll(".caselog-material-non-party-only").forEach(function(el) {
+            el.style.display = showNonParty ? "grid" : "none";
+        });
+        refreshTypeOptions();
+        refreshAuthorityOptions();
+    }
+
+    function applyMaterialPayload(payload, caseId) {
+        materialCategories = payload.categories || materialCategories;
+        materialSides = payload.sides || materialSides;
+        materialParties = payload.parties || [];
+        materialAuthorities = payload.authorities || [];
+        materialTypes = payload.types || [];
+        materialOptionsCaseId = caseId || "";
+    }
+
+    function ensureMaterialOptionsForCurrentCase(callback) {
+        var currentCaseId = getCurrentCaseId();
+        if (!currentCaseId) {
+            callback();
+            return;
+        }
+        if (currentCaseId === materialOptionsCaseId) {
+            callback();
+            return;
+        }
+        var url = String(materialOptionsUrl || "").replace("__CASE_ID__", encodeURIComponent(currentCaseId));
+        if (!url) {
+            _caselogShowToast("加载案件材料选项失败，请刷新页面后重试。", "error");
+            return;
+        }
+        materialOptionsLoading = true;
+        fetch(url, {
+            method: "GET",
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        })
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error("load failed");
+                }
+                return response.json();
+            })
+            .then(function(payload) {
+                applyMaterialPayload(payload, currentCaseId);
+                materialOptionsLoading = false;
+                callback();
+            })
+            .catch(function() {
+                _caselogShowToast("加载案件材料选项失败，请刷新页面后重试。", "error");
+            })
+            .finally(function() {
+                materialOptionsLoading = false;
+            });
+    }
+
+    function updateSummary(row, checkInput) {
+        var cell = getFieldCell(row, "sync_to_case_material");
+        if (!cell) {
+            return;
+        }
+        var status = cell.querySelector(".caselog-material-sync-status");
+        var action = cell.querySelector(".caselog-material-sync-btn");
+        var unsync = cell.querySelector(".caselog-material-unsync-btn");
+        if (!status || !action || !unsync) {
+            return;
+        }
+
+        if (!checkInput.checked) {
+            status.textContent = "未同步到案件材料";
+            status.classList.remove("is-synced");
+            action.textContent = "同步到案件材料";
+            unsync.style.display = "none";
+            return;
+        }
+
+        var category = getRowField(row, "material_category");
+        var side = getRowField(row, "material_side");
+        var authority = getRowField(row, "material_supervising_authority");
+        var partyLabels = lookupLabels(materialParties, hiddenValues(row, "material_parties"));
+        var parts = [];
+        if (category && category.value === "party") {
+            parts.push(lookupLabel(materialSides, side ? side.value : "") || "当事人材料");
+            parts.push(typeLabel(row) || "待选材料类型");
+            if (partyLabels.length) {
+                parts.push(partyLabels.join("、"));
+            }
+        } else if (category && category.value === "non_party") {
+            parts.push("非当事人材料");
+            parts.push(typeLabel(row) || "待选材料类型");
+            parts.push(lookupLabel(materialAuthorities, authority ? authority.value : "") || "待选主管机关");
+        } else {
+            parts.push("待完善同步信息");
+        }
+
+        status.textContent = "已同步：" + parts.filter(Boolean).join(" / ");
+        status.classList.add("is-synced");
+        action.textContent = "修改同步";
+        unsync.style.display = "";
+    }
+
+    function openModal(checkInput) {
+        var row = getRow(checkInput);
+        if (!row) {
+            return;
+        }
+        if (!getCurrentCaseId()) {
+            _caselogShowToast("请先选择案件，再同步案件材料。", "error");
+            return;
+        }
+        activeCheckInput = checkInput;
+        ensureMaterialOptionsForCurrentCase(function() {
+            if (!activeCheckInput) {
+                return;
+            }
+            renderOptions(modalCategory, materialCategories, [(getRowField(row, "material_category") || {}).value || ""], true);
+            renderOptions(modalSide, materialSides, [(getRowField(row, "material_side") || {}).value || ""], true);
+            renderOptions(modalAuthority, materialAuthorities, [(getRowField(row, "material_supervising_authority") || {}).value || ""], true);
+            renderOptions(modalType, materialTypes, [(getRowField(row, "material_type") || {}).value || ""], true);
+            modalTypeName.value = (getRowField(row, "material_type_name") || {}).value || "";
+            refreshModalVisibility();
+            removeBtn.style.display = checkInput.checked ? "" : "none";
+            modal.style.display = "flex";
+        });
+    }
+
+    function closeModal() {
+        modal.style.display = "none";
+        activeCheckInput = null;
+    }
+
+    function validateModal() {
+        var category = modalCategory.value || "";
+        if (!category) {
+            _caselogShowToast("请选择材料大类", "error");
+            return false;
+        }
+        if (category === "party" && !modalSide.value) {
+            _caselogShowToast("请选择当事人方向", "error");
+            return false;
+        }
+        if (category === "non_party" && !modalAuthority.value) {
+            _caselogShowToast("请选择主管机关", "error");
+            return false;
+        }
+        if (!modalType.value) {
+            _caselogShowToast("请选择类型名称", "error");
+            return false;
+        }
+        if (isOtherTypeSelected() && !modalTypeName.value.trim()) {
+            _caselogShowToast("选择其它材料时，请填写自定义类型名称", "error");
+            return false;
+        }
+        if (modalType.value && !isTypeOptionForCategory(modalType.selectedOptions[0], category)) {
+            _caselogShowToast("类型名称与材料大类不一致", "error");
+            return false;
+        }
+        return true;
+    }
+
+    function confirmSync() {
+        if (!activeCheckInput || !validateModal()) {
+            return;
+        }
+
+        var row = getRow(activeCheckInput);
+        var category = modalCategory.value || "";
+        activeCheckInput.checked = true;
+        dispatchChange(activeCheckInput);
+        setSingleValue(getRowField(row, "material_category"), category);
+        setSingleValue(getRowField(row, "material_side"), category === "party" ? modalSide.value : "");
+        setHiddenMultipleValue(getRowField(row, "material_parties"), []);
+        setSingleValue(
+            getRowField(row, "material_supervising_authority"),
+            category === "non_party" ? modalAuthority.value : ""
+        );
+        setSingleValue(getRowField(row, "material_type"), modalType.value);
+        setSingleValue(getRowField(row, "material_type_name"), isOtherTypeSelected() ? modalTypeName.value.trim() : "");
+        updateSummary(row, activeCheckInput);
+        closeModal();
+    }
+
+    function removeSync() {
+        if (!activeCheckInput) {
+            return;
+        }
+        if (!window.confirm("确认取消同步？保存日志后只会移除案件材料关系，日志附件仍保留。")) {
+            return;
+        }
+        var row = getRow(activeCheckInput);
+        activeCheckInput.checked = false;
+        dispatchChange(activeCheckInput);
+        updateSummary(row, activeCheckInput);
+        closeModal();
+    }
+
+    function bindRow(checkInput) {
+        if (!checkInput || checkInput.dataset.caselogMaterialSyncBound === "true") {
+            return;
+        }
+        if ((checkInput.name || "").indexOf("__prefix__") !== -1) {
+            return;
+        }
+
+        checkInput.dataset.caselogMaterialSyncBound = "true";
+        var row = getRow(checkInput);
+        var cell = getFieldCell(row, "sync_to_case_material");
+        if (!row || !cell) {
+            return;
+        }
+
+        checkInput.style.display = "none";
+        var control = document.createElement("div");
+        control.className = "caselog-material-sync-control";
+        var status = document.createElement("div");
+        status.className = "caselog-material-sync-status";
+        var actions = document.createElement("div");
+        actions.className = "caselog-material-sync-actions";
+        var action = document.createElement("button");
+        action.type = "button";
+        action.className = "caselog-material-sync-btn";
+        var unsync = document.createElement("button");
+        unsync.type = "button";
+        unsync.className = "caselog-material-unsync-btn";
+        unsync.textContent = "取消同步";
+
+        actions.appendChild(action);
+        actions.appendChild(unsync);
+        control.appendChild(status);
+        control.appendChild(actions);
+        cell.appendChild(control);
+
+        action.addEventListener("click", function() {
+            openModal(checkInput);
+        });
+        unsync.addEventListener("click", function() {
+            activeCheckInput = checkInput;
+            removeSync();
+        });
+
+        checkInput.addEventListener("change", function() {
+            updateSummary(row, checkInput);
+        });
+        updateSummary(row, checkInput);
+    }
+
+    function bindAll() {
+        document.querySelectorAll('input[name$="-sync_to_case_material"]').forEach(bindRow);
+    }
+
+    bindAll();
+    window.setTimeout(bindAll, 50);
+    window.setTimeout(bindAll, 300);
+
+    var observer = new MutationObserver(function() {
+        bindAll();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    modalCategory.addEventListener("change", refreshModalVisibility);
+    modalType.addEventListener("change", refreshCustomTypeVisibility);
+    confirmBtn.addEventListener("click", confirmSync);
+    removeBtn.addEventListener("click", removeSync);
+    closeBtn.addEventListener("click", closeModal);
+    cancelBtn.addEventListener("click", closeModal);
+    modal.addEventListener("click", function(event) {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+}
+
 function _caselogInit() {
     _caselogAddParseButton();
     _caselogInitAttachmentSubdirPicker();
+    _caselogInitAttachmentMaterialSync();
 }
 
 if (document.readyState === "loading") {
