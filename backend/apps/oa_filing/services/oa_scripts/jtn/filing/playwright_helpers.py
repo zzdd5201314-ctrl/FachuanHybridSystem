@@ -11,13 +11,13 @@ from playwright.sync_api import FrameLocator, Page
 
 from .constants import (
     _AJAX_WAIT,
+    _CUSTOMER_TYPE_MAP,
+    _CUSTOMER_TYPE_SUB_MAP,
     _MEDIUM_WAIT,
     _SHORT_WAIT,
     _XPATH_CREATE_NEW_BTN,
     _XPATH_PERSONAL_TAB,
     _XPATH_SEARCH_BTN,
-    _CUSTOMER_TYPE_MAP,
-    _CUSTOMER_TYPE_SUB_MAP,
 )
 from .filing_models import ClientInfo, _gender_from_id_number
 

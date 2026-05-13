@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from django.utils.translation import gettext_lazy as _
 from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 
-from .jtn_http_client import _CASE_LIST_URL, _HTTP_HEADERS
+from .http_client import _CASE_LIST_URL, _HTTP_HEADERS
 
 logger = logging.getLogger("apps.oa_filing.jtn_case_import")
 

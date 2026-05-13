@@ -13,13 +13,9 @@ import httpx
 from django.utils.translation import gettext_lazy as _
 from playwright.sync_api import Browser, BrowserContext, Frame, Page, Playwright, sync_playwright
 
-from ..jtn_case_import_models import (
-    OACaseData,
-    OAListCaseCandidate,
-    CaseSearchItem,
-)
-from .. import jtn_case_html_parser as html_parser
-from .jtn_http_client import (
+from .. import html_parser
+from ..models import CaseSearchItem, OACaseData, OAListCaseCandidate
+from .http_client import (
     _AJAX_WAIT,
     _BASE_URL,
     _CASE_LIST_URL,
