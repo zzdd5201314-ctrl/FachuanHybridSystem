@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from apps.client.models import Client
 from apps.oa_filing.models import ClientImportPhase, ClientImportSession, ClientImportStatus
-from apps.oa_filing.services.oa_scripts.jtn_client_import import OACustomerData
+from apps.oa_filing.services.oa_scripts.jtn.client_import import OACustomerData
 
 if TYPE_CHECKING:
     from apps.organization.models import AccountCredential
@@ -46,7 +46,7 @@ class ClientImportService:
         """执行导入流程。"""
         import django
 
-        from apps.oa_filing.services.oa_scripts.jtn_client_import import JtnClientImportScript
+        from apps.oa_filing.services.oa_scripts.jtn.client_import import JtnClientImportScript
 
         logger.info("开始导入客户，session_id=%d headless=%s limit=%s", self._session.id, headless, limit)
 

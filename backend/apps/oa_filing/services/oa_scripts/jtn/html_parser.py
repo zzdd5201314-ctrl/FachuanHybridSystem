@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 
 from lxml import html as lxml_html
 
-from .jtn_case_import_models import (
+from .models import (
     OAConflictData,
     OACaseCustomerData,
     OACaseData,

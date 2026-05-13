@@ -8,15 +8,15 @@ from typing import Any, Callable, Generator
 import httpx
 from playwright.sync_api import Browser, BrowserContext, Page, Playwright
 
-from ..jtn_case_import_models import (
+from ..models import (
     OACaseData,
     OAListCaseCandidate,
     CaseListFormState,
 )
-from .jtn_http_client import JtnHttpClientMixin
-from .jtn_sso_handler import JtnSsoHandlerMixin
-from .jtn_playwright_browser import JtnPlaywrightBrowserMixin
-from .jtn_detail_extractor import JtnDetailExtractorMixin
+from .http_client import JtnHttpClientMixin
+from .sso_handler import JtnSsoHandlerMixin
+from .playwright_browser import JtnPlaywrightBrowserMixin
+from .detail_extractor import JtnDetailExtractorMixin
 
 logger = logging.getLogger("apps.oa_filing.jtn_case_import")
 

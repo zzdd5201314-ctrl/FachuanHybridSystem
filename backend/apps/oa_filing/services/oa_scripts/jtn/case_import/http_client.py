@@ -11,13 +11,13 @@ from urllib.parse import urljoin
 import httpx
 from lxml import html as lxml_html
 
-from ..jtn_case_import_models import (
+from ..models import (
     OACaseData,
     OAListCaseCandidate,
     CaseListFormState,
     CaseSearchItem,
 )
-from .. import jtn_case_html_parser as html_parser
+from .. import html_parser
 
 logger = logging.getLogger("apps.oa_filing.jtn_case_import")
 
