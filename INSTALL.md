@@ -33,7 +33,7 @@ cd FachuanHybridSystem/backend
 # 2) 配置环境变量
 cp .env.example .env
 # 必须修改 DJANGO_SECRET_KEY，生成命令：
-#   python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+#   python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 
 # 3) 构建并启动（首次会下载 Playwright 浏览器）
 docker compose up -d
@@ -113,7 +113,7 @@ sudo -u postgres psql -c "CREATE DATABASE fachuan_dev OWNER postgres;"
 
 ```bash
 # 1) 克隆项目
-git clone --depth 1 git@github.com:Lawyer-ray/FachuanHybridSystem.git
+git clone --depth 1 https://github.com/Lawyer-ray/FachuanHybridSystem.git
 cd FachuanHybridSystem/backend
 
 # 2) 安装 uv（若未安装）
@@ -170,7 +170,7 @@ make run-port PORT=8080
 
 ```bash
 # 1) 克隆项目
-git clone --depth 1 git@github.com:Lawyer-ray/FachuanHybridSystem.git
+git clone --depth 1 https://github.com/Lawyer-ray/FachuanHybridSystem.git
 cd FachuanHybridSystem/backend
 
 # 2) 安装 uv（若未安装）
@@ -178,8 +178,8 @@ cd FachuanHybridSystem/backend
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 3) 安装系统依赖（ddddocr / OpenCV 需要，Docker 部署已内置）
-# Ubuntu / Debian:
-sudo apt-get install -y libgl1 libglib2.0-0t64
+# Ubuntu / Debian（Ubuntu 22.04 用 libglib2.0-0，24.04+ 用 libglib2.0-0t64）:
+sudo apt-get install -y libgl1 libglib2.0-0t64 || sudo apt-get install -y libgl1 libglib2.0-0
 # CentOS / RHEL:
 # sudo yum install -y mesa-libGL glib2
 
