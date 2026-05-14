@@ -272,7 +272,7 @@ class CourtSMSAdminBase(admin.ModelAdmin):
     @admin.display(description=_("关联文书"))
     def documents_display(self, obj: CourtSMS) -> SafeString | str:
         """关联文书显示（支持手动重命名，仅允许修改文件名）"""
-        references = CourtSMSDocumentReferenceService().collect(obj)
+        references = CourtSMSDocumentReferenceService().collect(obj, perm_open_access=True)
         if not references:
             return "-"
 

@@ -29,7 +29,7 @@ class CourtSMSDocumentReference:
 class CourtSMSDocumentReferenceService:
     """聚合 CourtSMS 文书引用（多来源 + 去重）。"""
 
-    def collect(self, sms: CourtSMS) -> list[CourtSMSDocumentReference]:
+    def collect(self, sms: CourtSMS, *, perm_open_access: bool = False) -> list[CourtSMSDocumentReference]:
         refs: list[CourtSMSDocumentReference] = []
         seen_paths: set[str] = set()
         seen_names: set[str] = set()
@@ -39,7 +39,12 @@ class CourtSMSDocumentReferenceService:
         self._collect_from_sms_paths(sms, refs, seen_paths, seen_names)
         self._collect_from_task_result(sms, refs, seen_paths, seen_names)
         self._collect_from_case_log_attachments(sms, refs, seen_paths, seen_names, storage_service)
-        self._enrich_with_archive_diagnostics(sms, refs, storage_service)
+        self._enrich_with_archive_diagnostics(
+            sms,
+            refs,
+            storage_service,
+            perm_open_access=perm_open_access,
+        )
 
         return refs
 
@@ -195,6 +200,8 @@ class CourtSMSDocumentReferenceService:
         sms: CourtSMS,
         refs: list[CourtSMSDocumentReference],
         storage_service: CaseLogAttachmentStorageService,
+        *,
+        perm_open_access: bool = False,
     ) -> None:
         if not refs or not getattr(sms, "case_id", None):
             return
@@ -246,6 +253,7 @@ class CourtSMSDocumentReferenceService:
                 file_name=ref.display_name,
                 source_scene="court_sms_attachment",
                 recommendation_file_name=recommendation_name,
+                perm_open_access=perm_open_access,
             )
             refs[index] = CourtSMSDocumentReference(
                 display_name=ref.display_name,
