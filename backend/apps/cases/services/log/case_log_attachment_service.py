@@ -51,7 +51,6 @@ class CaseLogAttachmentService:
             saved = self.storage_service.save_attachment(
                 f,
                 case_id=log.case_id,
-                target_subdir="案件日志附件",
                 allowed_extensions=list(CASE_LOG_ALLOWED_EXTENSIONS),
                 max_size_bytes=int(CASE_LOG_MAX_FILE_SIZE),
             )

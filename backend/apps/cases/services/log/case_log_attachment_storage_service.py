@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from apps.core.services import BusinessFileStorageService, ResolvedBusinessFile, StoredBusinessFile
+from apps.core.services.system_config_service import SystemConfigService
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,9 @@ class CaseLogAttachmentStorageService:
         normalized = str(target_subdir or "").strip()
         if normalized:
             return normalized
+        auto_subdir = self._is_auto_subdir_enabled()
+        if not auto_subdir:
+            return ""
         recommendation = self.recommend_attachment_subdir(
             case_id=case_id,
             log=log,
@@ -78,6 +82,14 @@ class CaseLogAttachmentStorageService:
             perm_open_access=perm_open_access,
         )
         return str(recommendation.get("recommended_subdir") or self.DEFAULT_SUBDIR)
+
+    @staticmethod
+    def _is_auto_subdir_enabled() -> bool:
+        return SystemConfigService().get_value("CASE_LOG_ATTACHMENT_AUTO_SUBDIR", "true").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
 
     def save_attachment(
         self,
@@ -93,13 +105,14 @@ class CaseLogAttachmentStorageService:
         recommendation_file_name: str = "",
         perm_open_access: bool = False,
     ) -> StoredBusinessFile:
+        enabled = self._is_auto_subdir_enabled()
         resolved_recommendation_file_name = str(
             recommendation_file_name or getattr(uploaded_file, "name", "") or ""
         ).strip()
         return self._business_storage_service.save_uploaded_file(
             uploaded_file=uploaded_file,
             purpose="log_attachment",
-            case_id=case_id,
+            case_id=case_id if enabled else None,
             target_subdir=self._resolve_target_subdir(
                 case_id=case_id,
                 target_subdir=target_subdir,
@@ -125,10 +138,11 @@ class CaseLogAttachmentStorageService:
         case_id: int,
         target_subdir: str = "",
     ) -> StoredBusinessFile:
+        enabled = self._is_auto_subdir_enabled()
         return self._business_storage_service.move_existing_file(
             attachment,
             purpose="log_attachment",
-            case_id=case_id,
+            case_id=case_id if enabled else None,
             target_subdir=self._resolve_target_subdir(
                 case_id=case_id,
                 target_subdir=target_subdir,

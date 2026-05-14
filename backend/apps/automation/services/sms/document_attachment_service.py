@@ -487,7 +487,7 @@ class DocumentAttachmentService:
                 if not title:
                     title = "司法文书"
 
-            # 生成正确格式的文件名
+            # 使用模板服务生成正确格式的文件名
             fixed_filename = f"{title}（{case_name}）_{date_str}收.pdf"
 
             logger.info(f"文件名格式修正: {filename} -> {fixed_filename}")

@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.exceptions import BusinessException, ValidationException
+from apps.core.services.filename_template_service import FilenameTemplateService
 from apps.evidence.models import EvidenceList
 
 
@@ -147,7 +148,12 @@ class PDFMergeWorkflow:
         elif title.startswith("补充证据清单"):
             list_suffix = title[6:]
         version = evidence_list.export_version
-        filename = f"证据明细{list_suffix}({case_name})V{version}_{date_str}.pdf"
+        filename = (
+            FilenameTemplateService.render_generated_doc(
+                doc_type=f"证据明细{list_suffix}", case_name=case_name, version=str(version), date=date_str
+            )
+            + ".pdf"
+        )
         return filename
 
     def get_pdf_page_count(self, pdf_input: Any) -> int:

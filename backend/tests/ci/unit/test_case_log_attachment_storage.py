@@ -91,7 +91,11 @@ def test_save_attachment_passes_file_name_into_recommendation() -> None:
     service = CaseLogAttachmentStorageService(business_storage_service=business_storage)
 
     recommend_mock = Mock(return_value={"recommended_subdir": "一审/1-立案材料/1-起诉材料"})
-    with patch.object(service, "recommend_attachment_subdir", recommend_mock):
+    with (
+        patch.object(service, "recommend_attachment_subdir", recommend_mock),
+        patch("apps.cases.services.log.case_log_attachment_storage_service.SystemConfigService") as mock_config,
+    ):
+        mock_config.return_value.get_value.return_value = "true"
         uploaded_file = SimpleNamespace(name="起诉书签字版.pdf")
         service.save_attachment(
             uploaded_file,
@@ -126,6 +130,37 @@ def test_recommend_bound_subdir_for_log_attachment_uses_source_subfolder(tmp_pat
     assert result["reason"] == "source_subfolder_match"
 
 
+def test_save_attachment_skips_subdir_when_auto_subdir_disabled() -> None:
+    business_storage = Mock()
+    business_storage.save_uploaded_file.return_value = SimpleNamespace(
+        legacy_file_path="D:/cases/test.pdf",
+        root_type="case_folder",
+        subdir_path="",
+        relative_file_path="test.pdf",
+        original_filename="test.pdf",
+    )
+    service = CaseLogAttachmentStorageService(business_storage_service=business_storage)
+
+    recommend_mock = Mock()
+    with (
+        patch.object(service, "recommend_attachment_subdir", recommend_mock),
+        patch("apps.cases.services.log.case_log_attachment_storage_service.SystemConfigService") as mock_config,
+    ):
+        mock_config.return_value.get_value.return_value = "false"
+        uploaded_file = SimpleNamespace(name="test.pdf")
+        service.save_attachment(
+            uploaded_file,
+            case_id=10,
+            target_subdir="",
+        )
+
+    recommend_mock.assert_not_called()
+    kwargs = business_storage.save_uploaded_file.call_args.kwargs
+    assert kwargs["target_subdir"] == ""
+    assert kwargs["case_id"] is None
+    assert kwargs["purpose"] == "log_attachment"
+
+
 def test_save_attachment_uses_recommended_subdir_when_target_subdir_empty() -> None:
     business_storage = Mock()
     business_storage.save_uploaded_file.return_value = SimpleNamespace(
@@ -137,7 +172,11 @@ def test_save_attachment_uses_recommended_subdir_when_target_subdir_empty() -> N
     )
     service = CaseLogAttachmentStorageService(business_storage_service=business_storage)
 
-    with patch.object(service, "recommend_attachment_subdir", return_value={"recommended_subdir": "4-邮件往来"}):
+    with (
+        patch.object(service, "recommend_attachment_subdir", return_value={"recommended_subdir": "4-邮件往来"}),
+        patch("apps.cases.services.log.case_log_attachment_storage_service.SystemConfigService") as mock_config,
+    ):
+        mock_config.return_value.get_value.return_value = "true"
         uploaded_file = SimpleNamespace(name="test.pdf")
         service.save_attachment(
             uploaded_file,
