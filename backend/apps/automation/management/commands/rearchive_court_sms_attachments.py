@@ -159,6 +159,8 @@ class Command(BaseCommand):
             return {"skip_reason": "附件已在案件目录，无需重复归档"}
         if only_media and root_type != "media":
             return {"skip_reason": f"当前存储根为 {root_type}，默认只处理 media 附件"}
+        if not sms.case_id:
+            return {"skip_reason": "法院短信未绑定案件，无法计算推荐目录"}
 
         resolved = storage_service.resolve_attachment(attachment)
         if not resolved.exists or not resolved.abs_path:
@@ -192,6 +194,9 @@ class Command(BaseCommand):
         storage_service: CaseLogAttachmentStorageService,
         target_subdir: str,
     ) -> Any:
+        if not sms.case_id:
+            raise ValueError("法院短信未绑定案件，无法迁移附件")
+
         moved = storage_service.move_attachment(
             attachment,
             case_id=int(sms.case_id),

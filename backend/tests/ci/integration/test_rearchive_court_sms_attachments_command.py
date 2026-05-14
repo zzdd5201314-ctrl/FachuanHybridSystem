@@ -44,7 +44,7 @@ def _build_sms_fixture() -> tuple[LawFirm, Lawyer, Case, CaseLog, CourtSMS]:
     firm = LawFirm.objects.create(name="测试律所")
     actor = Lawyer.objects.create_user(
         username="rearchive-court-sms",
-        password="testpass123",
+        password="placeholder-password",
         law_firm=firm,
         is_admin=True,
     )

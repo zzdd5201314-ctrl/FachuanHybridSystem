@@ -125,7 +125,7 @@ def test_court_sms_detail_endpoint_recognizes_case_folder_attachment_archive_dia
     firm = LawFirm.objects.create(name="测试律所")
     actor = Lawyer.objects.create_user(
         username="court-sms-detail-case-folder",
-        password="testpass123",
+        password="placeholder-password",
         law_firm=firm,
         is_admin=True,
     )

@@ -18,7 +18,12 @@ def test_add_case_log_attachment_internal_imports_local_file_with_recommended_su
     tmp_path: Path,
 ) -> None:
     firm = LawFirm.objects.create(name="测试律所")
-    actor = Lawyer.objects.create_user(username="case-log-import", password="testpass123", law_firm=firm, is_admin=True)
+    actor = Lawyer.objects.create_user(
+        username="case-log-import",
+        password="placeholder-password",
+        law_firm=firm,
+        is_admin=True,
+    )
     case = Case.objects.create(name="测试案件", case_type="civil")
     log = CaseLog.objects.create(case=case, actor=actor, content="法院短信日志")
 
@@ -80,7 +85,7 @@ def test_add_case_log_attachment_internal_passes_recommendation_context(
     firm = LawFirm.objects.create(name="测试律所")
     actor = Lawyer.objects.create_user(
         username="case-log-context",
-        password="testpass123",
+        password="placeholder-password",
         law_firm=firm,
         is_admin=True,
     )

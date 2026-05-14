@@ -288,12 +288,6 @@ class CourtSMSAdminActions:
                 )
 
                 messages.success(request, f"短信已保存并开始处理!记录ID: {obj.id}")
-                if not _task_query_service.has_active_cluster():
-                    messages.warning(
-                        request,
-                        "短信已保存并入队，但当前未检测到正在运行的 qcluster，任务不会自动继续处理。"
-                        "请启动 `uv run python manage.py qcluster`，或稍后对该短信点击“重新处理”。",
-                    )
                 logger.info(
                     "管理员添加短信并触发处理: SMS ID=%s, Task ID=%s, 用户手填后6位=%s, User=%s",
                     obj.id,
