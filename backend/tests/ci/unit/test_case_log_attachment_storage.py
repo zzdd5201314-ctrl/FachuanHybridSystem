@@ -157,6 +157,8 @@ def test_save_attachment_skips_subdir_when_auto_subdir_disabled() -> None:
     recommend_mock.assert_not_called()
     kwargs = business_storage.save_uploaded_file.call_args.kwargs
     assert kwargs["target_subdir"] == ""
+    assert kwargs["case_id"] is None
+    assert kwargs["purpose"] == "log_attachment"
 
 
 def test_save_attachment_uses_recommended_subdir_when_target_subdir_empty() -> None:
