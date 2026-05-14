@@ -478,8 +478,13 @@ class PartyInfoHandlerMixin(FormUtilsMixin):
             # 回退：部分页面可能没有"添加其他组织"按钮，尝试"添加法人"
             logger.warning("未找到「添加其他组织」按钮，尝试「添加法人」")
             self._add_legal_person(
-                section_title=section_title, name=name, address=address,
-                uscc=uscc, legal_rep=legal_rep, phone=phone, agent_phone=agent_phone,
+                section_title=section_title,
+                name=name,
+                address=address,
+                uscc=uscc,
+                legal_rep=legal_rep,
+                phone=phone,
+                agent_phone=agent_phone,
             )
             return
         add_btn.evaluate("el => el.click()")

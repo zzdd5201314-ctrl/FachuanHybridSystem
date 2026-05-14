@@ -172,9 +172,7 @@ class CaseAdminViewsMixin:
         try:
             case = Case.objects.filter(pk=object_id).first()
             attachment = (
-                CaseLogAttachment.objects.select_related("log")
-                .filter(pk=attachment_id, log__case_id=object_id)
-                .first()
+                CaseLogAttachment.objects.select_related("log").filter(pk=attachment_id, log__case_id=object_id).first()
             )
             if not attachment:
                 return self._render_attachment_preview_error(

@@ -195,7 +195,9 @@ class BusinessFileStorageService:
             else:
                 f.write(uploaded_file.read())
 
-        relative_file_path = self._normalize_relative_path(str((Path(target.relative_dir) / filename).as_posix()), allow_empty=False)
+        relative_file_path = self._normalize_relative_path(
+            str((Path(target.relative_dir) / filename).as_posix()), allow_empty=False
+        )
         legacy_file_path = relative_file_path if target.root_type == "media" else str(target_abs.resolve())
         return StoredBusinessFile(
             root_type=target.root_type,

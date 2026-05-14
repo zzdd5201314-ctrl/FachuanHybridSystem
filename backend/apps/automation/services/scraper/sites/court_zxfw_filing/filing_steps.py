@@ -94,8 +94,7 @@ class FilingStepsMixin(FormUtilsMixin):
         try:
             # 尝试多种搜索框定位
             search_input = (
-                self.page.locator('input[placeholder*="搜索"]').first
-                or self.page.locator(".uni-input-input").first
+                self.page.locator('input[placeholder*="搜索"]').first or self.page.locator(".uni-input-input").first
             )
             search_input.click()
             self._random_wait(0.3, 0.5)

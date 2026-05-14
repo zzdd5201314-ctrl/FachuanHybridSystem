@@ -121,9 +121,7 @@ class CaseLogAttachmentInlineForm(forms.ModelForm[CaseLogAttachment]):
         material = None
         if self.instance and self.instance.pk:
             material = (
-                CaseMaterial.objects.filter(source_attachment_id=self.instance.pk)
-                .prefetch_related("parties")
-                .first()
+                CaseMaterial.objects.filter(source_attachment_id=self.instance.pk).prefetch_related("parties").first()
             )
         if not material:
             return

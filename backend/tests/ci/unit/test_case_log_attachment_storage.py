@@ -254,6 +254,7 @@ def test_list_bound_subdirs_falls_back_to_root_when_target_missing(tmp_path: Pat
     assert result["parent_path"] is None
     assert result["entries"] == [{"name": "一审", "relative_path": "一审"}]
 
+
 def test_list_bound_subdirs_uses_generated_case_business_root(db, tmp_path: Path) -> None:
     service = CaseFolderBindingService()
     case = Case.objects.create(name="案件1", case_type="civil")
