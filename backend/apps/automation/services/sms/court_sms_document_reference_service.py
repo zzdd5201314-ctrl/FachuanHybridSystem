@@ -203,7 +203,11 @@ class CourtSMSDocumentReferenceService:
         *,
         perm_open_access: bool = False,
     ) -> None:
-        if not refs or not getattr(sms, "case_id", None):
+        if not refs:
+            return
+
+        case_id = sms.case_id
+        if case_id is None:
             return
 
         attachment_by_abs_path: dict[str, object] = {}
@@ -248,7 +252,7 @@ class CourtSMSDocumentReferenceService:
 
             recommendation_name = original_name or ref.display_name
             recommendation = storage_service.recommend_attachment_subdir(
-                case_id=int(sms.case_id),
+                case_id=case_id,
                 log=getattr(sms, "case_log", None),
                 file_name=ref.display_name,
                 source_scene="court_sms_attachment",

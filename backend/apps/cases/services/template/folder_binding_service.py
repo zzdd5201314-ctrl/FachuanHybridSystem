@@ -1018,8 +1018,13 @@ class CaseFolderBindingService(FolderBindingCrudService):
 
     def _get_court_sms_stage_labels(self, case: Any | None) -> list[str]:
         current_stage = str(getattr(case, "current_stage", "") or "").strip()
-        if current_stage and current_stage in self.COURT_SMS_STAGE_LABELS:
-            return list(dict.fromkeys(self.COURT_SMS_STAGE_LABELS[current_stage]))
+        if current_stage:
+            try:
+                stage_key = CaseStage(current_stage)
+            except ValueError:
+                stage_key = None
+            if stage_key is not None and stage_key in self.COURT_SMS_STAGE_LABELS:
+                return list(dict.fromkeys(self.COURT_SMS_STAGE_LABELS[stage_key]))
 
         case_type = str(getattr(case, "case_type", "") or "").strip()
         if case_type == SimpleCaseType.EXECUTION:
