@@ -167,7 +167,7 @@ class TestModuleImports:
         assert BrowserProfile is not None
 
     def test_import_chrome_process(self) -> None:
-        from apps.core.services.browser import launch_chrome, kill_chrome, is_cdp_ready
+        from apps.core.services.browser import is_cdp_ready, kill_chrome, launch_chrome
 
         assert callable(launch_chrome)
         assert callable(kill_chrome)

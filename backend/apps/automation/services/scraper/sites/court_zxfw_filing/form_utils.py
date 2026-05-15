@@ -188,7 +188,9 @@ class FormUtilsMixin:
             )
             if found:
                 self.page.locator("[data-exact-fill='1']").fill(value)
-                self.page.evaluate("() => document.querySelector('[data-exact-fill]')?.removeAttribute('data-exact-fill')")
+                self.page.evaluate(
+                    "() => document.querySelector('[data-exact-fill]')?.removeAttribute('data-exact-fill')"
+                )
         self._random_wait(0.3, 0.5)
 
     def _select_dropdown(self, label_text: str, option_text: str, *, form: Any = None) -> bool:

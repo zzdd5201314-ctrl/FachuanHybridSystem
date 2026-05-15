@@ -576,11 +576,10 @@ def _run_filing(
     session_id: int | None = None,
 ) -> None:
     """在后台线程中执行立案"""
-    from apps.core.services.browser import create_browser
-
     from apps.automation.models import ScraperTaskStatus
     from apps.automation.services.scraper.sites.court_zxfw import CourtZxfwService
     from apps.automation.services.scraper.sites.court_zxfw_filing import CourtZxfwFilingService
+    from apps.core.services.browser import create_browser
 
     progress_logs: list[dict[str, str]] = []
     http_failure_reason = ""

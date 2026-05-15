@@ -776,11 +776,10 @@ def _run_guarantee(
     case_data: dict[str, Any],
     session_id: int | None,
 ) -> None:
-    from apps.core.services.browser import create_browser
-
     from apps.automation.models import ScraperTaskStatus
     from apps.automation.services.scraper.sites.court_zxfw import CourtZxfwService
     from apps.automation.services.scraper.sites.court_zxfw_guarantee import CourtZxfwGuaranteeService
+    from apps.core.services.browser import create_browser
 
     timing: dict[str, float] = {"overall_start": time.monotonic()}
 
