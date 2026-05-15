@@ -40,7 +40,7 @@ class BrowserService:
         *,
         use_anti_detection: bool = True,
         **kwargs: Any,
-    ) -> "BrowserContext":
+    ) -> BrowserContext:
         """获取同步浏览器上下文。
 
         Args:
