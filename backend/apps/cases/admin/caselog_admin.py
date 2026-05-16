@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.contrib import admin
 from django.forms import ModelForm
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -56,6 +56,11 @@ class CaseLogAdmin(BaseModelAdmin):
             if user_id is not None:
                 obj.actor_id = user_id
         super().save_model(request, obj, form, change)
+
+    def response_add(self, request: HttpRequest, obj: CaseLog, post_url_continue: str | None = None) -> HttpResponse:
+        if "_continue" in request.POST or "_addanother" in request.POST:
+            return super().response_add(request, obj, post_url_continue)
+        return HttpResponseRedirect(reverse("admin:cases_case_detail", args=[obj.case_id]))
 
 
 @admin.register(CaseLogAttachment)
