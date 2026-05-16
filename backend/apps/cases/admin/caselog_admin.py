@@ -20,7 +20,7 @@ class CaseLogAttachmentInline(BaseTabularInline):
 class ReminderInline(BaseTabularInline):
     model = CaseLog.reminders.rel.related_model  # type: ignore[assignment]  # Reminder
     extra = 0
-    fields = ("reminder_type", "content", "due_at")
+    fields = ("reminder_type", "content", "due_at", "include_in_important_time")
     verbose_name = "重要日期提醒"
     verbose_name_plural = "重要日期提醒"
     ordering = ("due_at",)

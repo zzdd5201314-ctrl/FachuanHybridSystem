@@ -1,0 +1,47 @@
+{% load i18n %}
+<div class="info-card full-width">
+    <div class="card-header">
+        <span class="card-icon">📅</span>
+        <h3 class="card-title">{% trans "重要时间" %}</h3>
+    </div>
+    <div class="card-content">
+        {% if important_times %}
+        <div class="table-responsive">
+            <table class="data-table important-time-table">
+                <thead>
+                    <tr>
+                        <th>{% trans "到期时间" %}</th>
+                        <th>{% trans "状态" %}</th>
+                        <th>{% trans "时间类型" %}</th>
+                        <th>{% trans "提醒事项" %}</th>
+                        <th>{% trans "来源" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in important_times %}
+                    <tr class="important-time-row">
+                        <td class="important-time-due">{{ item.due_at_display }}</td>
+                        <td>
+                            <span class="tag important-time-status important-time-status-{{ item.status }}">
+                                {{ item.status_label }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="tag">{{ item.reminder_type_label|default:item.reminder_type }}</span>
+                        </td>
+                        <td>{{ item.content }}</td>
+                        <td>
+                            <span class="tag important-time-source important-time-source-{{ item.source }}">
+                                {{ item.source_label }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">{% trans "暂无重要时间" %}</p>
+        {% endif %}
+    </div>
+</div>

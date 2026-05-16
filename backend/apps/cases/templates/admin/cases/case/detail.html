@@ -75,6 +75,9 @@
             <button type="button" @click="activeTab = 'progress'" :class="{ active: activeTab === 'progress' }">
                 {% trans "案件进展" %}
             </button>
+            <button type="button" @click="activeTab = 'important_time'" :class="{ active: activeTab === 'important_time' }">
+                {% trans "重要时间" %}
+            </button>
             <button type="button" @click="activeTab = 'documents'" :class="{ active: activeTab === 'documents' }">
                 {% trans "文档生成" %}
             </button>
@@ -108,6 +111,10 @@
             <!-- 案件进展标签页 -->
             <div x-show="activeTab === 'progress'" x-transition>
                 {% include "admin/cases/case/partials/progress.html" %}
+            </div>
+
+            <div x-show="activeTab === 'important_time'" x-transition>
+                {% include "admin/cases/case/partials/important_time.html" %}
             </div>
 
             <!-- 文档生成标签页 -->

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import logging
 from importlib import import_module
+from datetime import datetime
 from typing import TYPE_CHECKING, Protocol, TypedDict, cast
 
 from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.cases.models import Case, CaseAssignment, CaseNumber, CaseParty, SupervisingAuthority
@@ -59,6 +61,19 @@ class AuthorityPayload(TypedDict):
     name: str
     authority_type: str
     authority_type_display: str
+
+
+class ImportantTimePayload(TypedDict):
+    id: int
+    reminder_type: str
+    reminder_type_label: str
+    content: str
+    due_at: datetime
+    due_at_display: str
+    status: str
+    status_label: str
+    source: str
+    source_label: str
 
 
 class CaseMaterialServiceProtocol(Protocol):
@@ -294,6 +309,7 @@ class CaseAdminService:
         from django.db.models import Prefetch
 
         from apps.cases.models import CaseLog
+        from apps.reminders.models import Reminder
 
         try:
             return (
@@ -309,8 +325,17 @@ class CaseAdminService:
                     Prefetch(
                         "logs",
                         queryset=CaseLog.objects.select_related("actor")
-                        .prefetch_related("attachments")
+                        .prefetch_related("attachments", "reminders")
                         .order_by("-created_at"),
+                    ),
+                    Prefetch(
+                        "reminders",
+                        queryset=Reminder.objects.filter(
+                            contract_id__isnull=True,
+                            case_log_id__isnull=True,
+                            include_in_important_time=True,
+                        ).order_by("due_at", "id"),
+                        to_attr="prefetched_case_important_times",
                     ),
                     "chats",
                     "contacts__authority",
@@ -319,6 +344,67 @@ class CaseAdminService:
             )
         except Case.DoesNotExist:
             return None
+
+    def build_important_times_for_detail(self, case: Case) -> list[ImportantTimePayload]:
+        from apps.reminders.models import ReminderType
+
+        important_times: list[ImportantTimePayload] = []
+
+        case_reminders = getattr(case, "prefetched_case_important_times", None)
+        if case_reminders is None:
+            case_reminders = case.reminders.filter(
+                contract_id__isnull=True,
+                case_log_id__isnull=True,
+                include_in_important_time=True,
+            ).order_by("due_at", "id")
+
+        for reminder in case_reminders:
+            important_times.append(self._build_important_time_item(reminder=reminder, source="manual"))
+
+        for log in case.logs.all():
+            for reminder in log.reminders.all():
+                if not getattr(reminder, "include_in_important_time", False):
+                    continue
+                important_times.append(self._build_important_time_item(reminder=reminder, source="log"))
+
+        return sorted(important_times, key=lambda item: (item["due_at"], item["id"]))
+
+    def _build_important_time_item(self, *, reminder: object, source: str) -> ImportantTimePayload:
+        from apps.reminders.models import ReminderType
+
+        due_at = getattr(reminder, "due_at")
+        due_local = timezone.localtime(due_at)
+        status, status_label = self._build_important_time_status(due_local)
+        reminder_type = str(getattr(reminder, "reminder_type", "") or "")
+        try:
+            reminder_type_label = str(ReminderType(reminder_type).label)
+        except ValueError:
+            reminder_type_label = reminder_type
+
+        return {
+            "id": int(getattr(reminder, "id")),
+            "reminder_type": reminder_type,
+            "reminder_type_label": reminder_type_label,
+            "content": str(getattr(reminder, "content", "") or ""),
+            "due_at": due_at,
+            "due_at_display": due_local.strftime("%Y-%m-%d %H:%M"),
+            "status": status,
+            "status_label": status_label,
+            "source": source,
+            "source_label": str(_("日志提醒")) if source == "log" else str(_("手动添加")),
+        }
+
+    def _build_important_time_status(self, due_local: datetime) -> tuple[str, str]:
+        today = timezone.localdate()
+        days_delta = (due_local.date() - today).days
+
+        if days_delta < 0:
+            return "overdue", "已逾期"
+        if days_delta == 0:
+            return "today", "今日到期"
+        if days_delta <= 7:
+            return "soon", "即将到期"
+        return "upcoming", "未到期"
 
     def build_materials_view_payload(
         self,

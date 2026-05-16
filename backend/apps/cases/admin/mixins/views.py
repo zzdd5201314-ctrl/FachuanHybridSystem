@@ -273,6 +273,7 @@ class CaseAdminViewsMixin:
                 "has_our_parties": bool(our_parties),
                 "our_parties_count": len(our_parties),
                 "case_materials_view": case_materials_view,
+                "important_times": service.build_important_times_for_detail(case),
                 "bound_templates": bound_templates,
                 "bound_templates_json": bound_templates_json,
                 "unified_templates_json": unified_templates_json,

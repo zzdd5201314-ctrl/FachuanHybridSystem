@@ -1281,6 +1281,33 @@
 .btn-danger:hover {
     background: #dc2626;
 }
+.important-time-due {
+    white-space: nowrap;
+}
+.important-time-status-overdue {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+.important-time-status-today {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+.important-time-status-soon {
+    background: #fef3c7;
+    color: #b45309;
+}
+.important-time-status-upcoming {
+    background: #dcfce7;
+    color: #15803d;
+}
+.important-time-source-manual {
+    background: #e5e7eb;
+    color: #374151;
+}
+.important-time-source-log {
+    background: #ede9fe;
+    color: #6d28d9;
+}
 .modal-overlay {
     position: fixed;
     top: 0;
