@@ -125,6 +125,23 @@
 </div>
 
 <script>
+function getImportantTimeCsrfToken() {
+    if (window.FachuanCSRF && window.FachuanCSRF.getToken) {
+        const token = window.FachuanCSRF.getToken();
+        if (token) return token;
+    }
+
+    const inputToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    if (inputToken) return inputToken;
+
+    const cookieMatch = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    if (cookieMatch && cookieMatch[1]) {
+        return decodeURIComponent(cookieMatch[1]);
+    }
+
+    return '';
+}
+
 function importantTimeApp() {
     return {
         showAddDialog: false,
@@ -157,9 +174,10 @@ function importantTimeApp() {
             try {
                 const resp = await fetch(`/api/v1/reminders/cases/${window.CASE_ID}/important-time`, {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': (window.FachuanCSRF && FachuanCSRF.getToken && FachuanCSRF.getToken()) || '',
+                        'X-CSRFToken': getImportantTimeCsrfToken(),
                     },
                     body: JSON.stringify({
                         reminder_type: this.form.reminder_type,
@@ -190,7 +208,8 @@ function removeImportantTime(btnEl) {
     btnEl.disabled = true;
     fetch(btnEl.dataset.removeUrl, {
         method: 'DELETE',
-        headers: { 'X-CSRFToken': (window.FachuanCSRF && FachuanCSRF.getToken && FachuanCSRF.getToken()) || '' }
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': getImportantTimeCsrfToken() }
     }).then(function(resp) {
         if (!resp.ok) {
             throw new Error(resp.statusText || 'Request failed');
