@@ -117,7 +117,26 @@ class EvidenceListAdminViewsMixin(EvidenceListAdminServiceMixin):
                 name="documents_evidencelist_recount_pages",
             ),
         ]
-        return custom_urls + urls
+        legacy_default_urls = [
+            # Keep old case-detail links working if the model's admin URL prefix
+            # changes with its app ownership.
+            path(
+                "",
+                self.admin_site.admin_view(self.changelist_view),
+                name="documents_evidencelist_changelist",
+            ),
+            path(
+                "add/",
+                self.admin_site.admin_view(self.add_view),
+                name="documents_evidencelist_add",
+            ),
+            path(
+                "<path:object_id>/change/",
+                self.admin_site.admin_view(self.change_view),
+                name="documents_evidencelist_change",
+            ),
+        ]
+        return custom_urls + legacy_default_urls + urls
 
     def next_list_type_view(self, request: Any, case_id: int) -> Any:
         from django.http import JsonResponse
