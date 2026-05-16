@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from django.contrib import admin
+from django import forms
+from django.contrib import admin, messages
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
@@ -10,9 +11,23 @@ from apps.cases.admin.base_admin import BaseModelAdmin, BaseTabularInline
 from apps.cases.models import CaseLog, CaseLogAttachment
 
 
+class CaseLogAttachmentInlineForm(forms.ModelForm[CaseLogAttachment]):
+    queue_for_case_material_binding = forms.BooleanField(
+        required=False,
+        label="纳入案件材料待绑定",
+        help_text="勾选后，保存日志后可回到案件详情页材料区继续绑定分类。",
+    )
+
+    class Meta:
+        model = CaseLogAttachment
+        fields = ("file", "queue_for_case_material_binding")
+
+
 class CaseLogAttachmentInline(BaseTabularInline):
     model = CaseLogAttachment
+    form = CaseLogAttachmentInlineForm
     extra = 0
+    fields = ("file", "storage_root_type", "subdir_path", "queue_for_case_material_binding", "uploaded_at")
     readonly_fields = ("uploaded_at",)
     autocomplete_fields = ("log",)
 
@@ -61,6 +76,31 @@ class CaseLogAdmin(BaseModelAdmin):
         if "_continue" in request.POST or "_addanother" in request.POST:
             return super().response_add(request, obj, post_url_continue)
         return HttpResponseRedirect(reverse("admin:cases_case_detail", args=[obj.case_id]))
+
+    def save_related(self, request: HttpRequest, form: ModelForm[CaseLog], formsets: list[object], change: bool) -> None:
+        super().save_related(request, form, formsets, change)
+
+        queued_count = 0
+        for formset in formsets:
+            if getattr(formset, "model", None) is not CaseLogAttachment:
+                continue
+            for inline_form in getattr(formset, "forms", []):
+                cleaned_data = getattr(inline_form, "cleaned_data", None) or {}
+                if not cleaned_data:
+                    continue
+                if cleaned_data.get("DELETE"):
+                    continue
+                if not cleaned_data.get("queue_for_case_material_binding"):
+                    continue
+                instance = getattr(inline_form, "instance", None)
+                if getattr(instance, "pk", None):
+                    queued_count += 1
+
+        if queued_count:
+            messages.info(
+                request,
+                f"已保存 {queued_count} 个日志附件。可回到案件详情页，在“案件当事人材料/非当事人材料”中继续绑定分类。",
+            )
 
 
 @admin.register(CaseLogAttachment)
