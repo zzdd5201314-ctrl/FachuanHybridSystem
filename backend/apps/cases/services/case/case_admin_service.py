@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Protocol, TypedDict, cast
 
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -72,8 +73,13 @@ class ImportantTimePayload(TypedDict):
     due_at_display: str
     status: str
     status_label: str
+    relative_days_label: str
     source: str
     source_label: str
+    reminder_url: str
+    source_url: str
+    source_log_id: int | None
+    source_log_url: str
 
 
 class CaseMaterialServiceProtocol(Protocol):
@@ -369,17 +375,26 @@ class CaseAdminService:
 
         return sorted(important_times, key=lambda item: (item["due_at"], item["id"]))
 
+    def get_important_time_type_options(self) -> list[JSONDict]:
+        from apps.reminders.models import ReminderType
+
+        return [{"value": value, "label": str(label)} for value, label in ReminderType.choices]
+
     def _build_important_time_item(self, *, reminder: object, source: str) -> ImportantTimePayload:
         from apps.reminders.models import ReminderType
 
         due_at = getattr(reminder, "due_at")
         due_local = timezone.localtime(due_at)
-        status, status_label = self._build_important_time_status(due_local)
+        status, status_label, relative_days_label = self._build_important_time_status(due_local)
         reminder_type = str(getattr(reminder, "reminder_type", "") or "")
         try:
             reminder_type_label = str(ReminderType(reminder_type).label)
         except ValueError:
             reminder_type_label = reminder_type
+
+        source_log_id = getattr(reminder, "case_log_id", None)
+        reminder_url = reverse("admin:reminders_reminder_change", args=[getattr(reminder, "id")])
+        source_log_url = reverse("admin:cases_caselog_change", args=[source_log_id]) if source_log_id else ""
 
         return {
             "id": int(getattr(reminder, "id")),
@@ -390,11 +405,27 @@ class CaseAdminService:
             "due_at_display": due_local.strftime("%Y-%m-%d %H:%M"),
             "status": status,
             "status_label": status_label,
+            "relative_days_label": relative_days_label,
+            "reminder_url": reminder_url,
+            "source_url": source_log_url if source == "log" else reminder_url,
+            "source_log_id": source_log_id,
+            "source_log_url": source_log_url,
             "source": source,
             "source_label": str(_("日志提醒")) if source == "log" else str(_("手动添加")),
         }
 
-    def _build_important_time_status(self, due_local: datetime) -> tuple[str, str]:
+    def _build_important_time_status(self, due_local: datetime) -> tuple[str, str, str]:
+        today = timezone.localdate()
+        days_delta = (due_local.date() - today).days
+
+        if days_delta < 0:
+            return "overdue", str(_("已逾期")), ""
+        if days_delta == 0:
+            return "today", str(_("今日到期")), str(_("今天"))
+        if days_delta <= 7:
+            return "soon", str(_("即将到期")), str(_("剩余 %(days)s 天")) % {"days": days_delta}
+        return "upcoming", str(_("未到期")), str(_("剩余 %(days)s 天")) % {"days": days_delta}
+
         today = timezone.localdate()
         days_delta = (due_local.date() - today).days
 

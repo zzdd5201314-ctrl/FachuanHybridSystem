@@ -35,6 +35,7 @@ class ReminderIn(Schema):
     reminder_type: ReminderType
     content: str = Field(max_length=_CONTENT_MAX_LENGTH)
     due_at: datetime
+    include_in_important_time: bool = False
     metadata: dict[str, Any] | None = None
 
     _validate_ids = field_validator("contract_id", "case_id", "case_log_id")(_validate_positive_id)
@@ -55,6 +56,7 @@ class ReminderUpdate(Schema):
     reminder_type: ReminderType | None = None
     content: str | None = Field(None, max_length=_CONTENT_MAX_LENGTH)
     due_at: datetime | None = None
+    include_in_important_time: bool | None = None
     metadata: dict[str, Any] | None = None
 
     _validate_ids = field_validator("contract_id", "case_id", "case_log_id")(_validate_positive_id)
@@ -71,6 +73,7 @@ class ReminderOut(SchemaMixin, Schema):
     content: str
     metadata: dict[str, Any] = Field(default_factory=dict)
     due_at: str
+    include_in_important_time: bool
     created_at: str
     updated_at: str
 
@@ -105,6 +108,14 @@ class ParseReminderIn(Schema):
     """解析提醒请求。"""
 
     text: str
+
+
+class CaseImportantTimeCreateIn(Schema):
+    reminder_type: ReminderType
+    content: str = Field(max_length=_CONTENT_MAX_LENGTH)
+    due_at: datetime
+
+    _validate_content = field_validator("content")(_validate_content_not_blank)
 
 
 class ReminderTypeItem(Schema):
