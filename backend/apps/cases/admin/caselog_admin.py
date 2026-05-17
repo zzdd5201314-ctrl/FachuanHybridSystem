@@ -1,14 +1,42 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin.widgets import AdminFileWidget
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
-from django.utils.html import format_html
-
 from apps.cases.admin.base_admin import BaseModelAdmin, BaseTabularInline
 from apps.cases.models import CaseLog, CaseLogAttachment
+
+
+class CaseLogAttachmentAdminFileWidget(AdminFileWidget):
+    initial_text = ""
+    input_text = "重新上传"
+    clear_checkbox_label = "清除"
+
+    class _DisplayValue:
+        def __init__(self, file_value: object, label: str) -> None:
+            self._file_value = file_value
+            self.url = getattr(file_value, "url", "")
+            self.label = label
+
+        def __getattr__(self, item: str) -> object:
+            return getattr(self._file_value, item)
+
+        def __str__(self) -> str:
+            return self.label
+
+    def get_context(self, name: str, value: object, attrs: dict[str, object] | None) -> dict[str, object]:
+        context = super().get_context(name, value, attrs)
+        if value and getattr(value, "url", None):
+            instance = getattr(value, "instance", None)
+            original_filename = getattr(instance, "original_filename", None) if instance is not None else None
+            if original_filename:
+                context["widget"]["value"] = self._DisplayValue(value, original_filename)
+        return context
 
 
 class CaseLogAttachmentInlineForm(forms.ModelForm[CaseLogAttachment]):
@@ -21,6 +49,17 @@ class CaseLogAttachmentInlineForm(forms.ModelForm[CaseLogAttachment]):
     class Meta:
         model = CaseLogAttachment
         fields = ("file", "queue_for_case_material_binding")
+        widgets = {"file": CaseLogAttachmentAdminFileWidget()}
+
+    def save(self, commit: bool = True) -> CaseLogAttachment:
+        instance = super().save(commit=False)
+        uploaded_file = self.cleaned_data.get("file")
+        if uploaded_file is not None and getattr(uploaded_file, "name", None):
+            instance.original_filename = Path(str(uploaded_file.name)).name
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 class CaseLogAttachmentInline(BaseTabularInline):
