@@ -139,6 +139,7 @@ class ContractPaymentInline(BaseTabularInline[ContractPayment, ContractPayment])
         return FormSet
 
 
+@admin.register(ContractPayment)
 class ContractPaymentAdmin(BaseModelAdmin):
     change_form_template = "admin/contracts/contractpayment/change_form.html"
     list_display = ("id", "contract", "amount", "received_at", "invoice_status", "invoiced_amount")
@@ -153,3 +154,10 @@ class ContractPaymentAdmin(BaseModelAdmin):
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[ContractPayment, ContractPayment]:
         return super().get_queryset(request).select_related("contract")
+
+    def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, Any]:
+        initial = super().get_changeform_initial_data(request)
+        contract_id = request.GET.get("contract")
+        if contract_id and "contract" not in initial:
+            initial["contract"] = contract_id
+        return initial
