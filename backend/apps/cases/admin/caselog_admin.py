@@ -27,7 +27,7 @@ class CaseLogAttachmentInline(BaseTabularInline):
     model = CaseLogAttachment
     form = CaseLogAttachmentInlineForm
     extra = 0
-    fields = ("file", "storage_root_type", "subdir_path", "queue_for_case_material_binding", "uploaded_at")
+    fields = ("file", "queue_for_case_material_binding", "uploaded_at")
     readonly_fields = ("uploaded_at",)
     autocomplete_fields = ("log",)
 
