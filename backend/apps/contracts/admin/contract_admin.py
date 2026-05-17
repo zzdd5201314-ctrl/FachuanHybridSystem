@@ -228,7 +228,7 @@ class ContractAdmin(
         return super().changelist_view(request, extra_context=extra_context)
 
     def get_queryset(self, request: HttpRequest) -> Any:
-        return super().get_queryset(request).prefetch_related("assignments__lawyer")
+        return super().get_queryset(request)
 
     def get_urls(self) -> list[Any]:
         from django.urls import path as urlpath
