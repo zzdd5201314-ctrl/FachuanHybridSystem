@@ -42,7 +42,13 @@ class CaseLogAttachmentService:
         created = []
         for f in files:
             self._validate_attachment(f)
-            created.append(CaseLogAttachment.objects.create(log=log, file=f))
+            created.append(
+                CaseLogAttachment.objects.create(
+                    log=log,
+                    file=f,
+                    original_filename=getattr(f, "name", "") or "",
+                )
+            )
 
         return created
 
