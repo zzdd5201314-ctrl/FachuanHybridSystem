@@ -13,6 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.cases.models import Case
 from apps.core.exceptions import ChatProviderException
 from apps.core.models.enums import CaseStatus, ChatPlatform
+from apps.core.security import get_request_access_context
 
 from .service import CaseAdminServiceMixin
 
@@ -43,6 +44,7 @@ class CaseAdminActionsMixin(CaseAdminServiceMixin):
 
     def create_feishu_chat_for_selected_cases(self, request: HttpRequest, queryset: QuerySet[Case, Case]) -> None:
         service = self._get_case_chat_service()
+        ctx = get_request_access_context(request)
         success_count = 0
         error_count = 0
 
@@ -57,7 +59,14 @@ class CaseAdminActionsMixin(CaseAdminServiceMixin):
                     )
                     continue
 
-                chat = service.create_chat_for_case(case.id, ChatPlatform.FEISHU)
+                chat = service.create_chat_for_case(
+                    case.id,
+                    ChatPlatform.FEISHU,
+                    user=ctx.user,
+                    org_access=ctx.org_access,
+                    perm_open_access=ctx.perm_open_access,
+                    ctx=ctx,
+                )
                 success_count += 1
 
                 messages.success(
