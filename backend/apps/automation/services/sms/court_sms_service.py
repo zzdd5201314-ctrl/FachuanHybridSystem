@@ -353,8 +353,14 @@ class CourtSMSService(SMSCaseBindingMixin, SMSDocumentMixin, SMSDownloadMixin):
                 sms = self._process_downloading_or_matching(sms, process_options=process_options)
 
             if sms.status == CourtSMSStatus.DOWNLOADING:
-                logger.info(f"短信 {sms_id} 进入下载阶段，等待下载完成")
-                return sms
+                # 续跑任务有时会比状态落库稍早到达，这里先复查下载任务是否真的还在进行。
+                if self._should_wait_for_document_download(sms):
+                    logger.info(f"短信 {sms_id} 进入下载阶段，等待下载完成")
+                    return sms
+
+                # 如果下载其实已经成功，只是短信状态还短暂滞留在 downloading，就直接推进到匹配阶段。
+                logger.info(f"短信 {sms_id} 下载已完成但状态仍显示 downloading，直接继续进入匹配阶段")
+                sms = self._process_matching(sms)
 
             if sms.status == CourtSMSStatus.MATCHING:
                 sms = self._process_matching(sms)

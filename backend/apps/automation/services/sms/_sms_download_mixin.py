@@ -392,8 +392,9 @@ class SMSDownloadMixin:
         elif sms.status == CourtSMSStatus.MATCHING:
             logger.info("✅ 下载任务完成，继续匹配流程: SMS ID=%s, Task ID=%s", sms.id, scraper_task.id)
 
+        # 下载成功后直接进入“匹配”阶段，避免再走通用入口时被旧状态误导为仍在下载中。
         task_id = submit_task(
-            "apps.automation.services.sms.court_sms_service.process_sms_async",
+            "apps.automation.services.sms.court_sms_service.process_sms_from_matching",
             sms.id,
             task_name=f"court_sms_continue_{sms.id}",
         )
