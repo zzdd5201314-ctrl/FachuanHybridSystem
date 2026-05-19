@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, cast
 
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -48,12 +51,36 @@ class CaseLogInternalService:
             case_log = CaseLog.objects.get(id=case_log_id)
         except CaseLog.DoesNotExist:
             raise NotFoundError(_("案件日志 %(id)s 不存在") % {"id": case_log_id}) from None
-        try:
-            from apps.cases.models import CaseLogAttachment
 
-            attachment = CaseLogAttachment(log=case_log)
-            attachment.file.name = file_path
-            attachment.save()
+        try:
+            source_path = Path(file_path)
+            if not source_path.is_absolute():
+                source_path = Path(settings.MEDIA_ROOT) / source_path
+
+            if not source_path.exists():
+                logger.error(
+                    "添加案件日志附件失败: 文件不存在",
+                    extra={
+                        "action": "add_case_log_attachment_internal",
+                        "case_log_id": case_log_id,
+                        "file_name": file_name,
+                        "file_path": str(source_path),
+                    },
+                )
+                return False
+
+            from apps.cases.services.log.caselog_service import CaseLogService
+
+            uploaded_file = SimpleUploadedFile(
+                name=file_name or source_path.name,
+                content=source_path.read_bytes(),
+                content_type="application/octet-stream",
+            )
+            CaseLogService().upload_attachments(
+                log_id=case_log.id,
+                files=[uploaded_file],
+                perm_open_access=True,
+            )
             logger.info(
                 "添加案件日志附件成功",
                 extra={
