@@ -46,7 +46,7 @@ class CasePartyInline(BaseTabularInline):
     model = CaseParty
     form = CasePartyInlineForm
     formset = CasePartyInlineFormSet
-    extra = 1
+    extra = 0
     fields = ("client", "legal_status")
     autocomplete_fields = ("client",)
     classes = ["contract-party-inline"]
