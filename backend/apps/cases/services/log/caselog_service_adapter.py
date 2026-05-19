@@ -63,6 +63,8 @@ class CaseLogServiceAdapter(ICaseLogService):
         case_id: int,
         content: str,
         user: Any | None = None,
+        org_access: dict[str, Any] | None = None,
+        perm_open_access: bool = False,
         reminder_type: str | None = None,
         reminder_time: Any | None = None,
     ) -> Any:
@@ -71,9 +73,10 @@ class CaseLogServiceAdapter(ICaseLogService):
             case_id=case_id,
             content=content,
             user=user,
+            org_access=org_access,
+            perm_open_access=perm_open_access,
             reminder_type=reminder_type,
             reminder_time=reminder_time,
-            perm_open_access=True,  # 跨模块调用时使用开放权限
         )
 
     def update_log(
