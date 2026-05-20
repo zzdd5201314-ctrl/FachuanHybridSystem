@@ -268,7 +268,7 @@ class SMSDownloadMixin:
     def _should_wait_for_document_download(self, sms: CourtSMS) -> bool:
         """检查是否需要等待文书下载完成后再进行匹配"""
         try:
-            if sms.party_names or not sms.download_links or not sms.scraper_task:
+            if not sms.download_links or not sms.scraper_task:
                 return False
 
             fresh_task = self._refresh_scraper_task(sms)
