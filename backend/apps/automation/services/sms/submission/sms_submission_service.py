@@ -16,7 +16,6 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from apps.automation.models import CourtSMS, CourtSMSStatus
-from apps.core.tasking import submit_task
 from apps.core.exceptions import NotFoundError, ValidationException
 
 if TYPE_CHECKING:
@@ -74,6 +73,24 @@ class SMSSubmissionService:
             self._lawyer_service = build_sms_lawyer_service()
         return self._lawyer_service
 
+    def _submit_processing_task(self, *, sms_id: int, task_name: str, from_renaming: bool = False) -> None:
+        """在事务提交后提交短信后续处理任务。"""
+        from apps.core.tasking import submit_task
+
+        task_path = (
+            "apps.automation.services.sms.court_sms_service.process_sms_from_renaming"
+            if from_renaming
+            else "apps.automation.services.sms.court_sms_service.process_sms_async"
+        )
+        try:
+            task_id = submit_task(task_path, sms_id, task_name=task_name)
+            if from_renaming:
+                logger.info("触发后续处理任务: SMS ID=%s, Task ID=%s", sms_id, task_id)
+            else:
+                logger.info("提交异步处理任务: SMS ID=%s, Task ID=%s", sms_id, task_id)
+        except Exception as e:
+            logger.error(f"提交短信处理任务失败: SMS ID={sms_id}, Task={task_name}, 错误: {e!s}", exc_info=True)
+
     def submit_sms(self, content: str, received_at: datetime | None = None) -> CourtSMS:
         """
         提交短信，创建记录并触发异步处理
@@ -108,13 +125,11 @@ class SMSSubmissionService:
             logger.info(f"创建短信记录成功: ID={sms.id}, 长度={len(content)}")
 
             # 提交异步处理任务
-            task_id = submit_task(
-                "apps.automation.services.sms.court_sms_service.process_sms_async",
-                sms.id,
-                task_name=f"court_sms_processing_{sms.id}",
+            transaction.on_commit(
+                lambda sms_id=sms.id: self._submit_processing_task(
+                    sms_id=sms_id, task_name=f"court_sms_processing_{sms.id}"
+                )
             )
-
-            logger.info(f"提交异步处理任务: SMS ID={sms.id}, Task ID={task_id}")
 
             return sms
 
@@ -174,13 +189,11 @@ class SMSSubmissionService:
                 return sms
 
             # 触发后续处理流程（从重命名阶段开始）
-            task_id = submit_task(
-                "apps.automation.services.sms.court_sms_service.process_sms_from_renaming",
-                sms.id,
-                task_name=f"court_sms_continue_{sms.id}",
+            transaction.on_commit(
+                lambda sms_id=sms.id: self._submit_processing_task(
+                    sms_id=sms_id, task_name=f"court_sms_continue_{sms.id}", from_renaming=True
+                )
             )
-
-            logger.info(f"触发后续处理任务: SMS ID={sms.id}, Task ID={task_id}")
 
             return sms
 
@@ -226,13 +239,11 @@ class SMSSubmissionService:
             logger.info(f"重置短信状态成功: SMS ID={sms_id}, 重试次数={sms.retry_count}")
 
             # 重新提交处理任务
-            task_id = submit_task(
-                "apps.automation.services.sms.court_sms_service.process_sms_async",
-                sms.id,
-                task_name=f"court_sms_retry_{sms.id}_{sms.retry_count}",
+            transaction.on_commit(
+                lambda sms_id=sms.id, retry_count=sms.retry_count: self._submit_processing_task(
+                    sms_id=sms_id, task_name=f"court_sms_retry_{sms.id}_{retry_count}"
+                )
             )
-
-            logger.info(f"重新提交处理任务: SMS ID={sms.id}, Task ID={task_id}")
 
             return sms
 

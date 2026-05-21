@@ -14,7 +14,6 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.automation.models import CourtSMS, CourtSMSStatus
 from apps.core.exceptions import NotFoundError, ValidationException
-from apps.core.tasking import submit_task
 
 from ._sms_case_binding_mixin import SMSCaseBindingMixin
 from ._sms_document_mixin import SMSDocumentMixin
@@ -183,13 +182,12 @@ class CourtSMSService(SMSCaseBindingMixin, SMSDocumentMixin, SMSDownloadMixin):
 
             logger.info(f"创建短信记录成功: ID={sms.id}, 长度={len(content)}")
 
-            task_id = submit_task(
+            self._submit_task_after_commit(
                 "apps.automation.services.sms.court_sms_service.process_sms_async",
                 sms.id,
                 task_name=f"court_sms_processing_{sms.id}",
+                log_message=f"提交异步处理任务: SMS ID={sms.id}, Task ID=%s",
             )
-
-            logger.info(f"提交异步处理任务: SMS ID={sms.id}, Task ID={task_id}")
 
             return sms
 
@@ -239,13 +237,12 @@ class CourtSMSService(SMSCaseBindingMixin, SMSDocumentMixin, SMSDownloadMixin):
                 logger.error(f"案件绑定创建失败: SMS ID={sms_id}")
                 return sms
 
-            task_id = submit_task(
+            self._submit_task_after_commit(
                 "apps.automation.services.sms.court_sms_service.process_sms_from_renaming",
                 sms.id,
                 task_name=f"court_sms_continue_{sms.id}",
+                log_message=f"触发后续处理任务: SMS ID={sms.id}, Task ID=%s",
             )
-
-            logger.info(f"触发后续处理任务: SMS ID={sms.id}, Task ID={task_id}")
 
             return sms
 
@@ -305,13 +302,12 @@ class CourtSMSService(SMSCaseBindingMixin, SMSDocumentMixin, SMSDownloadMixin):
 
             logger.info(f"重置短信状态成功: SMS ID={sms_id}, 重试次数={sms.retry_count}")
 
-            task_id = submit_task(
+            self._submit_task_after_commit(
                 "apps.automation.services.sms.court_sms_service.process_sms_async",
                 sms.id,
                 task_name=f"court_sms_retry_{sms.id}_{sms.retry_count}",
+                log_message=f"重新提交处理任务: SMS ID={sms.id}, Task ID=%s",
             )
-
-            logger.info(f"重新提交处理任务: SMS ID={sms.id}, Task ID={task_id}")
 
             return sms
 

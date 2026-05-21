@@ -4,6 +4,8 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any
 
+from django.db import transaction
+
 from apps.automation.models import CourtSMS
 from apps.organization.models import Lawyer
 
@@ -23,6 +25,27 @@ class SMSCaseBindingMixin:
     @property
     def lawyer_service(self) -> "ILawyerService":
         raise NotImplementedError
+
+    def _submit_task_after_commit(
+        self,
+        task_path: str,
+        *args: Any,
+        task_name: str | None = None,
+        log_message: str | None = None,
+    ) -> None:
+        """延后提交异步任务到事务提交之后。"""
+
+        def _submit() -> None:
+            try:
+                from apps.core.tasking import submit_task
+
+                task_id = submit_task(task_path, *args, task_name=task_name)
+                if log_message:
+                    logger.info(log_message, task_id)
+            except Exception as e:
+                logger.error(f"延后提交任务失败: {task_path}, 错误: {e!s}", exc_info=True)
+
+        transaction.on_commit(_submit)
 
     def _create_case_binding(self, sms: CourtSMS) -> bool:
         """创建案件绑定和日志"""
