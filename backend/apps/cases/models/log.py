@@ -1,4 +1,4 @@
-"""Case log related models."""
+﻿"""Module for log."""
 
 from __future__ import annotations
 
@@ -15,21 +15,20 @@ from apps.cases.utils import CASE_LOG_ALLOWED_EXTENSIONS, CASE_LOG_MAX_FILE_SIZE
 from apps.core.filesystem.storage import KeepOriginalNameStorage
 from apps.core.filesystem.upload_paths import DatedUUIDPath
 
-from .case import Case
-
 _SENTINEL = object()
+
+from .case import Case
 
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import RelatedManager
 
-
+# 案件日志附件存储
 case_log_storage = KeepOriginalNameStorage()
 logger = logging.getLogger(__name__)
 
 
 def validate_log_attachment(file: UploadedFile) -> None:
-    """Validate a case log attachment."""
-
+    """验证日志附件"""
     name = str(getattr(file, "name", ""))
     size: int = int(getattr(file, "size", 0) or 0)
     ext = Path(name).suffix.lower()
@@ -48,10 +47,7 @@ class CaseLog(models.Model):
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="logs", verbose_name=_("案件"))
     content = models.TextField(verbose_name=_("日志内容"))
     actor = models.ForeignKey(
-        "organization.Lawyer",
-        on_delete=models.PROTECT,
-        related_name="case_logs",
-        verbose_name=_("操作人"),
+        "organization.Lawyer", on_delete=models.PROTECT, related_name="case_logs", verbose_name=_("操作人")
     )
     source_subfolder = models.CharField(
         blank=True,
@@ -112,8 +108,7 @@ class CaseLog(models.Model):
 
     @property
     def _latest_reminder(self) -> Any | None:
-        """Cache the latest reminder to avoid repeated queries."""
-
+        """缓存最近的提醒记录，避免重复查询。"""
         cached = getattr(self, "_cached_latest_reminder", _SENTINEL)
         if cached is not _SENTINEL:
             return cached
@@ -137,8 +132,7 @@ class CaseLog(models.Model):
 
     @property
     def reminder_type(self) -> str | None:
-        """Get the latest reminder type."""
-
+        """获取最近的提醒类型。"""
         reminder = self._latest_reminder
         if reminder is None:
             return None
@@ -148,8 +142,7 @@ class CaseLog(models.Model):
 
     @property
     def reminder_time(self) -> datetime | None:
-        """Get the latest reminder time."""
-
+        """获取最近的提醒时间。"""
         reminder = self._latest_reminder
         if reminder is None:
             return None
@@ -166,7 +159,10 @@ class CaseLogAttachment(models.Model):
         validators=[validate_log_attachment],
         verbose_name=_("相关文书"),
     )
-    original_filename = models.CharField(blank=True, max_length=255, null=True, verbose_name=_("原始文件名"))
+    original_filename = models.CharField(max_length=500, blank=True, default="", verbose_name=_("原始文件名"))
+    relative_file_path = models.CharField(max_length=1000, blank=True, default="", verbose_name=_("相对文件路径"))
+    storage_root_type = models.CharField(max_length=100, blank=True, default="", verbose_name=_("存储根类型"))
+    subdir_path = models.CharField(max_length=1000, blank=True, default="", verbose_name=_("子目录路径"))
     uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name=_("上传时间"))
 
     class Meta:
@@ -176,13 +172,6 @@ class CaseLogAttachment(models.Model):
             models.Index(fields=["log"]),
         ]
 
-    def __str__(self) -> str:
-        if self.original_filename:
-            return self.original_filename
-        if self.file:
-            return Path(self.file.name).name
-        return f"CaseLogAttachment({self.pk or 'unsaved'})"
-
 
 class CaseLogVersion(models.Model):
     id: int
@@ -190,10 +179,7 @@ class CaseLogVersion(models.Model):
     content = models.TextField(verbose_name=_("历史内容"))
     version_at = models.DateTimeField(auto_now_add=True, verbose_name=_("版本时间"))
     actor = models.ForeignKey(
-        "organization.Lawyer",
-        on_delete=models.PROTECT,
-        related_name="case_log_versions",
-        verbose_name=_("操作者"),
+        "organization.Lawyer", on_delete=models.PROTECT, related_name="case_log_versions", verbose_name=_("操作者")
     )
 
     class Meta:
