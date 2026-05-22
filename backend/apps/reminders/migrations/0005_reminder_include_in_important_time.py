@@ -1,6 +1,16 @@
 from django.db import migrations, models
 
 
+def include_existing_case_reminders(apps, schema_editor):
+    """已绑定案件的提醒默认勾选「列入重要时间」。"""
+    Reminder = apps.get_model("reminders", "Reminder")
+    Reminder.objects.filter(
+        case_id__isnull=False,
+        contract_id__isnull=True,
+        case_log_id__isnull=True,
+    ).update(include_in_important_time=True)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -8,15 +18,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="reminder",
-            name="include_in_important_time",
-            field=models.BooleanField(
-                default=False,
-                help_text="同步到案件重要时间：勾选后会在案件详情的重要时间中展示，不会复制生成新数据。",
-                verbose_name="列入重要时间",
-            ),
-        ),
         migrations.AddField(
             model_name="historicalreminder",
             name="include_in_important_time",
@@ -26,4 +27,14 @@ class Migration(migrations.Migration):
                 verbose_name="列入重要时间",
             ),
         ),
+        migrations.AddField(
+            model_name="reminder",
+            name="include_in_important_time",
+            field=models.BooleanField(
+                default=False,
+                help_text="同步到案件重要时间：勾选后会在案件详情的重要时间中展示，不会复制生成新数据。",
+                verbose_name="列入重要时间",
+            ),
+        ),
+        migrations.RunPython(include_existing_case_reminders, migrations.RunPython.noop),
     ]
