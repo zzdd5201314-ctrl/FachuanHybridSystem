@@ -73,11 +73,11 @@ def tts_test(request, payload: TTSTestIn):
 # --- 选题建议 ---
 
 @router.get("/topics/suggest", response=list[TopicSuggestionOut])
-async def topic_suggest(request: HttpRequest):
+def topic_suggest(request: HttpRequest):
     """获取选题建议。"""
     from apps.content_ops.services.topic_service import TopicService
 
-    result = await TopicService().suggest()
+    result = TopicService().suggest()
     return result.topics
 
 

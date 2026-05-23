@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
-
-from pydantic import BaseModel, Field
 
 from apps.core.interfaces import ServiceLocator
-from apps.core.llm.structured_output import clean_text, parse_model_content
+from apps.core.llm.structured_output import clean_text, parse_json_content
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +25,6 @@ _SYSTEM_PROMPT = """\
 """
 
 
-class TopicSuggestion(BaseModel):
-    title: str = Field(description="选题标题")
-    description: str = Field(description="选题简介，说明为什么这个选题有意思")
-    suggested_keyword: str = Field(description="建议的检索关键词")
-
-
-class TopicSuggestions(BaseModel):
-    topics: list[TopicSuggestion] = Field(description="选题建议列表")
-
-
 @dataclass
 class TopicResult:
     topics: list[dict[str, str]]
@@ -48,7 +35,7 @@ class TopicResult:
 class TopicService:
     """使用 LLM 生成选题建议。"""
 
-    async def suggest(self) -> TopicResult:
+    def suggest(self) -> TopicResult:
         llm_service = ServiceLocator.get_llm_service()
 
         messages = [
@@ -56,17 +43,33 @@ class TopicService:
             {"role": "user", "content": "请推荐 5 个适合写成法律故事的选题。"},
         ]
 
-        response = await llm_service.achat(
+        response = llm_service.chat(
             messages=messages,
             model="mimo-v2.5-pro",
             temperature=0.8,
         )
 
         content = clean_text(response.content)
-        parsed = parse_model_content(content, TopicSuggestions)
+        parsed = parse_json_content(content)
+
+        # Normalize: LLM may return a list directly or {"topics": [...]}
+        if isinstance(parsed, list):
+            raw_topics = parsed
+        elif isinstance(parsed, dict):
+            raw_topics = parsed.get("topics", parsed.get("选题", []))
+        else:
+            raw_topics = []
+
+        topics = []
+        for t in raw_topics:
+            topics.append({
+                "title": t.get("title", t.get("选题标题", t.get("选题", ""))),
+                "description": t.get("description", t.get("选题简介", t.get("简介", ""))),
+                "suggested_keyword": t.get("suggested_keyword", t.get("建议的检索关键词", t.get("关键词", t.get("keyword", "")))),
+            })
 
         return TopicResult(
-            topics=[t.model_dump() for t in parsed.topics],
+            topics=topics,
             model=response.model,
             token_usage={
                 "prompt_tokens": response.prompt_tokens,

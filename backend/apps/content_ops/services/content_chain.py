@@ -52,7 +52,7 @@ class ContentGenerationChain:
     def __init__(self, model: str | None = None) -> None:
         self._model = model or "mimo-v2.5-pro"
 
-    async def run(self, *, facts: str, case_summary: str = "") -> ContentResult:
+    def run(self, *, facts: str, case_summary: str = "") -> ContentResult:
         llm_service = ServiceLocator.get_llm_service()
 
         user_msg = f"## 案件事实\n\n{facts}"
@@ -64,7 +64,7 @@ class ContentGenerationChain:
             {"role": "user", "content": user_msg},
         ]
 
-        response = await llm_service.achat(
+        response = llm_service.chat(
             messages=messages,
             model=self._model,
             temperature=0.8,

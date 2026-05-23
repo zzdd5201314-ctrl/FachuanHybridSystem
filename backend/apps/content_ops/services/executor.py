@@ -158,13 +158,7 @@ class ContentOpsExecutor:
         self._update_progress(task, 50, "正在生成叙事文章...")
 
         chain = ContentGenerationChain()
-        loop = asyncio.new_event_loop()
-        try:
-            result = loop.run_until_complete(
-                chain.run(facts=task.source_facts, case_summary=task.case_summary)
-            )
-        finally:
-            loop.close()
+        result = chain.run(facts=task.source_facts, case_summary=task.case_summary)
 
         article = GeneratedArticle.objects.create(
             task=task,
